@@ -156,7 +156,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     final shapes = <PositionComponent>[];
 
     while (shapes.length < 10) {
-      final type = _random.nextInt(4); // 0: circle, 1: rect, 2: pentagon
+      final type = _random.nextInt(5); // 0: circle, 1: rect, 2: pentagon
       final position = Vector2(
         _random.nextDouble() * (size.x - 100),
         _random.nextDouble() * (size.y - 100),
