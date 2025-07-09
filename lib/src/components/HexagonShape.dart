@@ -1,12 +1,13 @@
 import 'package:flame/components.dart';
-
-import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-class HexagonShape extends PositionComponent {
+class HexagonShape extends PositionComponent with DragCallbacks {
+  double cumulativeScale = 1.0;
+
   HexagonShape(Vector2 position)
-    : super(position: position, size: Vector2.all(60), anchor: Anchor.center);
+    : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
 
   List<Vector2> _generateHexagonPoints() {
     final center = size / 2;
@@ -20,6 +21,11 @@ class HexagonShape extends PositionComponent {
       points.add(Vector2(x, y));
     }
     return points;
+  }
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
   }
 
   @override
@@ -37,6 +43,16 @@ class HexagonShape extends PositionComponent {
 
     final paint = Paint()..color = Colors.blue.shade100;
     canvas.drawPath(path, paint);
+  }
+
+  void applyScale(double scaleDelta) {
+    final cappedDelta = scaleDelta.clamp(1.01, 1.05);
+    cumulativeScale *= cappedDelta;
+    if (cumulativeScale >= 1.25) {
+      removeFromParent();
+    } else {
+      scale = Vector2.all(cumulativeScale);
+    }
   }
 
   @override
