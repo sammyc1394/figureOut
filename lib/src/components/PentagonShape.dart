@@ -1,5 +1,3 @@
-import 'dart:ui';
-import 'dart:async' as async;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';

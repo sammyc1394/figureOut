@@ -1,5 +1,4 @@
 //temp for debug: checking if the cursor is drawing circle correctly
-import 'dart:ui';
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
@@ -25,6 +24,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
 
+  @override
   Future<void> onLoad() async {
     super.onLoad();
 
@@ -83,9 +83,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     userPath.add(event.canvasEndPosition);
 
-    Vector2 startPoint = event.canvasStartPosition;
-    Vector2 endPoint = event.canvasEndPosition;
-
     if (dragStart != null) {
       final end = event.canvasEndPosition;
       final radius = dragStart!.distanceTo(end);
@@ -95,19 +92,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     componentsAtPoint(event.canvasStartPosition).forEach((element) {
       if (element is RectangleShape) {
-        double startX = startPoint.x;
-        double startY = startPoint.y;
-        double endX = endPoint.x;
-        double endY = endPoint.y;
-
-        print("startPoint : ($startX, $startY), endPoint : ($endX, $endY)");
-
-        var splitsShapes = <PositionComponent>[];
-
-        splitsShapes = element.touchAtPoint(startPoint, endPoint);
-        Future.delayed(Duration(seconds: 1), () {
-          removeAll(splitsShapes);
-        });
+        element.touchAtPoint(userPath);
       }
     });
   }

@@ -4,12 +4,10 @@ import 'package:flame/components.dart';
 
 class SliceMath {
 
-  /**
-   * s1 = slice start point Vector2
-   * s2 = slice end point Vector2
-   * size = world size of the rectangle
-   * position = world position
-   */
+  /// s1 = slice start point Vector2
+  /// s2 = slice end point Vector2
+  /// size = world size of the rectangle
+  /// position = world position
   static List<List<Vector2>> getSlicePath (Vector2 s1, Vector2 s2, Vector2 size, Vector2 position) {
     /**
      * direction of the slice line

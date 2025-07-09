@@ -12,6 +12,7 @@ class PlayArea extends RectangleComponent {
         anchor: Anchor.center,
       );
 
+  @override
   Future<void> onLoad() async {
     super.onLoad();
     size = Vector2(gameWidth, gameHeight);
