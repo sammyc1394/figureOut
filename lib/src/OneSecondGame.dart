@@ -38,6 +38,65 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     return sum / points.length.toDouble();
   }
 
+  bool _doesPathCrossLine(Vector2 start, Vector2 end, List<Vector2> path) {
+    for (int i = 0; i < path.length - 1; i++) {
+      if (_doLinesIntersect(start, end, path[i], path[i + 1])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _doLinesIntersect(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2) {
+    double ccw(Vector2 a, Vector2 b, Vector2 c) {
+      return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    }
+
+    return (ccw(p1, p2, q1) * ccw(p1, p2, q2) < 0) &&
+        (ccw(q1, q2, p1) * ccw(q1, q2, p2) < 0);
+  }
+
+  bool _isPathClosed(List<Vector2> path) {
+    if (path.length < 3) return false;
+
+    const double maxStartEndDistance = 10;
+    const double minLength = 300;
+    const double minArea = 1000;
+
+    final start = path.first;
+    final end = path.last;
+
+    final bool isShortLoop = start.distanceTo(end) < maxStartEndDistance;
+    final bool pathCrosses = _doesPathCrossLine(start, end, path);
+
+    if (!(isShortLoop || pathCrosses)) {
+      print("Path is not considered closed: no short loop or crossing");
+      return false;
+    }
+
+    // 추가적으로 최소 길이, 최소 면적 조건도 적용 가능
+    double length = 0;
+    for (int i = 0; i < path.length - 1; i++) {
+      length += path[i].distanceTo(path[i + 1]);
+    }
+    if (length < minLength) return false;
+
+    final double area = _calculatePolygonArea(path);
+    if (area < minArea) return false;
+
+    return true;
+  }
+
+  double _calculatePolygonArea(List<Vector2> path) {
+    double area = 0;
+    for (int i = 0; i < path.length; i++) {
+      final p1 = path[i];
+      final p2 = path[(i + 1) % path.length];
+      area += (p1.x * p2.y) - (p2.x * p1.y);
+    }
+    return area.abs() / 2.0;
+  }
+
   @override
   void onDragStart(DragStartEvent event) {
     dragStart = event.canvasPosition;
@@ -53,19 +112,14 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       return;
     }
 
-    if (userPath.first.distanceTo(userPath.last) > 10) {
-      print("Not a closed shape");
+    if (!_isPathClosed(userPath)) {
+      print("Not a closed circular path");
       userPath.clear();
       return;
     }
 
-    final center = _calculateCentroid(userPath);
-    final radius = userPath.map((p) => p.distanceTo(center)).reduce(math.max);
-    print("radius: $radius");
-
     for (final comp in children.whereType<TriangleShape>()) {
       final enclosed = comp.isFullyEnclosedByUserPath(userPath);
-      print("isFullyEnclosedByUserPath: $enclosed");
       if (enclosed) {
         print('[REMOVE] Triangle at ${comp.position}');
         comp.removeFromParent();
