@@ -1,9 +1,8 @@
-//temp for debug: checking if the cursor is drawing circle correctly
-
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -14,8 +13,10 @@ import 'components/RectangleShape.dart';
 import 'components/TriangleShape.dart';
 import 'config.dart';
 
-class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
+class OneSecondGame extends FlameGame
+    with DragCallbacks, CollisionCallbacks, ScaleDetector {
   final math.Random _random = math.Random();
+  late double _initialScale;
 
   Vector2? dragStart;
   Vector2? sliceStartPoint;
@@ -31,6 +32,31 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     spawnShapes();
 
     debugMode = true;
+  }
+
+  @override
+  void onScaleStart(ScaleStartInfo info) {
+    _initialScale = 1.0; // 시작 스케일값
+  }
+
+  @override
+  void onScaleUpdate(ScaleUpdateInfo info) {
+    print("onScaleUpdate: ${info.scale.global}");
+    final scaleDelta = info.scale.global.y / _initialScale;
+
+    // 예시: 모든 HexagonShape에 적용
+    for (final hex in children.whereType<HexagonShape>()) {
+      if (hex.toRect().contains(info.eventPosition.widget.toOffset())) {
+        // hex.cumulativeScale += 0.01;
+        hex.applyScale(scaleDelta);
+        print("Hexagon scaled to ${hex.cumulativeScale}");
+      }
+    }
+  }
+
+  @override
+  void onScaleEnd(ScaleEndInfo info) {
+    _initialScale = 1.25;
   }
 
   Vector2 _calculateCentroid(List<Vector2> points) {
@@ -156,7 +182,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     final shapes = <PositionComponent>[];
 
     while (shapes.length < 10) {
-      final type = _random.nextInt(4); // 0: circle, 1: rect, 2: pentagon
+      final type = _random.nextInt(5); // 0: circle, 1: rect, 2: pentagon
       final position = Vector2(
         _random.nextDouble() * (size.x - 100),
         _random.nextDouble() * (size.y - 100),
