@@ -13,10 +13,8 @@ import 'components/RectangleShape.dart';
 import 'components/TriangleShape.dart';
 import 'config.dart';
 
-class OneSecondGame extends FlameGame
-    with DragCallbacks, CollisionCallbacks, ScaleDetector {
+class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
-  late double _initialScale;
 
   Vector2? dragStart;
   Vector2? sliceStartPoint;
@@ -32,31 +30,6 @@ class OneSecondGame extends FlameGame
     spawnShapes();
 
     debugMode = true;
-  }
-
-  @override
-  void onScaleStart(ScaleStartInfo info) {
-    _initialScale = 1.0; // 시작 스케일값
-  }
-
-  @override
-  void onScaleUpdate(ScaleUpdateInfo info) {
-    print("onScaleUpdate: ${info.scale.global}");
-    final scaleDelta = info.scale.global.y / _initialScale;
-
-    // 예시: 모든 HexagonShape에 적용
-    for (final hex in children.whereType<HexagonShape>()) {
-      if (hex.toRect().contains(info.eventPosition.widget.toOffset())) {
-        // hex.cumulativeScale += 0.01;
-        hex.applyScale(scaleDelta);
-        print("Hexagon scaled to ${hex.cumulativeScale}");
-      }
-    }
-  }
-
-  @override
-  void onScaleEnd(ScaleEndInfo info) {
-    _initialScale = 1.25;
   }
 
   Vector2 _calculateCentroid(List<Vector2> points) {
