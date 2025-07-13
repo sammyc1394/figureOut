@@ -25,7 +25,13 @@ class HexagonShape extends PositionComponent with DragCallbacks {
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
-    super.onDragUpdate(event);
+    cumulativeScale += 0.01;
+
+    if (cumulativeScale >= 1.25) {
+      removeFromParent();
+    } else {
+      scale = Vector2.all(cumulativeScale);
+    }
   }
 
   @override
@@ -43,16 +49,6 @@ class HexagonShape extends PositionComponent with DragCallbacks {
 
     final paint = Paint()..color = Colors.blue.shade100;
     canvas.drawPath(path, paint);
-  }
-
-  void applyScale(double scaleDelta) {
-    final cappedDelta = scaleDelta.clamp(1.01, 1.05);
-    cumulativeScale *= cappedDelta;
-    if (cumulativeScale >= 1.25) {
-      removeFromParent();
-    } else {
-      scale = Vector2.all(cumulativeScale);
-    }
   }
 
   @override
