@@ -58,7 +58,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   bool _isPathClosed(List<Vector2> path) {
     if (path.length < 3) return false;
 
-    const double maxStartEndDistance = 10;
+    const double maxStartEndDistance = 100;
     const double minLength = 300;
     const double minArea = 1000;
 
