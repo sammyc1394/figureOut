@@ -1,32 +1,42 @@
 import 'dart:ui';
 
 import 'package:flame/components.dart';
+import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 class TriangleShape extends PositionComponent {
+  late final SvgComponent svg;
+
   TriangleShape(Vector2 position)
-    : super(position: position, size: Vector2.all(60));
+    : super(position: position, size: Vector2.all(60), anchor: Anchor.center);
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    final svgData = await Svg.load('triangle.svg');
+    svg = SvgComponent(
+      svg: svgData,
+      size: size,
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y / 2),
+    );
+    add(svg);
+  }
 
   @override
   void render(Canvas canvas) {
-    final paint = Paint()..color = Colors.amber.shade100;
-    final path = Path()
-      ..moveTo(size.x / 2, 0)
-      ..lineTo(0, size.y)
-      ..lineTo(size.x, size.y)
-      ..close();
-
-    canvas.save();
-    canvas.translate(0, 0);
-    canvas.drawPath(path, paint);
-    canvas.restore();
+    super.render(canvas);
   }
 
   List<Vector2> getTriangleVertices() {
-    final topLeft = absoluteTopLeftPosition;
-    final top = topLeft + Vector2(size.x / 2, 0);
-    final bottomLeft = topLeft + Vector2(0, size.y);
-    final bottomRight = topLeft + Vector2(size.x, size.y);
+    final center = svg.absoluteCenter;
+    final halfWidth = svg.size.x / 2;
+    final halfHeight = svg.size.y / 2;
+
+    final top = center + Vector2(0, -halfHeight);
+    final bottomLeft = center + Vector2(-halfWidth, halfHeight);
+    final bottomRight = center + Vector2(halfWidth, halfHeight);
 
     return [top, bottomLeft, bottomRight];
   }
