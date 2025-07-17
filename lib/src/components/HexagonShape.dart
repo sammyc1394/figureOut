@@ -5,9 +5,24 @@ import 'dart:math' as math;
 
 class HexagonShape extends PositionComponent with DragCallbacks {
   double cumulativeScale = 1.0;
+  late final SvgComponent svg;
 
   HexagonShape(Vector2 position)
     : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    final svgData = await Svg.load('hexagon.svg');
+    svg = SvgComponent(
+      svg: svgData,
+      size: size,
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y / 2),
+    );
+    add(svg);
+  }
 
   List<Vector2> _generateHexagonPoints() {
     final center = size / 2;
@@ -32,23 +47,6 @@ class HexagonShape extends PositionComponent with DragCallbacks {
     } else {
       scale = Vector2.all(cumulativeScale);
     }
-  }
-
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas);
-
-    final path = Path();
-    final points = _generateHexagonPoints();
-
-    path.moveTo(points.first.x, points.first.y);
-    for (final p in points.skip(1)) {
-      path.lineTo(p.x, p.y);
-    }
-    path.close();
-
-    final paint = Paint()..color = Colors.blue.shade100;
-    canvas.drawPath(path, paint);
   }
 
   @override
