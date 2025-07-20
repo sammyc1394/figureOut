@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -8,7 +9,7 @@ class HexagonShape extends PositionComponent with DragCallbacks {
   late final SvgComponent svg;
 
   HexagonShape(Vector2 position)
-    : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
+    : super(position: position, size: Vector2.all(100), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
