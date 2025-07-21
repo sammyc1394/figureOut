@@ -8,7 +8,7 @@ class TriangleShape extends PositionComponent {
   late final SvgComponent svg;
 
   TriangleShape(Vector2 position)
-    : super(position: position, size: Vector2.all(60), anchor: Anchor.center);
+    : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
