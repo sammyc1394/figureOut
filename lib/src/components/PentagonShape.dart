@@ -32,7 +32,7 @@ class PentagonShape extends PositionComponent with HasPaint, TapCallbacks {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    svg.render(canvas);
+    // svg.render(canvas);
 
     if (energy > 0) {
       _drawText(canvas, energy.toString());
@@ -53,7 +53,7 @@ class PentagonShape extends PositionComponent with HasPaint, TapCallbacks {
     )..layout();
 
     final offset = Offset(
-      (size.x - textPainter.width) / 2,
+      (size.x - textPainter.width - 5) / 2,
       (size.y - textPainter.height) / 2,
     );
 

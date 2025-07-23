@@ -1,15 +1,20 @@
-import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'src/OneSecondGame.dart';
+import 'package:flame/flame.dart';
 
-void main() {
+//for testing
+import 'src/components/sheet_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+void main() async {
+  debugPrintGestureArenaDiagnostics = true;
 
   WidgetsFlutterBinding.ensureInitialized();
-
+  await dotenv.load(fileName: "assets/.env");
   Flame.device.fullScreen();
-  // Flame.device.setLandscape();
 
   runApp(GameWidget(game: OneSecondGame()));
 }

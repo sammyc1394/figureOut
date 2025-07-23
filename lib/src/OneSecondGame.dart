@@ -1,8 +1,10 @@
+import 'package:flame/camera.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/gestures.dart';
+import 'components/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -10,16 +12,22 @@ import 'components/CircleShape.dart';
 import 'components/HexagonShape.dart';
 import 'components/PentagonShape.dart';
 import 'components/RectangleShape.dart';
-import 'components/RefreshButton.dart';
+
 import 'components/TriangleShape.dart';
 import 'config.dart';
+
+import 'components/sheet_service.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
   late RefreshButton refreshButton;
+  late StageData initialStage;
+
+  int _currentStageRunId = 0;
 
   late final screenWidth;
   late final screenHeight;
+  final SheetService sheetService = SheetService();
 
   Vector2? dragStart;
   Vector2? sliceStartPoint;
@@ -30,7 +38,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   @override
   Future<void> onLoad() async {
-    super.onLoad();
+    await super.onLoad();
 
     screenWidth = size.x;
     screenHeight = size.y;
@@ -42,7 +50,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     );
     add(refreshButton);
 
-    spawnShapes();
+    try {
+      final stages = await sheetService.fetchData();
+      if (stages.isNotEmpty) {
+        print('Fetched stages: ${stages.toString()}');
+        initialStage = stages[0];
+        runStageMissions(initialStage!);
+      }
+    } catch (e) {
+      print('Sheet fetch error: $e');
+    }
 
     debugMode = true;
   }
@@ -73,7 +90,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   bool _isPathClosed(List<Vector2> path) {
     if (path.length < 3) return false;
 
-    const double maxStartEndDistance = 70;
+    const double maxStartEndDistance = 80;
     const double minLength = 300;
     const double minArea = 1000;
 
@@ -165,51 +182,100 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     });
   }
 
-  void spawnShapes() {
-    final size = this.size;
-    final shapes = <PositionComponent>[];
+  Future<void> runStageMissions(StageData stage) async {
+    final centerOffset = size / 2;
+    final runId = ++_currentStageRunId;
 
-    while (shapes.length < 10) {
-      final type = _random.nextInt(5); // 0: circle, 1: rect, 2: pentagon
-      final position = Vector2(
-        _random.nextDouble() * (size.x - 100),
-        _random.nextDouble() * (size.y - 100),
-      );
+    final sortedMissions = stage.missions.keys.toList()..sort();
 
-      PositionComponent shape;
-      switch (type) {
-        case 0:
-          shape = CircleShape(position, _random.nextInt(10) + 1);
-          break;
-        case 1:
+    for (final missionNum in sortedMissions) {
+      if (runId != _currentStageRunId) {
+        print('Stage run $runId cancelled (current: $_currentStageRunId)');
+        return;
+      }
+
+      final enemies = stage.missions[missionNum]!;
+      print('Starting Mission $missionNum');
+
+      final spawnedThisMission = <Component>{};
+
+      for (final enemy in enemies) {
+        if (enemy.command == 'wait') {
+          final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
+          final duration = durationMatch != null
+              ? double.tryParse(durationMatch.group(1)!) ?? 1.0
+              : 1.0;
+          print('[WAIT] $duration sec');
+          await Future.delayed(
+            Duration(milliseconds: (duration * 1000).toInt()),
+          );
+          continue;
+        }
+
+        final posMatch = RegExp(
+          r'\((-?\d+),\s*(-?\d+)\)',
+        ).firstMatch(enemy.position);
+        if (posMatch == null) continue;
+        final x = double.parse(posMatch.group(1)!);
+        final y = double.parse(posMatch.group(2)!);
+        final position = centerOffset + Vector2(x, y);
+
+        PositionComponent? shape;
+        if (enemy.shape.startsWith('Circle')) {
+          final radiusMatch = RegExp(
+            r'Circle\s*\((\d+)\)',
+          ).firstMatch(enemy.shape);
+          final radius = radiusMatch != null
+              ? int.parse(radiusMatch.group(1)!)
+              : 10;
+          shape = CircleShape(position, radius);
+        } else if (enemy.shape == 'Rectangle') {
           shape = RectangleShape(position);
-          break;
-        case 2:
-          shape = PentagonShape(position, _random.nextInt(50));
-          break;
-        case 3:
+        } else if (enemy.shape.startsWith('Pentagon')) {
+          final energyMatch = RegExp(
+            r'Pentagon\s*\((\d+)\)',
+          ).firstMatch(enemy.shape);
+          final energy = energyMatch != null
+              ? int.parse(energyMatch.group(1)!)
+              : 10;
+          shape = PentagonShape(position, energy);
+        } else if (enemy.shape == 'Triangle') {
           shape = TriangleShape(position);
-          break;
-        case 4:
+        } else if (enemy.shape == 'Hexagon') {
           shape = HexagonShape(position);
-          break;
-        default:
-          shape = CircleShape(position, _random.nextInt(10) + 1);
+        }
+
+        if (shape != null) {
+          final shapeRect = shape.toRect();
+          final isWithinBounds =
+              shapeRect.left >= 0 &&
+              shapeRect.top >= 0 &&
+              shapeRect.right <= screenWidth &&
+              shapeRect.bottom <= screenHeight;
+
+          if (isWithinBounds) {
+            await add(shape);
+            await shape.loaded;
+            print('shape spawned: ${shape.position.toString()}');
+            spawnedThisMission.add(shape);
+            await Future.delayed(Duration(milliseconds: 100));
+          }
+        }
       }
 
-      // 겹침 방지
-      bool isOverlapping = shapes.any(
-        (s) => s.toRect().overlaps(shape.toRect()),
-      );
-      final shapeRect = shape.toRect();
-      final isWithinBounds = shapeRect.left >= 0 &&
-          shapeRect.top >= 0 &&
-          shapeRect.right <= screenWidth &&
-          shapeRect.bottom <= screenHeight;
-      if (!isOverlapping && isWithinBounds) {
-        shapes.add(shape);
-        add(shape);
+      await waitUntilMissionCleared(spawnedThisMission);
+    }
+  }
+
+  Future<void> waitUntilMissionCleared(Set<Component> targets) async {
+    while (true) {
+      // 아직 화면에 남아있는 도형이 있는지 확인
+      final remaining = targets.where((c) => c.isMounted).toList();
+      if (remaining.isEmpty) {
+        print('Mission cleared');
+        break;
       }
+      await Future.delayed(Duration(milliseconds: 300));
     }
   }
 
@@ -220,6 +286,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     userPath.clear();
     currentCircleCenter = null;
     currentCircleRadius = null;
+    print('${children} before shape removal');
 
     // Remove all existing shapes (but keep the refresh button)
     children.whereType<CircleShape>().forEach((shape) {
@@ -239,9 +306,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     });
 
     // Spawn new shapes
-    spawnShapes();
+    print('${children} after shape removal');
+    print('Initial stage: ${initialStage.name}');
+    runStageMissions(initialStage);
   }
-
 
   @override
   void render(Canvas canvas) {

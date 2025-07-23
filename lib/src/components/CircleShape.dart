@@ -12,7 +12,7 @@ class CircleShape extends PositionComponent with TapCallbacks {
   late final TextComponent label;
 
   CircleShape(Vector2 position, this.count)
-    : super(position: position, size: Vector2.all(80));
+    : super(position: position, size: Vector2.all(80), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
@@ -25,6 +25,7 @@ class CircleShape extends PositionComponent with TapCallbacks {
       anchor: Anchor.center,
       position: size / 2,
     );
+    // add(svg);
   }
 
   @override
