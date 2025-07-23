@@ -1,25 +1,77 @@
 import 'package:flame/components.dart';
+import 'package:flame_svg/svg.dart';
+import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
-class RectangleShape extends RectangleComponent {
-  int energy = 0;
+class RectangleShape extends PositionComponent {
+  int count = 0;
+  late final SvgComponent svg;
+
   bool isSliced = false;
   Vector2? sliceStart;
   Vector2? sliceEnd;
 
+  // RectangleShape(Vector2 position, this.energy)
   RectangleShape(Vector2 position)
       : super(
-    size: Vector2(30, 60),
-    paint: Paint()..color = const Color(0xFF673AB7),
-  ) {
-    this.position = position;
+          position: position,
+          size: Vector2(40, 80),
+        );
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    final svgData = await Svg.load('Rectangle 3.svg');
+    svg = SvgComponent(
+      svg: svgData,
+      size: size,
+      anchor: Anchor.center,
+      position: size /2,
+    );
+
+    add(svg);
   }
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // Draw the slice line if it exists
+    _renderRectangleShape(canvas);
+
+    _renderSliceLine(canvas);
+  }
+
+  void _renderRectangleShape(Canvas canvas) {
+    svg.render(canvas);
+
+    if (count > 1) {
+      _drawText(canvas, count.toString());
+    }
+  }
+
+  void _drawText(Canvas canvas, String text) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(color: Color(0xFF4680FF), fontSize: 20),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final offset = Offset(
+      (size.x - textPainter.width) / 2,
+      (size.y - textPainter.height) / 2,
+    );
+
+    canvas.save();
+
+    textPainter.paint(canvas, offset);
+    canvas.restore();
+  }
+
+  void _renderSliceLine(Canvas canvas) {
+  // Draw the slice line if it exists
     if (sliceStart != null && sliceEnd != null) {
       final slicePaint = Paint()
         ..color = Colors.black

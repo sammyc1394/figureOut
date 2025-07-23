@@ -10,11 +10,16 @@ import 'components/CircleShape.dart';
 import 'components/HexagonShape.dart';
 import 'components/PentagonShape.dart';
 import 'components/RectangleShape.dart';
+import 'components/RefreshButton.dart';
 import 'components/TriangleShape.dart';
 import 'config.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
+  late RefreshButton refreshButton;
+
+  late final screenWidth;
+  late final screenHeight;
 
   Vector2? dragStart;
   Vector2? sliceStartPoint;
@@ -26,6 +31,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   @override
   Future<void> onLoad() async {
     super.onLoad();
+
+    screenWidth = size.x;
+    screenHeight = size.y;
+
+    // Add refresh button to top-right corner
+    refreshButton = RefreshButton(
+      position: Vector2(size.x - 60, 40),
+      onPressed: refreshGame,
+    );
+    add(refreshButton);
 
     spawnShapes();
 
@@ -180,20 +195,53 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           break;
         default:
           shape = CircleShape(position, _random.nextInt(10) + 1);
-          ;
       }
 
       // 겹침 방지
       bool isOverlapping = shapes.any(
         (s) => s.toRect().overlaps(shape.toRect()),
       );
-      if (!isOverlapping &&
-          (position.x < gameWidth - 100 && position.y < gameHeight - 100)) {
+      final shapeRect = shape.toRect();
+      final isWithinBounds = shapeRect.left >= 0 &&
+          shapeRect.top >= 0 &&
+          shapeRect.right <= screenWidth &&
+          shapeRect.bottom <= screenHeight;
+      if (!isOverlapping && isWithinBounds) {
         shapes.add(shape);
         add(shape);
       }
     }
   }
+
+  void refreshGame() {
+    print("Refreshing game!");
+
+    // Clear user path
+    userPath.clear();
+    currentCircleCenter = null;
+    currentCircleRadius = null;
+
+    // Remove all existing shapes (but keep the refresh button)
+    children.whereType<CircleShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<RectangleShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<PentagonShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<TriangleShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<HexagonShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+
+    // Spawn new shapes
+    spawnShapes();
+  }
+
 
   @override
   void render(Canvas canvas) {
