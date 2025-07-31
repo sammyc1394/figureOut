@@ -1,6 +1,8 @@
+import 'dart:ui';
 import 'package:flame/camera.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/gestures.dart';
@@ -17,6 +19,7 @@ import 'components/TriangleShape.dart';
 import 'config.dart';
 
 import 'components/sheet_service.dart';
+import 'components/OrbitingComponent.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
@@ -43,6 +46,17 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     screenWidth = size.x;
     screenHeight = size.y;
 
+    PositionComponent cameraViewfinder = RectangleComponent(
+      position: Vector2.zero(),
+      size: size,
+      anchor: Anchor.center,
+      paint: Paint()..color = Colors.transparent,
+    );
+    cameraViewfinder.flipVerticallyAroundCenter();
+
+    print('center: ${cameraViewfinder.center.toString()}');
+    print('topLeft: ${cameraViewfinder.absoluteTopLeftPosition.toString()}');
+
     // Add refresh button to top-right corner
     refreshButton = RefreshButton(
       position: Vector2(size.x - 60, 40),
@@ -62,6 +76,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     debugMode = true;
+  }
+
+  Vector2 flipY(Vector2 point) {
+    return Vector2(point.x, -point.y);
   }
 
   Vector2 _calculateCentroid(List<Vector2> points) {
@@ -218,7 +236,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         if (posMatch == null) continue;
         final x = double.parse(posMatch.group(1)!);
         final y = double.parse(posMatch.group(2)!);
-        final position = centerOffset + Vector2(x, y);
+        final position = centerOffset + flipY(Vector2(x, y));
+        print('Spawning enemy at $position: ${enemy.shape}');
 
         PositionComponent? shape;
         if (enemy.shape.startsWith('Circle')) {
@@ -258,6 +277,65 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             await shape.loaded;
             print('shape spawned: ${shape.position.toString()}');
             spawnedThisMission.add(shape);
+
+            // L(x1,y1,x2,y2,speed)
+            final moveMatch = RegExp(
+              r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
+            ).firstMatch(enemy.movement);
+            print('Move match: ${enemy.movement}');
+            if (moveMatch != null) {
+              final x1 = double.parse(moveMatch.group(1)!);
+              final y1 = double.parse(moveMatch.group(2)!);
+              final x2 = double.parse(moveMatch.group(3)!);
+              final y2 = double.parse(moveMatch.group(4)!);
+              final speed = double.parse(moveMatch.group(5)!);
+
+              final startPos = centerOffset + flipY(Vector2(x1, y1));
+              final endPos = centerOffset + flipY(Vector2(x2, y2));
+              shape.position = startPos;
+
+              final distance = startPos.distanceTo(endPos);
+              final travelTime = distance / speed;
+
+              shape.add(
+                MoveEffect.to(
+                  endPos,
+                  EffectController(
+                    duration: travelTime,
+                    alternate: true,
+                    infinite: true,
+                  ),
+                ),
+              );
+              continue;
+            }
+
+            // C(x, y, r, speed)
+            final cMatch = RegExp(
+              r'C\((-?\d+),\s*(-?\d+),\s*(\d+),\s*(\d+)\)',
+            ).firstMatch(enemy.movement);
+            if (cMatch != null) {
+              final cx = double.parse(cMatch.group(1)!);
+              final cy = double.parse(cMatch.group(2)!);
+              final r = double.parse(cMatch.group(3)!);
+              final s = double.parse(cMatch.group(4)!); // degree per second
+
+              final center = centerOffset + flipY(Vector2(cx, cy));
+              final angularSpeed = s * math.pi / 180;
+
+              shape.position = center + Vector2(r, 0); // 초기 위치
+
+              shape.add(
+                OrbitingComponent(
+                  target: shape,
+                  center: center,
+                  radius: r,
+                  angularSpeed: angularSpeed,
+                ),
+              );
+              continue;
+            }
+
             await Future.delayed(Duration(milliseconds: 100));
           }
         }
