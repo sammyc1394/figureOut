@@ -357,6 +357,29 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
             }
 
+            // DR(a,b): 깜빡이며 랜덤 위치로 재등장
+            final drMatch = RegExp(
+              r'DR\((\d+),(\d+)\)',
+            ).firstMatch(enemy.movement);
+            if (drMatch != null && shape != null) {
+              final a = double.parse(drMatch.group(1)!);
+              final b = double.parse(drMatch.group(2)!);
+
+              await add(shape); // 초기에 등장
+              await shape.loaded;
+
+              final blinking = BlinkingBehaviorComponent(
+                shape: shape,
+                visibleDuration: a,
+                invisibleDuration: b,
+                isRandomRespawn: true,
+                bounds: size,
+              );
+
+              add(blinking);
+              continue;
+            }
+
             await Future.delayed(Duration(milliseconds: 100));
           }
         }

@@ -1,18 +1,25 @@
-import 'UserRemovable.dart';
+import 'dart:math';
+
+import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/components.dart';
 
-class BlinkingBehaviorComponent extends Component {
-  final Component shape;
+class BlinkingBehaviorComponent extends Component with HasGameReference {
+  final PositionComponent shape;
   final double visibleDuration;
   final double invisibleDuration;
+  final bool isRandomRespawn;
+  final Vector2? bounds;
 
   double _timer = 0;
   bool _visible = true;
+  final _rng = Random();
 
   BlinkingBehaviorComponent({
     required this.shape,
     required this.visibleDuration,
     required this.invisibleDuration,
+    this.isRandomRespawn = false,
+    this.bounds,
   });
 
   @override
@@ -20,7 +27,7 @@ class BlinkingBehaviorComponent extends Component {
     super.update(dt);
 
     if (shape is UserRemovable && (shape as UserRemovable).wasRemovedByUser) {
-      // 사용자가 삼각형을 제거한 경우 깜빡임 종료
+      // 사용자가 도형을 제거한 경우 깜빡임 종료
       removeFromParent(); // 깜빡임 종료
       return;
     }
@@ -29,11 +36,20 @@ class BlinkingBehaviorComponent extends Component {
     if (_visible && _timer >= visibleDuration) {
       _timer = 0;
       _visible = false;
-      shape.removeFromParent(); // 🔴 숨김
+      shape.removeFromParent();
     } else if (!_visible && _timer >= invisibleDuration) {
       _timer = 0;
       _visible = true;
-      parent?.add(shape); // 🟢 다시 추가
+      if (!shape.isMounted) {
+        if (isRandomRespawn && bounds != null) {
+          final margin = 50.0;
+          final x = margin + _rng.nextDouble() * (bounds!.x - 2 * margin);
+          final y = margin + _rng.nextDouble() * (bounds!.y - 2 * margin);
+          shape.position = Vector2(x, y);
+        }
+
+        game.add(shape);
+      }
     }
   }
 }
