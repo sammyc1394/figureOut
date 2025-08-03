@@ -1,9 +1,10 @@
+import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame_svg/svg.dart';
 import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
-class RectangleShape extends PositionComponent {
+class RectangleShape extends PositionComponent with UserRemovable {
   int count = 0;
   late final SvgComponent svg;
 
@@ -13,10 +14,7 @@ class RectangleShape extends PositionComponent {
 
   // RectangleShape(Vector2 position, this.energy)
   RectangleShape(Vector2 position)
-      : super(
-          position: position,
-          size: Vector2(40, 80),
-        );
+    : super(position: position, size: Vector2(40, 80));
 
   @override
   Future<void> onLoad() async {
@@ -27,7 +25,7 @@ class RectangleShape extends PositionComponent {
       svg: svgData,
       size: size,
       anchor: Anchor.center,
-      position: size /2,
+      position: size / 2,
     );
 
     add(svg);
@@ -71,7 +69,7 @@ class RectangleShape extends PositionComponent {
   }
 
   void _renderSliceLine(Canvas canvas) {
-  // Draw the slice line if it exists
+    // Draw the slice line if it exists
     if (sliceStart != null && sliceEnd != null) {
       final slicePaint = Paint()
         ..color = Colors.black
@@ -106,6 +104,7 @@ class RectangleShape extends PositionComponent {
       // Remove after showing the slice effect
       Future.delayed(Duration(milliseconds: 800), () {
         removeFromParent();
+        wasRemovedByUser = true;
       });
     }
   }
@@ -120,7 +119,11 @@ class RectangleShape extends PositionComponent {
       final end = userPath[i + 1];
 
       // Find intersection points with rectangle edges
-      final intersections = getLineRectangleIntersections(start, end, rectBounds);
+      final intersections = getLineRectangleIntersections(
+        start,
+        end,
+        rectBounds,
+      );
       intersectionPoints.addAll(intersections);
     }
 
@@ -136,34 +139,46 @@ class RectangleShape extends PositionComponent {
     return null;
   }
 
-  List<Vector2> getLineRectangleIntersections(Vector2 start, Vector2 end, Rect rect) {
+  List<Vector2> getLineRectangleIntersections(
+    Vector2 start,
+    Vector2 end,
+    Rect rect,
+  ) {
     List<Vector2> intersections = [];
 
     // Check intersection with top edge
     final topIntersection = getLineIntersection(
-        start, end,
-        Vector2(rect.left, rect.top), Vector2(rect.right, rect.top)
+      start,
+      end,
+      Vector2(rect.left, rect.top),
+      Vector2(rect.right, rect.top),
     );
     if (topIntersection != null) intersections.add(topIntersection);
 
     // Check intersection with bottom edge
     final bottomIntersection = getLineIntersection(
-        start, end,
-        Vector2(rect.left, rect.bottom), Vector2(rect.right, rect.bottom)
+      start,
+      end,
+      Vector2(rect.left, rect.bottom),
+      Vector2(rect.right, rect.bottom),
     );
     if (bottomIntersection != null) intersections.add(bottomIntersection);
 
     // Check intersection with left edge
     final leftIntersection = getLineIntersection(
-        start, end,
-        Vector2(rect.left, rect.top), Vector2(rect.left, rect.bottom)
+      start,
+      end,
+      Vector2(rect.left, rect.top),
+      Vector2(rect.left, rect.bottom),
     );
     if (leftIntersection != null) intersections.add(leftIntersection);
 
     // Check intersection with right edge
     final rightIntersection = getLineIntersection(
-        start, end,
-        Vector2(rect.right, rect.top), Vector2(rect.right, rect.bottom)
+      start,
+      end,
+      Vector2(rect.right, rect.top),
+      Vector2(rect.right, rect.bottom),
     );
     if (rightIntersection != null) intersections.add(rightIntersection);
 
@@ -174,15 +189,15 @@ class RectangleShape extends PositionComponent {
     final denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
     if (denom == 0) return null; // Lines are parallel
 
-    final t = ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / denom;
-    final u = -((p1.x - p2.x) * (p1.y - p3.y) - (p1.y - p2.y) * (p1.x - p3.x)) / denom;
+    final t =
+        ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / denom;
+    final u =
+        -((p1.x - p2.x) * (p1.y - p3.y) - (p1.y - p2.y) * (p1.x - p3.x)) /
+        denom;
 
     // Check if intersection is within both line segments
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-      return Vector2(
-        p1.x + t * (p2.x - p1.x),
-        p1.y + t * (p2.y - p1.y),
-      );
+      return Vector2(p1.x + t * (p2.x - p1.x), p1.y + t * (p2.y - p1.y));
     }
 
     return null;

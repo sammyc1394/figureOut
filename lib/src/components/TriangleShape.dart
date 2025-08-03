@@ -1,10 +1,11 @@
 import 'dart:ui';
 
+import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-class TriangleShape extends PositionComponent {
+class TriangleShape extends PositionComponent with UserRemovable {
   late final SvgComponent svg;
 
   TriangleShape(Vector2 position)

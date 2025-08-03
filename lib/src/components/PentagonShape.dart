@@ -1,11 +1,13 @@
 import 'dart:ui';
 import 'dart:async' as async;
+import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-class PentagonShape extends PositionComponent with HasPaint, TapCallbacks {
+class PentagonShape extends PositionComponent
+    with HasPaint, TapCallbacks, UserRemovable {
   int energy = 0;
   bool _isLongPressing = false;
   late final SvgComponent svg;
@@ -105,6 +107,7 @@ class PentagonShape extends PositionComponent with HasPaint, TapCallbacks {
             }
           } else {
             removeFromParent();
+            wasRemovedByUser = true;
           }
         },
       ),
