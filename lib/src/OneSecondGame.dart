@@ -20,6 +20,7 @@ import 'config.dart';
 
 import 'components/sheet_service.dart';
 import 'components/OrbitingComponent.dart';
+import 'components/BlinkingBehavior.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
@@ -171,6 +172,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       final enclosed = comp.isFullyEnclosedByUserPath(userPath);
       if (enclosed) {
         print('[REMOVE] Triangle at ${comp.position}');
+        comp.wasRemovedByUser = true;
         comp.removeFromParent();
       }
     }
@@ -208,7 +210,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     for (final missionNum in sortedMissions) {
       if (runId != _currentStageRunId) {
-        print('Stage run $runId cancelled (current: $_currentStageRunId)');
+        // print('Stage run $runId cancelled (current: $_currentStageRunId)');
         return;
       }
 
@@ -334,6 +336,25 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
                 ),
               );
               continue;
+            }
+
+            final dMatch = RegExp(
+              r'D\((\d+),(\d+)\)',
+            ).firstMatch(enemy.movement);
+            if (dMatch != null && shape != null) {
+              final a = double.parse(dMatch.group(1)!);
+              final b = double.parse(dMatch.group(2)!);
+
+              await add(shape); // 초기 visible 상태로 추가
+              await shape.loaded;
+
+              final blinking = BlinkingBehaviorComponent(
+                shape: shape,
+                visibleDuration: a,
+                invisibleDuration: b,
+              );
+
+              shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
             }
 
             await Future.delayed(Duration(milliseconds: 100));

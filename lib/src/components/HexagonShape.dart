@@ -2,9 +2,10 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
+import 'UserRemovable.dart';
 import 'dart:math' as math;
 
-class HexagonShape extends PositionComponent with DragCallbacks {
+class HexagonShape extends PositionComponent with DragCallbacks, UserRemovable {
   double cumulativeScale = 1.0;
   late final SvgComponent svg;
 
@@ -45,6 +46,7 @@ class HexagonShape extends PositionComponent with DragCallbacks {
 
     if (cumulativeScale >= 1.25) {
       removeFromParent();
+      wasRemovedByUser = true;
     } else {
       scale = Vector2.all(cumulativeScale);
     }
