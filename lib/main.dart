@@ -16,5 +16,10 @@ void main() async {
   await dotenv.load(fileName: "assets/.env");
   Flame.device.fullScreen();
 
-  runApp(GameWidget(game: OneSecondGame()));
+  runApp(
+    GameWidget(
+      game: OneSecondGame(),
+      backgroundBuilder: (context) => Container(color: const Color(0xFFEDEBE0)),
+    ),
+  );
 }

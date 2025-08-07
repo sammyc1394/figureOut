@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:figureout/src/components/PentagonShape.dart';
 import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/components.dart';
 
@@ -14,6 +15,10 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   bool _visible = true;
   final _rng = Random();
 
+  bool get isBlinkingInvisible => !_visible;
+  bool get willReappear => !_visible && !isRemoving && !shape.isRemoving;
+  bool isPaused = false;
+
   BlinkingBehaviorComponent({
     required this.shape,
     required this.visibleDuration,
@@ -26,8 +31,10 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   void update(double dt) {
     super.update(dt);
 
+    if (isPaused) return;
+
     if (shape is UserRemovable && (shape as UserRemovable).wasRemovedByUser) {
-      // 사용자가 도형을 제거한 경우 깜빡임 종료
+      // 사용자가 삼각형을 제거한 경우 깜빡임 종료
       removeFromParent(); // 깜빡임 종료
       return;
     }
@@ -40,6 +47,7 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
     } else if (!_visible && _timer >= invisibleDuration) {
       _timer = 0;
       _visible = true;
+      // parent?.add(shape);
       if (!shape.isMounted) {
         if (isRandomRespawn && bounds != null) {
           final margin = 50.0;
