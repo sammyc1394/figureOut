@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -6,7 +7,7 @@ import 'package:flame/src/gestures/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-class CircleShape extends PositionComponent with TapCallbacks {
+class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
   int count;
   late final SvgComponent svg;
   late final TextComponent label;
@@ -43,7 +44,11 @@ class CircleShape extends PositionComponent with TapCallbacks {
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(color: Color(0xFFF9C58D), fontSize: 20),
+        style: const TextStyle(
+          color: Color(0xFFFF9D33),
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -63,6 +68,7 @@ class CircleShape extends PositionComponent with TapCallbacks {
   void onTapDown(TapDownEvent e) {
     count -= 1;
     if (count <= 0) {
+      wasRemovedByUser = true;
       removeFromParent();
     }
   }

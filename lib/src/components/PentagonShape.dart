@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
+import 'BlinkingBehavior.dart';
 
 class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable {
@@ -46,9 +47,10 @@ class PentagonShape extends PositionComponent
       text: TextSpan(
         text: text,
         style: const TextStyle(
-          color: Color(0xFFFFA6FC),
+          color: Color(0xFFC100BA),
           fontSize: 20,
           textBaseline: TextBaseline.alphabetic,
+          fontWeight: FontWeight.bold,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -70,6 +72,13 @@ class PentagonShape extends PositionComponent
 
     print("presseddddd");
     _isLongPressing = true;
+    final blinking = parent?.children
+        .whereType<BlinkingBehaviorComponent>()
+        .cast<BlinkingBehaviorComponent?>()
+        .firstWhere((b) => b?.shape == this, orElse: () => null);
+    if (blinking != null) {
+      blinking.isPaused = true; // Pause blinking behavior
+    }
 
     _startLongPress(); // Consume the event
   }
@@ -79,6 +88,14 @@ class PentagonShape extends PositionComponent
     super.onTapUp(event);
 
     print("stoppppped");
+
+    final blinking = parent?.children
+        .whereType<BlinkingBehaviorComponent>()
+        .cast<BlinkingBehaviorComponent?>()
+        .firstWhere((b) => b?.shape == this, orElse: () => null);
+    if (blinking != null) {
+      blinking.isPaused = false; // Pause blinking behavior
+    }
     _stopLongPress();
   }
 
@@ -106,8 +123,8 @@ class PentagonShape extends PositionComponent
               _stopLongPress();
             }
           } else {
-            removeFromParent();
             wasRemovedByUser = true;
+            removeFromParent();
           }
         },
       ),

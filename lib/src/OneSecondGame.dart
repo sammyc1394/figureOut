@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/camera.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
@@ -40,6 +41,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
 
+  late Timer countdownTimer;
+  double remainingTime = 0;
+  double missionTimeLimit = 0;
+  bool isTimeCritical = false;
+
+  final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -77,6 +85,29 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     debugMode = true;
+  }
+
+  void startMissionTimer(double seconds) {
+    missionTimeLimit = seconds;
+    remainingTime = seconds;
+    isTimeCritical = false;
+
+    countdownTimer = Timer(
+      1,
+      repeat: true,
+      onTick: () {
+        remainingTime -= 1;
+        if (remainingTime <= 10) {
+          isTimeCritical = true;
+        }
+        if (remainingTime <= 0) {
+          remainingTime = 0;
+          countdownTimer.stop();
+          print("Time's up!");
+          // 원하는 시간 초과 처리 추가 가능
+        }
+      },
+    )..start();
   }
 
   Vector2 flipY(Vector2 point) {
@@ -212,6 +243,19 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       if (runId != _currentStageRunId) {
         // print('Stage run $runId cancelled (current: $_currentStageRunId)');
         return;
+      }
+
+      try {
+        final parsedTime = double.tryParse(
+          stage.timeLimit.replaceAll(' ', '').replaceAll('초', ''),
+        );
+        if (parsedTime != null) {
+          startMissionTimer(parsedTime);
+        } else {
+          print('[WARNING] Invalid timeLimit: ${stage.timeLimit}');
+        }
+      } catch (e) {
+        print('[ERROR] Failed to parse timeLimit: $e');
       }
 
       final enemies = stage.missions[missionNum]!;
@@ -354,6 +398,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
                 invisibleDuration: b,
               );
 
+              blinkingMap[shape] = blinking;
+
               shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
             }
 
@@ -376,6 +422,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
                 bounds: size,
               );
 
+              blinkingMap[shape] = blinking;
+
               add(blinking);
               continue;
             }
@@ -391,12 +439,32 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   Future<void> waitUntilMissionCleared(Set<Component> targets) async {
     while (true) {
-      // 아직 화면에 남아있는 도형이 있는지 확인
-      final remaining = targets.where((c) => c.isMounted).toList();
+      final remaining = targets.where((c) {
+        final blinking = blinkingMap[c];
+
+        if (c.isMounted) {
+          return true;
+        }
+        if (!c.isMounted) {
+          if (blinking != null && !blinking.isRemoving) {
+            blinkingMap.remove(c);
+            return true;
+          }
+        }
+
+        if (c is UserRemovable && !(c as UserRemovable).wasRemovedByUser) {
+          return true;
+        }
+
+        // 3. 그 외는 제거됨
+        return false;
+      }).toList();
+
       if (remaining.isEmpty) {
         print('Mission cleared');
         break;
       }
+
       await Future.delayed(Duration(milliseconds: 300));
     }
   }
@@ -409,6 +477,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     currentCircleCenter = null;
     currentCircleRadius = null;
     print('${children} before shape removal');
+    blinkingMap.clear();
+    children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
+      blinking.removeFromParent();
+    });
 
     // Remove all existing shapes (but keep the refresh button)
     children.whereType<CircleShape>().forEach((shape) {
