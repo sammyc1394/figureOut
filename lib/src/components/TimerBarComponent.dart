@@ -57,11 +57,7 @@ class TimerBarComponent extends PositionComponent {
 
     // ratio가 0이면 완전히 줄이되 NaN 방지용 최소값 유지
     const double minWidth = 0.0001;
-    const double minHeight = 0.0001;
-    clip.size = Vector2(
-      size.x * (ratio > 0 ? ratio : minWidth),
-      size.y * (ratio > 0 ? ratio : minHeight),
-    );
+    clip.size = Vector2(size.x * (ratio > 0 ? ratio : minWidth), size.y);
   }
 
   void _changeState(String assetName) async {
