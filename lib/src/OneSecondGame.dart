@@ -22,6 +22,7 @@ import 'config.dart';
 import 'components/sheet_service.dart';
 import 'components/OrbitingComponent.dart';
 import 'components/BlinkingBehavior.dart';
+import 'components/TimerBarComponent.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
@@ -41,10 +42,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
 
-  late Timer countdownTimer;
+  Timer? countdownTimer;
   double remainingTime = 0;
   double missionTimeLimit = 0;
   bool isTimeCritical = false;
+  late TimerBarComponent timerBar;
+  late double _accumulator = 0;
+
+  double _lastShownTime = -1;
+  bool _timerEndedNotified = false;
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
@@ -73,6 +79,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     );
     add(refreshButton);
 
+    timerBar = TimerBarComponent(
+      totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
+      position: Vector2(size.x / 2, 80),
+    );
+    add(timerBar);
+
     try {
       final stages = await sheetService.fetchData();
       if (stages.isNotEmpty) {
@@ -87,27 +99,72 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     debugMode = true;
   }
 
+  double? _parseTimeLimitToSeconds(String raw) {
+    if (raw.trim().isEmpty) return null;
+    final s = raw.trim();
+
+    // 1) MM:SS
+    final mmss = RegExp(r'^(\d{1,2}):([0-5]?\d)$').firstMatch(s);
+    if (mmss != null) {
+      final m = int.parse(mmss.group(1)!);
+      final sec = int.parse(mmss.group(2)!);
+      return (m * 60 + sec).toDouble();
+    }
+
+    // 2) X분Y초 / X분
+    final kr = RegExp(r'^(\d+)\s*분(?:\s*(\d+)\s*초)?$').firstMatch(s);
+    if (kr != null) {
+      final m = int.parse(kr.group(1)!);
+      final sec = kr.group(2) != null ? int.parse(kr.group(2)!) : 0;
+      return (m * 60 + sec).toDouble();
+    }
+
+    // 3) XmYs / Xm / Xs
+    final en = RegExp(r'^(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$').firstMatch(s);
+    if (en != null && (en.group(1) != null || en.group(2) != null)) {
+      final m = en.group(1) != null ? int.parse(en.group(1)!) : 0;
+      final sec = en.group(2) != null ? int.parse(en.group(2)!) : 0;
+      return (m * 60 + sec).toDouble();
+    }
+
+    // 4) 숫자만 → 초로 간주 (정수/실수)
+    final numOnly = RegExp(
+      r'^\d+(?:\.\d+)?$',
+    ).firstMatch(s.replaceAll(' ', '').replaceAll('초', ''));
+    if (numOnly != null) {
+      return double.parse(numOnly.group(0)!);
+    }
+
+    // 못 읽음
+    return null;
+  }
+
   void startMissionTimer(double seconds) {
     missionTimeLimit = seconds;
     remainingTime = seconds;
     isTimeCritical = false;
 
-    countdownTimer = Timer(
-      1,
-      repeat: true,
-      onTick: () {
-        remainingTime -= 1;
-        if (remainingTime <= 10) {
-          isTimeCritical = true;
-        }
-        if (remainingTime <= 0) {
-          remainingTime = 0;
-          countdownTimer.stop();
-          print("Time's up!");
-          // 원하는 시간 초과 처리 추가 가능
-        }
-      },
-    )..start();
+    timerBar.totalTime = seconds;
+    timerBar.updateTime(remainingTime); // 초기 상태 반영
+    print('[TIMER] startMissionTimer -> $seconds sec');
+
+    // countdownTimer = Timer(
+    //   1,
+    //   repeat: true,
+    //   onTick: () {
+    //     remainingTime -= 1;
+    //     if (remainingTime <= 10) {
+    //       isTimeCritical = true;
+    //     }
+    //     if (remainingTime <= 0) {
+    //       remainingTime = 0;
+    //       countdownTimer?.stop();
+    //       print("Time's up!");
+    //     }
+
+    //     timerBar.updateTime(remainingTime);
+    //   },
+    // )..start();
   }
 
   Vector2 flipY(Vector2 point) {
@@ -245,17 +302,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         return;
       }
 
-      try {
-        final parsedTime = double.tryParse(
-          stage.timeLimit.replaceAll(' ', '').replaceAll('초', ''),
+      final parsedTime = _parseTimeLimitToSeconds(stage.timeLimit);
+      if (parsedTime != null && parsedTime > 0) {
+        startMissionTimer(parsedTime);
+      } else {
+        print(
+          '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
         );
-        if (parsedTime != null) {
-          startMissionTimer(parsedTime);
-        } else {
-          print('[WARNING] Invalid timeLimit: ${stage.timeLimit}');
-        }
-      } catch (e) {
-        print('[ERROR] Failed to parse timeLimit: $e');
       }
 
       final enemies = stage.missions[missionNum]!;
@@ -503,6 +556,42 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     print('${children} after shape removal');
     print('Initial stage: ${initialStage.name}');
     runStageMissions(initialStage);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    if (remainingTime > 0) {
+      _accumulator += dt;
+      if (_accumulator >= 1.0) {
+        _accumulator -= 1.0;
+        remainingTime -= 1;
+
+        if (remainingTime != _lastShownTime) {
+          _lastShownTime = remainingTime;
+          // 필요할 때만 로그
+          print('remainingTime: $remainingTime');
+          timerBar.updateTime(remainingTime);
+        }
+
+        if (remainingTime <= 10) isTimeCritical = true;
+
+        if (remainingTime <= 0 && !_timerEndedNotified) {
+          _timerEndedNotified = true;
+          // 마지막으로 0초 반영 후 더 이상 건드리지 않음
+          timerBar.updateTime(0);
+          // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
+          // print("Time's up!");
+        }
+        // if (remainingTime <= 10) isTimeCritical = true;
+        // if (remainingTime <= 0) {
+        //   remainingTime = 0;
+        //   print("Time's up!");
+        // }
+        // timerBar.updateTime(remainingTime);
+      }
+    }
   }
 
   @override

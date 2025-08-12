@@ -36,23 +36,30 @@ class SheetService {
     final List<StageData> stages = [];
     StageData? currentStage;
     int? currentMission;
+    bool firstMissionHeaderSeen = false;
+
     Map<int, List<EnemyData>>? currentMissionMap;
 
     for (var row in values) {
+      final cells = row.map((e) => (e ?? '').toString().trim()).toList();
       final String? cell = row.isNotEmpty ? row[0]?.toString().trim() : null;
       if (cell != null && cell.startsWith('s')) {
-        final String reward = row.length > 6
-            ? row[6]?.toString().trim() ?? ''
-            : '';
-        final String timeLimit = row.length > 7
-            ? row[7]?.toString().trim() ?? ''
-            : '';
+        firstMissionHeaderSeen = false;
+        // final String reward = row.length > 6
+        //     ? row[6]?.toString().trim() ?? ''
+        //     : '';
+        // final String timeLimit = row.length > 7
+        //     ? row[7]?.toString().trim() ?? ''
+        //     : '';
+        final rewardFromS = _safeGet(cells, 6); // H
+        final timeFromS = _safeGet(cells, 7); // I
 
         currentMissionMap = {};
         currentStage = StageData(
           name: cell,
-          reward: reward,
-          timeLimit: timeLimit,
+          // reward: reward,
+          reward: rewardFromS,
+          timeLimit: timeFromS,
           missions: currentMissionMap,
         );
         stages.add(currentStage);
@@ -61,9 +68,27 @@ class SheetService {
       if (cell != null && cell.startsWith('m')) {
         // 미션 번호 갱신만
         final missionMatch = RegExp(r'm(\d+)').firstMatch(cell);
-        // print(missionMatch);
         if (missionMatch != null) {
           currentMission = int.parse(missionMatch.group(1)!);
+
+          if (currentStage != null && !firstMissionHeaderSeen) {
+            firstMissionHeaderSeen = true;
+
+            final rewardFromM = _safeGet(cells, 6); // H
+            final timeFromM = _safeGet(cells, 7); // I
+
+            if ((currentStage!.reward.isEmpty) && rewardFromM.isNotEmpty) {
+              currentStage!.reward = rewardFromM;
+            }
+            if ((currentStage!.timeLimit.isEmpty) && timeFromM.isNotEmpty) {
+              currentStage!.timeLimit = timeFromM;
+            }
+
+            print(
+              '[STAGE "${currentStage!.name}"] '
+              'reward="${currentStage!.reward}", timeLimit="${currentStage!.timeLimit}"',
+            );
+          }
         }
         continue;
       }
@@ -88,12 +113,9 @@ class SheetService {
       final missionMatch = RegExp(
         r'm(\d+)',
       ).firstMatch(row[0]?.toString() ?? '');
-      // final mission = missionMatch != null
-      //     ? int.parse(missionMatch.group(1)!)
-      //     : 1;
+
       final int mission = currentMission ?? 1;
 
-      // currentStage.enemies.add(
       final enemy = EnemyData(
         command: command,
         shape: shape,
@@ -108,12 +130,17 @@ class SheetService {
 
     return stages;
   }
+
+  String _safeGet(List<String> cells, int index) {
+    if (index < cells.length) return cells[index];
+    return '';
+  }
 }
 
 class StageData {
   final String name;
-  final String reward;
-  final String timeLimit;
+  String reward;
+  String timeLimit;
   final Map<int, List<EnemyData>> missions;
 
   StageData({
