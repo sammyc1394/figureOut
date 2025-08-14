@@ -3,15 +3,17 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 class TimerBarComponent extends PositionComponent {
-  late final SvgComponent barBackground;
-  late final SvgComponent stateIndicator;
-  late final ClipComponent clip;
+  SvgComponent? frame;
+  SvgComponent? stateIndicator;
+  ClipComponent? clip;
 
   double totalTime;
   double currentTime;
-  String _currentAsset = 'Type=Full.svg';
 
-  static const double _epsilon = 1e-3; // 0 너비 회피용
+  String _currentFillAsset = 'Timer Bar-2.svg';
+  bool _ready = false;
+
+  static const double _epsilon = 1e-3;
 
   TimerBarComponent({
     required this.totalTime,
@@ -24,25 +26,44 @@ class TimerBarComponent extends PositionComponent {
          anchor: Anchor.topCenter,
        );
 
+  String _frameOf(String fill) {
+    if (fill.endsWith('.svg')) {
+      final base = fill.substring(0, fill.length - 4);
+      return '$base - Empty.svg';
+    }
+    return '${fill} - Empty.svg';
+  }
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
     stateIndicator = SvgComponent(
-      svg: await Svg.load(_currentAsset),
+      svg: await Svg.load(_currentFillAsset),
       size: size,
       anchor: Anchor.topLeft,
     );
 
     clip = ClipComponent.rectangle(size: size);
-    clip.add(stateIndicator);
+    clip!.add(stateIndicator!);
 
-    // add(barBackground);
-    add(clip);
+    frame = SvgComponent(
+      svg: await Svg.load(_frameOf(_currentFillAsset)),
+      size: size,
+      anchor: Anchor.topLeft,
+    );
+
+    add(clip!);
+    add(frame!);
+
+    _ready = true;
   }
 
   void updateTime(double remaining) {
     currentTime = remaining;
+
+    if (!_ready) return;
+
     final ratio = (totalTime > 0)
         ? (remaining / totalTime).clamp(0.0, 1.0)
         : 0.0;
@@ -55,12 +76,19 @@ class TimerBarComponent extends PositionComponent {
       _changeState('Timer Bar-2.svg');
     }
 
-    // ratio가 0이면 완전히 줄이되 NaN 방지용 최소값 유지
     const double minWidth = 0.0001;
-    clip.size = Vector2(size.x * (ratio > 0 ? ratio : minWidth), size.y);
+    clip!.size = Vector2(size.x * (ratio > 0 ? ratio : minWidth), size.y);
+
+    stateIndicator!.size = size;
   }
 
-  void _changeState(String assetName) async {
-    stateIndicator.svg = await Svg.load(assetName);
+  void _changeState(String fillAsset) async {
+    _currentFillAsset = fillAsset;
+    if (!_ready) return;
+
+    final fillSvg = await Svg.load(fillAsset);
+    final frameSvg = await Svg.load(_frameOf(fillAsset));
+    stateIndicator?.svg = fillSvg;
+    frame?.svg = frameSvg;
   }
 }
