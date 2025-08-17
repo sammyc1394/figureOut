@@ -3,3 +3,4 @@ const gameHeight = 2556.0; //255.60;
 const elementCount = 10;
 
 enum shapes { Circle, Rectangel, Pentagon, Triangle, Hexagon }
+enum StageResult { success, fail, cancelled }
