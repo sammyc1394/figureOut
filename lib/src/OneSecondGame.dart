@@ -46,6 +46,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   late double _accumulator = 0;
   double _lastShownTime = -1;
   bool _timerEndedNotified = false;
+  bool _timerPaused = false;
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
@@ -110,7 +111,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // runStageWithAftermath -> runSingleMissions
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
   Future<void> runStageWithAftermath(int stageIndex) async {
-    if(stageIndex > _allStages.length) {
+    if (stageIndex > _allStages.length) {
       print('all stages completed!');
       return;
     }
@@ -142,7 +143,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       );
     }
 
-    print('stage index = $stageIndex, and current stage index = $_currentStageRunId');
+    print(
+      'stage index = $stageIndex, and current stage index = $_currentStageRunId',
+    );
     int stgLength = _allStages.length;
     print('stages length = $stgLength');
 
@@ -157,9 +160,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             ? double.tryParse(durationMatch.group(1)!) ?? 1.0
             : 1.0;
         print('[WAIT] $duration sec');
-        await Future.delayed(
-          Duration(milliseconds: (duration * 1000).toInt()),
-        );
+        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
         continue;
       }
 
@@ -201,9 +202,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         final shapeRect = shape.toRect();
         final isWithinBounds =
             shapeRect.left >= 0 &&
-                shapeRect.top >= 0 &&
-                shapeRect.right <= screenWidth &&
-                shapeRect.bottom <= screenHeight;
+            shapeRect.top >= 0 &&
+            shapeRect.right <= screenWidth &&
+            shapeRect.bottom <= screenHeight;
 
         if (isWithinBounds) {
           await add(shape);
@@ -270,9 +271,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           }
 
           // Movement
-          final dMatch = RegExp(
-            r'D\((\d+),(\d+)\)',
-          ).firstMatch(enemy.movement);
+          final dMatch = RegExp(r'D\((\d+),(\d+)\)').firstMatch(enemy.movement);
           if (dMatch != null && shape != null) {
             final a = double.parse(dMatch.group(1)!);
             final b = double.parse(dMatch.group(2)!);
@@ -404,9 +403,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           final shapeRect = shape.toRect();
           final isWithinBounds =
               shapeRect.left >= 0 &&
-                  shapeRect.top >= 0 &&
-                  shapeRect.right <= screenWidth &&
-                  shapeRect.bottom <= screenHeight;
+              shapeRect.top >= 0 &&
+              shapeRect.right <= screenWidth &&
+              shapeRect.bottom <= screenHeight;
 
           if (isWithinBounds) {
             await add(shape);
@@ -566,7 +565,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   }
 
   int _calculateStarRating(StageResult stgResult) {
-
     return 3;
   }
 
@@ -615,16 +613,24 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     remainingTime = seconds;
     isTimeCritical = false;
 
+    _timerPaused = false;
+    _timerEndedNotified = false;
+    _accumulator = 0;
+    _lastShownTime = -1;
+
     timerBar.totalTime = seconds;
     timerBar.updateTime(remainingTime); // 초기 상태 반영
     print('[TIMER] startMissionTimer -> $seconds sec');
-
   }
 
   // timer update
   @override
   void update(double dt) {
     super.update(dt);
+
+    if (_timerPaused) {
+      return;
+    }
 
     if (remainingTime > 0) {
       _accumulator += dt;
@@ -653,6 +659,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   }
 
   void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
+    _timerPaused = true;
+
     final aftermath = AftermathScreen(
       result: result,
       starCount: starCount,
