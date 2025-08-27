@@ -270,6 +270,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             continue;
           }
 
+          Rect _timerRectWorld() => timerBar.toRect();
+
           // Movement
           final dMatch = RegExp(r'D\((\d+),(\d+)\)').firstMatch(enemy.movement);
           if (dMatch != null && shape != null) {
@@ -279,10 +281,35 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             await add(shape); // 초기 visible 상태로 추가
             await shape.loaded;
 
+            final r = _timerRectWorld();
+            const pad = 8.0;
+            const margin = 50.0;
+
+            final halfW = shape.size.x / 2;
+            final halfH = shape.size.y / 2;
+            // 타이머바 "아래" 영역 (Y는 아래로 증가)
+            final minYCenter = r.bottom + pad + halfH;
+            final maxYCenter = size.y - margin - halfH;
+
+            // 화면 좌우 여백 고려
+            final minXCenter = margin + halfW;
+            final maxXCenter = size.x - margin - halfW;
+
+            // 시작 위치도 즉시 범위 안으로
+            shape.position = Vector2(
+              shape.position.x.clamp(minXCenter, maxXCenter),
+              shape.position.y.clamp(minYCenter, maxYCenter),
+            );
+
             final blinking = BlinkingBehaviorComponent(
               shape: shape,
               visibleDuration: a,
               invisibleDuration: b,
+              isRandomRespawn: false,
+              xMin: minXCenter,
+              xMax: maxXCenter,
+              yMin: minYCenter,
+              yMax: maxYCenter,
             );
 
             blinkingMap[shape] = blinking;
@@ -302,12 +329,36 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             await add(shape); // 초기에 등장
             await shape.loaded;
 
+            final r = _timerRectWorld();
+            const pad = 8.0;
+            const margin = 50.0;
+
+            final halfW = shape.size.x / 2;
+            final halfH = shape.size.y / 2;
+
+            // 타이머바 "아래" 영역 (Y는 아래로 증가)
+            final minYCenter = r.bottom + pad + halfH;
+            final maxYCenter = size.y - margin - halfH;
+
+            // 화면 좌우 여백 고려
+            final minXCenter = margin + halfW;
+            final maxXCenter = size.x - margin - halfW;
+
+            // 시작 위치도 즉시 범위 안으로
+            shape.position = Vector2(
+              shape.position.x.clamp(minXCenter, maxXCenter),
+              shape.position.y.clamp(minYCenter, maxYCenter),
+            );
+
             final blinking = BlinkingBehaviorComponent(
               shape: shape,
               visibleDuration: a,
               invisibleDuration: b,
               isRandomRespawn: true,
-              bounds: size,
+              xMin: minXCenter,
+              xMax: maxXCenter,
+              yMin: minYCenter,
+              yMax: maxYCenter,
             );
 
             blinkingMap[shape] = blinking;
@@ -471,6 +522,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               continue;
             }
 
+            Rect _timerRectWorld() => timerBar.toRect();
+
             // Movement
             final dMatch = RegExp(
               r'D\((\d+),(\d+)\)',
@@ -482,10 +535,35 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               await add(shape); // 초기 visible 상태로 추가
               await shape.loaded;
 
+              final r = _timerRectWorld();
+              const pad = 8.0;
+              const margin = 50.0;
+
+              final halfW = shape.size.x / 2;
+              final halfH = shape.size.y / 2;
+              // 타이머바 "아래" 영역 (Y는 아래로 증가)
+              final minYCenter = r.bottom + pad + halfH;
+              final maxYCenter = size.y - margin - halfH;
+
+              // 화면 좌우 여백 고려
+              final minXCenter = margin + halfW;
+              final maxXCenter = size.x - margin - halfW;
+
+              // 시작 위치도 즉시 범위 안으로
+              shape.position = Vector2(
+                shape.position.x.clamp(minXCenter, maxXCenter),
+                shape.position.y.clamp(minYCenter, maxYCenter),
+              );
+
               final blinking = BlinkingBehaviorComponent(
                 shape: shape,
                 visibleDuration: a,
                 invisibleDuration: b,
+                isRandomRespawn: false,
+                xMin: minXCenter,
+                xMax: maxXCenter,
+                yMin: minYCenter,
+                yMax: maxYCenter,
               );
 
               blinkingMap[shape] = blinking;
@@ -505,12 +583,36 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               await add(shape); // 초기에 등장
               await shape.loaded;
 
+              final r = _timerRectWorld();
+              const pad = 8.0;
+              const margin = 50.0;
+
+              final halfW = shape.size.x / 2;
+              final halfH = shape.size.y / 2;
+
+              // 타이머바 "아래" 영역 (Y는 아래로 증가)
+              final minYCenter = r.bottom + pad + halfH;
+              final maxYCenter = size.y - margin - halfH;
+
+              // 화면 좌우 여백 고려
+              final minXCenter = margin + halfW;
+              final maxXCenter = size.x - margin - halfW;
+
+              // 시작 위치도 즉시 범위 안으로
+              shape.position = Vector2(
+                shape.position.x.clamp(minXCenter, maxXCenter),
+                shape.position.y.clamp(minYCenter, maxYCenter),
+              );
+
               final blinking = BlinkingBehaviorComponent(
                 shape: shape,
                 visibleDuration: a,
                 invisibleDuration: b,
                 isRandomRespawn: true,
-                bounds: size,
+                xMin: minXCenter,
+                xMax: maxXCenter,
+                yMin: minYCenter,
+                yMax: maxYCenter,
               );
 
               blinkingMap[shape] = blinking;
