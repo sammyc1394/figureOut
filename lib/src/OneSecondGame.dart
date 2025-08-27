@@ -152,15 +152,27 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     final enemies = stage.missions[runId]!;
 
     final spawnedThisMission = <Component>{};
+    final currentWave = <Component>{};
 
     for (final enemy in enemies) {
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
         final duration = durationMatch != null
-            ? double.tryParse(durationMatch.group(1)!) ?? 1.0
-            : 1.0;
-        print('[WAIT] $duration sec');
-        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+            ? double.tryParse(durationMatch.group(1)!) ?? 0.0
+            : 0.0;
+
+        if (duration == 0) {
+          // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
+          if (currentWave.isNotEmpty) {
+            await waitUntilMissionCleared(currentWave);
+            currentWave.clear();
+          }
+        } else {
+          // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
+          await Future.delayed(
+            Duration(milliseconds: (duration * 1000).toInt()),
+          );
+        }
         continue;
       }
 
@@ -211,6 +223,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           await shape.loaded;
           print('shape spawned: ${shape.position.toString()}');
           spawnedThisMission.add(shape);
+          currentWave.add(shape);
 
           // Movement
           final moveMatch = RegExp(
@@ -373,7 +386,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     StageResult ret = await waitUntilMissionCleared(spawnedThisMission);
-
+    await waitUntilMissionCleared(currentWave);
     return StageResult.success;
   }
 
@@ -402,17 +415,27 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       print('Starting Mission $missionNum');
 
       final spawnedThisMission = <Component>{};
+      final currentWave = <Component>{};
 
       for (final enemy in enemies) {
         if (enemy.command == 'wait') {
           final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
           final duration = durationMatch != null
-              ? double.tryParse(durationMatch.group(1)!) ?? 1.0
-              : 1.0;
-          print('[WAIT] $duration sec');
-          await Future.delayed(
-            Duration(milliseconds: (duration * 1000).toInt()),
-          );
+              ? double.tryParse(durationMatch.group(1)!) ?? 0.0
+              : 0.0;
+
+          if (duration == 0) {
+            // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
+            if (currentWave.isNotEmpty) {
+              await waitUntilMissionCleared(currentWave);
+              currentWave.clear();
+            }
+          } else {
+            // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
+            await Future.delayed(
+              Duration(milliseconds: (duration * 1000).toInt()),
+            );
+          }
           continue;
         }
 
@@ -463,6 +486,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             await shape.loaded;
             print('shape spawned: ${shape.position.toString()}');
             spawnedThisMission.add(shape);
+            currentWave.add(shape);
 
             // Movement
             final moveMatch = RegExp(
@@ -627,6 +651,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       }
 
       await waitUntilMissionCleared(spawnedThisMission);
+      await waitUntilMissionCleared(currentWave);
     }
   }
 
