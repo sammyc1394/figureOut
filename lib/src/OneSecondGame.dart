@@ -46,6 +46,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   late double _accumulator = 0;
   double _lastShownTime = -1;
   bool _timerEndedNotified = false;
+  bool _timerPaused = false;
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
@@ -110,7 +111,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // runStageWithAftermath -> runSingleMissions
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
   Future<void> runStageWithAftermath(int stageIndex) async {
-    if(stageIndex > _allStages.length) {
+    if (stageIndex > _allStages.length) {
       print('all stages completed!');
       return;
     }
@@ -142,24 +143,36 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       );
     }
 
-    print('stage index = $stageIndex, and current stage index = $_currentStageRunId');
+    print(
+      'stage index = $stageIndex, and current stage index = $_currentStageRunId',
+    );
     int stgLength = _allStages.length;
     print('stages length = $stgLength');
 
     final enemies = stage.missions[runId]!;
 
     final spawnedThisMission = <Component>{};
+    final currentWave = <Component>{};
 
     for (final enemy in enemies) {
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
         final duration = durationMatch != null
-            ? double.tryParse(durationMatch.group(1)!) ?? 1.0
-            : 1.0;
-        print('[WAIT] $duration sec');
-        await Future.delayed(
-          Duration(milliseconds: (duration * 1000).toInt()),
-        );
+            ? double.tryParse(durationMatch.group(1)!) ?? 0.0
+            : 0.0;
+
+        if (duration == 0) {
+          // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
+          if (currentWave.isNotEmpty) {
+            await waitUntilMissionCleared(currentWave);
+            currentWave.clear();
+          }
+        } else {
+          // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
+          await Future.delayed(
+            Duration(milliseconds: (duration * 1000).toInt()),
+          );
+        }
         continue;
       }
 
@@ -201,15 +214,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         final shapeRect = shape.toRect();
         final isWithinBounds =
             shapeRect.left >= 0 &&
-                shapeRect.top >= 0 &&
-                shapeRect.right <= screenWidth &&
-                shapeRect.bottom <= screenHeight;
+            shapeRect.top >= 0 &&
+            shapeRect.right <= screenWidth &&
+            shapeRect.bottom <= screenHeight;
 
         if (isWithinBounds) {
           await add(shape);
           await shape.loaded;
           print('shape spawned: ${shape.position.toString()}');
           spawnedThisMission.add(shape);
+          currentWave.add(shape);
 
           // Movement
           final moveMatch = RegExp(
@@ -269,10 +283,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             continue;
           }
 
+          Rect _timerRectWorld() => timerBar.toRect();
+
           // Movement
-          final dMatch = RegExp(
-            r'D\((\d+),(\d+)\)',
-          ).firstMatch(enemy.movement);
+          final dMatch = RegExp(r'D\((\d+),(\d+)\)').firstMatch(enemy.movement);
           if (dMatch != null && shape != null) {
             final a = double.parse(dMatch.group(1)!);
             final b = double.parse(dMatch.group(2)!);
@@ -280,10 +294,35 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             await add(shape); // 초기 visible 상태로 추가
             await shape.loaded;
 
+            final r = _timerRectWorld();
+            const pad = 8.0;
+            const margin = 50.0;
+
+            final halfW = shape.size.x / 2;
+            final halfH = shape.size.y / 2;
+            // 타이머바 "아래" 영역 (Y는 아래로 증가)
+            final minYCenter = r.bottom + pad + halfH;
+            final maxYCenter = size.y - margin - halfH;
+
+            // 화면 좌우 여백 고려
+            final minXCenter = margin + halfW;
+            final maxXCenter = size.x - margin - halfW;
+
+            // 시작 위치도 즉시 범위 안으로
+            shape.position = Vector2(
+              shape.position.x.clamp(minXCenter, maxXCenter),
+              shape.position.y.clamp(minYCenter, maxYCenter),
+            );
+
             final blinking = BlinkingBehaviorComponent(
               shape: shape,
               visibleDuration: a,
               invisibleDuration: b,
+              isRandomRespawn: false,
+              xMin: minXCenter,
+              xMax: maxXCenter,
+              yMin: minYCenter,
+              yMax: maxYCenter,
             );
 
             blinkingMap[shape] = blinking;
@@ -303,12 +342,36 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             await add(shape); // 초기에 등장
             await shape.loaded;
 
+            final r = _timerRectWorld();
+            const pad = 8.0;
+            const margin = 50.0;
+
+            final halfW = shape.size.x / 2;
+            final halfH = shape.size.y / 2;
+
+            // 타이머바 "아래" 영역 (Y는 아래로 증가)
+            final minYCenter = r.bottom + pad + halfH;
+            final maxYCenter = size.y - margin - halfH;
+
+            // 화면 좌우 여백 고려
+            final minXCenter = margin + halfW;
+            final maxXCenter = size.x - margin - halfW;
+
+            // 시작 위치도 즉시 범위 안으로
+            shape.position = Vector2(
+              shape.position.x.clamp(minXCenter, maxXCenter),
+              shape.position.y.clamp(minYCenter, maxYCenter),
+            );
+
             final blinking = BlinkingBehaviorComponent(
               shape: shape,
               visibleDuration: a,
               invisibleDuration: b,
               isRandomRespawn: true,
-              bounds: size,
+              xMin: minXCenter,
+              xMax: maxXCenter,
+              yMin: minYCenter,
+              yMax: maxYCenter,
             );
 
             blinkingMap[shape] = blinking;
@@ -323,7 +386,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     StageResult ret = await waitUntilMissionCleared(spawnedThisMission);
-
+    await waitUntilMissionCleared(currentWave);
     return StageResult.success;
   }
 
@@ -352,17 +415,27 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       print('Starting Mission $missionNum');
 
       final spawnedThisMission = <Component>{};
+      final currentWave = <Component>{};
 
       for (final enemy in enemies) {
         if (enemy.command == 'wait') {
           final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
           final duration = durationMatch != null
-              ? double.tryParse(durationMatch.group(1)!) ?? 1.0
-              : 1.0;
-          print('[WAIT] $duration sec');
-          await Future.delayed(
-            Duration(milliseconds: (duration * 1000).toInt()),
-          );
+              ? double.tryParse(durationMatch.group(1)!) ?? 0.0
+              : 0.0;
+
+          if (duration == 0) {
+            // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
+            if (currentWave.isNotEmpty) {
+              await waitUntilMissionCleared(currentWave);
+              currentWave.clear();
+            }
+          } else {
+            // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
+            await Future.delayed(
+              Duration(milliseconds: (duration * 1000).toInt()),
+            );
+          }
           continue;
         }
 
@@ -404,15 +477,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           final shapeRect = shape.toRect();
           final isWithinBounds =
               shapeRect.left >= 0 &&
-                  shapeRect.top >= 0 &&
-                  shapeRect.right <= screenWidth &&
-                  shapeRect.bottom <= screenHeight;
+              shapeRect.top >= 0 &&
+              shapeRect.right <= screenWidth &&
+              shapeRect.bottom <= screenHeight;
 
           if (isWithinBounds) {
             await add(shape);
             await shape.loaded;
             print('shape spawned: ${shape.position.toString()}');
             spawnedThisMission.add(shape);
+            currentWave.add(shape);
 
             // Movement
             final moveMatch = RegExp(
@@ -472,6 +546,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               continue;
             }
 
+            Rect _timerRectWorld() => timerBar.toRect();
+
             // Movement
             final dMatch = RegExp(
               r'D\((\d+),(\d+)\)',
@@ -483,10 +559,35 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               await add(shape); // 초기 visible 상태로 추가
               await shape.loaded;
 
+              final r = _timerRectWorld();
+              const pad = 8.0;
+              const margin = 50.0;
+
+              final halfW = shape.size.x / 2;
+              final halfH = shape.size.y / 2;
+              // 타이머바 "아래" 영역 (Y는 아래로 증가)
+              final minYCenter = r.bottom + pad + halfH;
+              final maxYCenter = size.y - margin - halfH;
+
+              // 화면 좌우 여백 고려
+              final minXCenter = margin + halfW;
+              final maxXCenter = size.x - margin - halfW;
+
+              // 시작 위치도 즉시 범위 안으로
+              shape.position = Vector2(
+                shape.position.x.clamp(minXCenter, maxXCenter),
+                shape.position.y.clamp(minYCenter, maxYCenter),
+              );
+
               final blinking = BlinkingBehaviorComponent(
                 shape: shape,
                 visibleDuration: a,
                 invisibleDuration: b,
+                isRandomRespawn: false,
+                xMin: minXCenter,
+                xMax: maxXCenter,
+                yMin: minYCenter,
+                yMax: maxYCenter,
               );
 
               blinkingMap[shape] = blinking;
@@ -506,12 +607,36 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
               await add(shape); // 초기에 등장
               await shape.loaded;
 
+              final r = _timerRectWorld();
+              const pad = 8.0;
+              const margin = 50.0;
+
+              final halfW = shape.size.x / 2;
+              final halfH = shape.size.y / 2;
+
+              // 타이머바 "아래" 영역 (Y는 아래로 증가)
+              final minYCenter = r.bottom + pad + halfH;
+              final maxYCenter = size.y - margin - halfH;
+
+              // 화면 좌우 여백 고려
+              final minXCenter = margin + halfW;
+              final maxXCenter = size.x - margin - halfW;
+
+              // 시작 위치도 즉시 범위 안으로
+              shape.position = Vector2(
+                shape.position.x.clamp(minXCenter, maxXCenter),
+                shape.position.y.clamp(minYCenter, maxYCenter),
+              );
+
               final blinking = BlinkingBehaviorComponent(
                 shape: shape,
                 visibleDuration: a,
                 invisibleDuration: b,
                 isRandomRespawn: true,
-                bounds: size,
+                xMin: minXCenter,
+                xMax: maxXCenter,
+                yMin: minYCenter,
+                yMax: maxYCenter,
               );
 
               blinkingMap[shape] = blinking;
@@ -526,6 +651,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       }
 
       await waitUntilMissionCleared(spawnedThisMission);
+      await waitUntilMissionCleared(currentWave);
     }
   }
 
@@ -566,7 +692,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   }
 
   int _calculateStarRating(StageResult stgResult) {
-
     return 3;
   }
 
@@ -615,16 +740,24 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     remainingTime = seconds;
     isTimeCritical = false;
 
+    _timerPaused = false;
+    _timerEndedNotified = false;
+    _accumulator = 0;
+    _lastShownTime = -1;
+
     timerBar.totalTime = seconds;
     timerBar.updateTime(remainingTime); // 초기 상태 반영
     print('[TIMER] startMissionTimer -> $seconds sec');
-
   }
 
   // timer update
   @override
   void update(double dt) {
     super.update(dt);
+
+    if (_timerPaused) {
+      return;
+    }
 
     if (remainingTime > 0) {
       _accumulator += dt;
@@ -653,6 +786,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   }
 
   void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
+    _timerPaused = true;
+
     final aftermath = AftermathScreen(
       result: result,
       starCount: starCount,

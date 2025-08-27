@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:figureout/src/components/PentagonShape.dart';
 import 'package:figureout/src/components/UserRemovable.dart';
 import 'package:flame/components.dart';
 
@@ -10,6 +9,13 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   final double invisibleDuration;
   final bool isRandomRespawn;
   final Vector2? bounds;
+
+  final double? xMin;
+  final double? xMax;
+  final double? yMin;
+  final double? yMax;
+
+  final double margin;
 
   double _timer = 0;
   bool _visible = true;
@@ -25,6 +31,11 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
     required this.invisibleDuration,
     this.isRandomRespawn = false,
     this.bounds,
+    this.xMin,
+    this.xMax,
+    this.yMin,
+    this.yMax,
+    this.margin = 50.0,
   });
 
   @override
@@ -49,10 +60,20 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
       _visible = true;
       // parent?.add(shape);
       if (!shape.isMounted) {
-        if (isRandomRespawn && bounds != null) {
+        if (isRandomRespawn) {
           final margin = 50.0;
-          final x = margin + _rng.nextDouble() * (bounds!.x - 2 * margin);
-          final y = margin + _rng.nextDouble() * (bounds!.y - 2 * margin);
+          final screenW = game.size.x;
+          final screenH = game.size.y;
+
+          final xmin = (xMin ?? margin).clamp(0.0, screenW);
+          final xmax = (xMax ?? (screenW - margin)).clamp(xmin, screenW);
+
+          final ymin = (yMin ?? margin).clamp(0.0, screenH);
+          final ymax = (yMax ?? (screenH - margin)).clamp(ymin, screenH);
+
+          final x = xmin + _rng.nextDouble() * (xmax - xmin);
+          final y = ymin + _rng.nextDouble() * (ymax - ymin);
+
           shape.position = Vector2(x, y);
         }
 
