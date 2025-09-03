@@ -276,31 +276,66 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
-          print('Move match: ${enemy.movement}');
+
           if (moveMatch != null) {
-            final x1 = double.parse(moveMatch.group(1)!);
-            final y1 = double.parse(moveMatch.group(2)!);
-            final x2 = double.parse(moveMatch.group(3)!);
-            final y2 = double.parse(moveMatch.group(4)!);
-            final speed = double.parse(moveMatch.group(5)!);
+            final dx1 = double.parse(moveMatch.group(1)!);
+            final dy1 = double.parse(moveMatch.group(2)!);
+            final dx2 = double.parse(moveMatch.group(3)!);
+            final dy2 = double.parse(moveMatch.group(4)!);
+            final speed = double.parse(moveMatch.group(5)!); // px/sec
 
-            final startPos = centerOffset + flipY(Vector2(x1, y1));
-            final endPos = centerOffset + flipY(Vector2(x2, y2));
-            shape.position = startPos;
+            // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
+            final p1 = position + flipY(Vector2(dx1, dy1));
+            final p2 = position + flipY(Vector2(dx2, dy2));
 
-            final distance = startPos.distanceTo(endPos);
-            final travelTime = distance / speed;
+            // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
+            final comp = shape!;
 
-            shape.add(
-              MoveEffect.to(
-                endPos,
-                EffectController(
-                  duration: travelTime,
-                  alternate: true,
-                  infinite: true,
-                ),
+            // 이전 이펙트 있으면 제거
+            for (final e in List.of(comp.children.whereType<Effect>())) {
+              e.removeFromParent();
+            }
+
+            // 1) 스폰: H열 위치에서 잠깐 보임
+            comp.position = position;
+
+            // 2) 사라졌다가(p1로 재스폰) → 3) p1<->p2 왕복
+            const showDelay = 0.25; // 최초 노출 시간 (필요시 조절)
+            final originalScale = comp.scale.clone();
+
+            // (a) showDelay 후 0까지 축소하여 "사라짐" (DelayEffect 대신 startDelay 사용)
+            comp.add(
+              ScaleEffect.to(
+                Vector2.zero(),
+                EffectController(duration: 0.10, startDelay: showDelay),
+                onComplete: () {
+                  // (b) p1에서 재스폰(위치 이동) 후 다시 보이게(확대)
+                  comp.position = p1;
+
+                  comp.add(
+                    ScaleEffect.to(
+                      originalScale,
+                      EffectController(duration: 0.50),
+                      onComplete: () {
+                        // (c) 본 이동: p1 <-> p2 왕복 (무한)
+                        final segTime = p1.distanceTo(p2) / speed;
+                        comp.add(
+                          MoveEffect.to(
+                            p2,
+                            EffectController(
+                              duration: segTime,
+                              alternate: true,
+                              infinite: true,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             );
+
             continue;
           }
 
