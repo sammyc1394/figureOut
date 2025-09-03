@@ -30,14 +30,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // temporary function
   late RefreshButton refreshButton;
 
-  // stage data
+  //stage data
   late StageData initialStage;
+
   int _currentStageRunId = 0;
   List<StageData> _allStages = [];
 
   final SheetService sheetService = SheetService();
 
-  // timer data
+  //timer data
   Timer? countdownTimer;
   double remainingTime = 0;
   double missionTimeLimit = 0;
@@ -46,7 +47,11 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   late double _accumulator = 0;
   double _lastShownTime = -1;
   bool _timerEndedNotified = false;
+
   bool _timerPaused = false;
+  bool _isTimeOver = false;
+
+  double get _minPlayY => (timerBar.position.y + timerBar.size.y + 8.0);
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
@@ -94,6 +99,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     add(timerBar);
 
     try {
+      // final stages = await sheetService.fetchData();
       _allStages = await sheetService.fetchData();
       if (_allStages.isNotEmpty) {
         print('Fetched stages: ${_allStages.toString()}');
@@ -104,6 +110,40 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     debugMode = true;
+  }
+
+  //스폰 중단
+  void _stopEnemyBehaviors() {
+    for (final b in children.whereType<BlinkingBehaviorComponent>()) {
+      b.removeFromParent();
+    }
+    blinkingMap.clear();
+  }
+
+  void _clearAllShapes() {
+    children.whereType<CircleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<HexagonShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<PentagonShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<RectangleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<TriangleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+  }
+
+  void _onTimeOver() {
+    if (_isTimeOver) return;
+    _isTimeOver = true;
+    _timerPaused = true; // 타이머 틱 중단
+    _stopEnemyBehaviors(); // 깜빡임 중단
+    _clearAllShapes(); // 화면 도형 즉시 클리어(반짝 없음)
   }
 
   // ==== running missions ======================================================================================
@@ -150,13 +190,20 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     print('stages length = $stgLength');
 
     final enemies = stage.missions[runId]!;
+    print(enemies);
 
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
 
     for (final enemy in enemies) {
+      if (_isTimeOver) return StageResult.fail;
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
+        // final duration = durationMatch != null
+        //     ? double.tryParse(durationMatch.group(1)!) ?? 1.0
+        //     : 1.0;
+        // print('[WAIT] $duration sec');
+        // await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
         final duration = durationMatch != null
             ? double.tryParse(durationMatch.group(1)!) ?? 0.0
             : 0.0;
@@ -377,6 +424,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             blinkingMap[shape] = blinking;
 
             add(blinking);
+
             continue;
           }
 
@@ -387,7 +435,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     StageResult ret = await waitUntilMissionCleared(spawnedThisMission);
     await waitUntilMissionCleared(currentWave);
-    return StageResult.success;
+    // return StageResult.success;
+    return ret;
   }
 
   Future<void> runStageMissions(StageData stage) async {
@@ -649,7 +698,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           }
         }
       }
-
       await waitUntilMissionCleared(spawnedThisMission);
       await waitUntilMissionCleared(currentWave);
     }
@@ -659,6 +707,11 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // 추후 시간 제한 체크 여기에 추가...
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
     while (true) {
+      if (_isTimeOver) {
+        _stopEnemyBehaviors();
+        _clearAllShapes();
+        return StageResult.fail;
+      }
       final remaining = targets.where((c) {
         final blinking = blinkingMap[c];
 
@@ -744,6 +797,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     _timerEndedNotified = false;
     _accumulator = 0;
     _lastShownTime = -1;
+    _isTimeOver = false;
 
     timerBar.totalTime = seconds;
     timerBar.updateTime(remainingTime); // 초기 상태 반영
@@ -780,6 +834,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           timerBar.updateTime(0);
           // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
           // print("Time's up!");
+          _isTimeOver = true;
         }
       }
     }
@@ -950,6 +1005,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // ===========================================================================================================
 
   // ==== temporary functions ======================================================================================
+
   void refreshGame() {
     print("Refreshing game!");
 
@@ -982,10 +1038,46 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     // Spawn new shapes
     print('${children} after shape removal');
-    print('Initial stage: ${initialStage.name}');
-    runStageMissions(initialStage);
+    // print('Initial stage: ${initialStage.name}');
+    // runStageMissions(initialStage);
+    runStageWithAftermath(--_currentStageRunId);
   }
-  // ===============================================================================================================
+
+  // @override
+  // void update(double dt) {
+  //   super.update(dt);
+
+  //   if (remainingTime > 0) {
+  //     _accumulator += dt;
+  //     if (_accumulator >= 1.0) {
+  //       _accumulator -= 1.0;
+  //       remainingTime -= 1;
+
+  //       if (remainingTime != _lastShownTime) {
+  //         _lastShownTime = remainingTime;
+  //         // 필요할 때만 로그
+  //         print('remainingTime: $remainingTime');
+  //         timerBar.updateTime(remainingTime);
+  //       }
+
+  //       if (remainingTime <= 10) isTimeCritical = true;
+
+  //       if (remainingTime <= 0 && !_timerEndedNotified) {
+  //         _timerEndedNotified = true;
+  //         // 마지막으로 0초 반영 후 더 이상 건드리지 않음
+  //         timerBar.updateTime(0);
+  //         // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
+  //         // print("Time's up!");
+  //       }
+  //       // if (remainingTime <= 10) isTimeCritical = true;
+  //       // if (remainingTime <= 0) {
+  //       //   remainingTime = 0;
+  //       //   print("Time's up!");
+  //       // }
+  //       // timerBar.updateTime(remainingTime);
+  //     }
+  //   }
+  // }
 
   @override
   void render(Canvas canvas) {
