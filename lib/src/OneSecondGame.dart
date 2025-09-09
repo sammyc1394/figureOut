@@ -174,9 +174,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       return StageResult.fail;
     }
 
-    final parsedTime = _parseTimeLimitToSeconds(stage.timeLimit);
-    if (parsedTime != null && parsedTime > 0) {
-      startMissionTimer(parsedTime);
+    double? missionSeconds = stage.missionTimeLimits[runId];
+
+    double? stageSeconds;
+    if (missionSeconds == null) {
+      stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
+    }
+    final chosen = missionSeconds ?? stageSeconds;
+    if (chosen != null && chosen > 0) {
+      startMissionTimer(chosen);
     } else {
       print(
         '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
@@ -486,9 +492,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         return;
       }
 
-      final parsedTime = _parseTimeLimitToSeconds(stage.timeLimit);
-      if (parsedTime != null && parsedTime > 0) {
-        startMissionTimer(parsedTime);
+      double? missionSeconds = stage.missionTimeLimits[missionNum];
+
+      double? stageSeconds;
+      if (missionSeconds == null) {
+        stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
+      }
+      final chosen = missionSeconds ?? stageSeconds;
+      if (chosen != null && chosen > 0) {
+        startMissionTimer(chosen);
       } else {
         print(
           '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
