@@ -2,10 +2,12 @@ import 'package:flame/components.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-class TimerBarComponent extends PositionComponent {
+class GameTimerComponent extends PositionComponent {
   SvgComponent? frame;
   SvgComponent? stateIndicator;
   ClipComponent? clip;
+
+  late TextComponent timerText;
 
   double totalTime;
   double currentTime;
@@ -15,7 +17,7 @@ class TimerBarComponent extends PositionComponent {
 
   static const double _epsilon = 1e-3;
 
-  TimerBarComponent({
+  GameTimerComponent({
     required this.totalTime,
     required Vector2 position,
     Vector2? sizePx,
@@ -25,6 +27,13 @@ class TimerBarComponent extends PositionComponent {
          size: sizePx ?? Vector2(320, 28),
          anchor: Anchor.topCenter,
        );
+
+  String _formatTime(double time) {
+    final int seconds = time.floor();
+    final int minutes = seconds ~/ 60;
+    final int remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
 
   String _frameOf(String fill) {
     if (fill.endsWith('.svg')) {
@@ -44,6 +53,8 @@ class TimerBarComponent extends PositionComponent {
       anchor: Anchor.topLeft,
     );
 
+    print('Timer bar: ${position.toString()}');
+
     clip = ClipComponent.rectangle(size: size);
     clip!.add(stateIndicator!);
 
@@ -53,6 +64,22 @@ class TimerBarComponent extends PositionComponent {
       anchor: Anchor.topLeft,
     );
 
+    timerText = TextComponent(
+      text: _formatTime(currentTime),
+      anchor: Anchor.topRight,
+      position: Vector2(-8, (size.y - 21) / 2), // 왼쪽에 살짝 붙여서 정렬
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontFamily: 'Moulpali',
+          fontSize: 16,
+          height: 21 / 16,
+          letterSpacing: -0.32,
+          color: Colors.black,
+        ),
+      ),
+    );
+
+    add(timerText);
     add(clip!);
     add(frame!);
 
@@ -80,6 +107,8 @@ class TimerBarComponent extends PositionComponent {
     clip!.size = Vector2(size.x * (ratio > 0 ? ratio : minWidth), size.y);
 
     stateIndicator!.size = size;
+
+    timerText.text = _formatTime(currentTime);
   }
 
   void _changeState(String fillAsset) async {

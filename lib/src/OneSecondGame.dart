@@ -22,7 +22,7 @@ import 'config.dart';
 import 'components/sheet_service.dart';
 import 'components/OrbitingComponent.dart';
 import 'components/BlinkingBehavior.dart';
-import 'components/TimerBarComponent.dart';
+import 'components/GameTimerComponent.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
@@ -43,7 +43,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   double remainingTime = 0;
   double missionTimeLimit = 0;
   bool isTimeCritical = false;
-  late TimerBarComponent timerBar;
+  late GameTimerComponent timerBar;
   late double _accumulator = 0;
   double _lastShownTime = -1;
   bool _timerEndedNotified = false;
@@ -92,9 +92,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     );
     add(refreshButton);
 
-    timerBar = TimerBarComponent(
+    timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
-      position: Vector2(size.x / 2, 80),
+      position: Vector2((size.x / 2) + 16, 80),
     );
     add(timerBar);
 
