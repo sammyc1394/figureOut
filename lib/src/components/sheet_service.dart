@@ -39,6 +39,7 @@ class SheetService {
     bool firstMissionHeaderSeen = false;
 
     Map<int, List<EnemyData>>? currentMissionMap;
+    Map<int, double> timeLimitMap;
 
     for (var row in values) {
       final cells = row.map((e) => (e ?? '').toString().trim()).toList();
@@ -51,16 +52,18 @@ class SheetService {
         // final String timeLimit = row.length > 7
         //     ? row[7]?.toString().trim() ?? ''
         //     : '';
-        final rewardFromS = _safeGet(cells, 6); // H
-        final timeFromS = _safeGet(cells, 7); // I
+        final rewardFromS = _safeGet(cells, 7); // I
+        final timeFromS = _safeGet(cells, 8); // J
 
         currentMissionMap = {};
+        timeLimitMap = {};
         currentStage = StageData(
           name: cell,
           // reward: reward,
           reward: rewardFromS,
           timeLimit: timeFromS,
-          missions: currentMissionMap,
+          missions: currentMissionMap!,
+          missionTimeLimits: timeLimitMap!,
         );
         stages.add(currentStage);
         continue;
@@ -70,6 +73,14 @@ class SheetService {
         final missionMatch = RegExp(r'm(\d+)').firstMatch(cell);
         if (missionMatch != null) {
           currentMission = int.parse(missionMatch.group(1)!);
+
+          if (currentStage != null) {
+            final timeFromJ = _safeGet(cells, 8); // J
+            final parsed = double.tryParse(timeFromJ);
+            if (parsed != null) {
+              currentStage!.missionTimeLimits[currentMission] = parsed;
+            }
+          }
 
           if (currentStage != null && !firstMissionHeaderSeen) {
             firstMissionHeaderSeen = true;
@@ -140,19 +151,21 @@ class SheetService {
 class StageData {
   final String name;
   String reward;
-  String timeLimit;
+  String timeLimit; //Default time limit
   final Map<int, List<EnemyData>> missions;
+  final Map<int, double> missionTimeLimits;
 
   StageData({
     required this.name,
     required this.reward,
     required this.timeLimit,
     required this.missions,
+    required this.missionTimeLimits,
   });
 
   @override
   String toString() {
-    return '[$name, reward: $reward, timeLimit: $timeLimit, missions: $missions]';
+    return '[$name, reward: $reward, missions: ${missions.keys}, missionTimeLimits: $missionTimeLimits]';
   }
 }
 

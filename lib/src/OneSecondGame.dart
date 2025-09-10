@@ -22,7 +22,7 @@ import 'config.dart';
 import 'components/sheet_service.dart';
 import 'components/OrbitingComponent.dart';
 import 'components/BlinkingBehavior.dart';
-import 'components/TimerBarComponent.dart';
+import 'components/GameTimerComponent.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
@@ -30,23 +30,28 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // temporary function
   late RefreshButton refreshButton;
 
-  // stage data
+  //stage data
   late StageData initialStage;
+
   int _currentStageRunId = 0;
   List<StageData> _allStages = [];
 
   final SheetService sheetService = SheetService();
 
-  // timer data
+  //timer data
   Timer? countdownTimer;
   double remainingTime = 0;
   double missionTimeLimit = 0;
   bool isTimeCritical = false;
-  late TimerBarComponent timerBar;
+  late GameTimerComponent timerBar;
   late double _accumulator = 0;
   double _lastShownTime = -1;
   bool _timerEndedNotified = false;
+
   bool _timerPaused = false;
+  bool _isTimeOver = false;
+
+  double get _minPlayY => (timerBar.position.y + timerBar.size.y + 8.0);
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
@@ -87,13 +92,14 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     );
     add(refreshButton);
 
-    timerBar = TimerBarComponent(
+    timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
-      position: Vector2(size.x / 2, 80),
+      position: Vector2((size.x / 2) + 16, 80),
     );
     add(timerBar);
 
     try {
+      // final stages = await sheetService.fetchData();
       _allStages = await sheetService.fetchData();
       if (_allStages.isNotEmpty) {
         print('Fetched stages: ${_allStages.toString()}');
@@ -104,6 +110,40 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     debugMode = true;
+  }
+
+  //스폰 중단
+  void _stopEnemyBehaviors() {
+    for (final b in children.whereType<BlinkingBehaviorComponent>()) {
+      b.removeFromParent();
+    }
+    blinkingMap.clear();
+  }
+
+  void _clearAllShapes() {
+    children.whereType<CircleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<HexagonShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<PentagonShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<RectangleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<TriangleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+  }
+
+  void _onTimeOver() {
+    if (_isTimeOver) return;
+    _isTimeOver = true;
+    _timerPaused = true; // 타이머 틱 중단
+    _stopEnemyBehaviors(); // 깜빡임 중단
+    _clearAllShapes(); // 화면 도형 즉시 클리어(반짝 없음)
   }
 
   // ==== running missions ======================================================================================
@@ -134,9 +174,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       return StageResult.fail;
     }
 
-    final parsedTime = _parseTimeLimitToSeconds(stage.timeLimit);
-    if (parsedTime != null && parsedTime > 0) {
-      startMissionTimer(parsedTime);
+    double? missionSeconds = stage.missionTimeLimits[runId];
+
+    double? stageSeconds;
+    if (missionSeconds == null) {
+      stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
+    }
+    final chosen = missionSeconds ?? stageSeconds;
+    if (chosen != null && chosen > 0) {
+      startMissionTimer(chosen);
     } else {
       print(
         '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
@@ -150,13 +196,20 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     print('stages length = $stgLength');
 
     final enemies = stage.missions[runId]!;
+    print(enemies);
 
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
 
     for (final enemy in enemies) {
+      if (_isTimeOver) return StageResult.fail;
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
+        // final duration = durationMatch != null
+        //     ? double.tryParse(durationMatch.group(1)!) ?? 1.0
+        //     : 1.0;
+        // print('[WAIT] $duration sec');
+        // await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
         final duration = durationMatch != null
             ? double.tryParse(durationMatch.group(1)!) ?? 0.0
             : 0.0;
@@ -229,31 +282,66 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
-          print('Move match: ${enemy.movement}');
+
           if (moveMatch != null) {
-            final x1 = double.parse(moveMatch.group(1)!);
-            final y1 = double.parse(moveMatch.group(2)!);
-            final x2 = double.parse(moveMatch.group(3)!);
-            final y2 = double.parse(moveMatch.group(4)!);
-            final speed = double.parse(moveMatch.group(5)!);
+            final dx1 = double.parse(moveMatch.group(1)!);
+            final dy1 = double.parse(moveMatch.group(2)!);
+            final dx2 = double.parse(moveMatch.group(3)!);
+            final dy2 = double.parse(moveMatch.group(4)!);
+            final speed = double.parse(moveMatch.group(5)!); // px/sec
 
-            final startPos = centerOffset + flipY(Vector2(x1, y1));
-            final endPos = centerOffset + flipY(Vector2(x2, y2));
-            shape.position = startPos;
+            // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
+            final p1 = position + flipY(Vector2(dx1, dy1));
+            final p2 = position + flipY(Vector2(dx2, dy2));
 
-            final distance = startPos.distanceTo(endPos);
-            final travelTime = distance / speed;
+            // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
+            final comp = shape!;
 
-            shape.add(
-              MoveEffect.to(
-                endPos,
-                EffectController(
-                  duration: travelTime,
-                  alternate: true,
-                  infinite: true,
-                ),
+            // 이전 이펙트 있으면 제거
+            for (final e in List.of(comp.children.whereType<Effect>())) {
+              e.removeFromParent();
+            }
+
+            // 1) 스폰: H열 위치에서 잠깐 보임
+            comp.position = position;
+
+            // 2) 사라졌다가(p1로 재스폰) → 3) p1<->p2 왕복
+            const showDelay = 0.25; // 최초 노출 시간 (필요시 조절)
+            final originalScale = comp.scale.clone();
+
+            // (a) showDelay 후 0까지 축소하여 "사라짐" (DelayEffect 대신 startDelay 사용)
+            comp.add(
+              ScaleEffect.to(
+                Vector2.zero(),
+                EffectController(duration: 0.10, startDelay: showDelay),
+                onComplete: () {
+                  // (b) p1에서 재스폰(위치 이동) 후 다시 보이게(확대)
+                  comp.position = p1;
+
+                  comp.add(
+                    ScaleEffect.to(
+                      originalScale,
+                      EffectController(duration: 0.50),
+                      onComplete: () {
+                        // (c) 본 이동: p1 <-> p2 왕복 (무한)
+                        final segTime = p1.distanceTo(p2) / speed;
+                        comp.add(
+                          MoveEffect.to(
+                            p2,
+                            EffectController(
+                              duration: segTime,
+                              alternate: true,
+                              infinite: true,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             );
+
             continue;
           }
 
@@ -286,7 +374,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           Rect _timerRectWorld() => timerBar.toRect();
 
           // Movement
-          final dMatch = RegExp(r'D\((\d+),(\d+)\)').firstMatch(enemy.movement);
+          final dMatch = RegExp(
+            r'D\(\s*(\d+)\s*,\s*(\d+)\s*\)',
+          ).firstMatch(enemy.movement);
           if (dMatch != null && shape != null) {
             final a = double.parse(dMatch.group(1)!);
             final b = double.parse(dMatch.group(2)!);
@@ -333,7 +423,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           // Movement
           // DR(a,b): 깜빡이며 랜덤 위치로 재등장
           final drMatch = RegExp(
-            r'DR\((\d+),(\d+)\)',
+            r'DR\(\s*(\d+)\s*,\s*(\d+)\s*\)',
           ).firstMatch(enemy.movement);
           if (drMatch != null && shape != null) {
             final a = double.parse(drMatch.group(1)!);
@@ -377,6 +467,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             blinkingMap[shape] = blinking;
 
             add(blinking);
+
             continue;
           }
 
@@ -387,7 +478,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     StageResult ret = await waitUntilMissionCleared(spawnedThisMission);
     await waitUntilMissionCleared(currentWave);
-    return StageResult.success;
+    // return StageResult.success;
+    return ret;
   }
 
   Future<void> runStageMissions(StageData stage) async {
@@ -402,9 +494,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         return;
       }
 
-      final parsedTime = _parseTimeLimitToSeconds(stage.timeLimit);
-      if (parsedTime != null && parsedTime > 0) {
-        startMissionTimer(parsedTime);
+      double? missionSeconds = stage.missionTimeLimits[missionNum];
+
+      double? stageSeconds;
+      if (missionSeconds == null) {
+        stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
+      }
+      final chosen = missionSeconds ?? stageSeconds;
+      if (chosen != null && chosen > 0) {
+        startMissionTimer(chosen);
       } else {
         print(
           '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
@@ -550,7 +648,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
             // Movement
             final dMatch = RegExp(
-              r'D\((\d+),(\d+)\)',
+              r'D\(\s*(\d+)\s*,\s*(\d+)\s*\)',
             ).firstMatch(enemy.movement);
             if (dMatch != null && shape != null) {
               final a = double.parse(dMatch.group(1)!);
@@ -598,7 +696,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             // Movement
             // DR(a,b): 깜빡이며 랜덤 위치로 재등장
             final drMatch = RegExp(
-              r'DR\((\d+),(\d+)\)',
+              r'DR\(\s*(\d+)\s*,\s*(\d+)\s*\)',
             ).firstMatch(enemy.movement);
             if (drMatch != null && shape != null) {
               final a = double.parse(drMatch.group(1)!);
@@ -649,7 +747,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           }
         }
       }
-
       await waitUntilMissionCleared(spawnedThisMission);
       await waitUntilMissionCleared(currentWave);
     }
@@ -659,6 +756,11 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // 추후 시간 제한 체크 여기에 추가...
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
     while (true) {
+      if (_isTimeOver) {
+        _stopEnemyBehaviors();
+        _clearAllShapes();
+        return StageResult.fail;
+      }
       final remaining = targets.where((c) {
         final blinking = blinkingMap[c];
 
@@ -744,6 +846,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     _timerEndedNotified = false;
     _accumulator = 0;
     _lastShownTime = -1;
+    _isTimeOver = false;
 
     timerBar.totalTime = seconds;
     timerBar.updateTime(remainingTime); // 초기 상태 반영
@@ -780,6 +883,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           timerBar.updateTime(0);
           // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
           // print("Time's up!");
+          _isTimeOver = true;
         }
       }
     }
@@ -950,6 +1054,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // ===========================================================================================================
 
   // ==== temporary functions ======================================================================================
+
   void refreshGame() {
     print("Refreshing game!");
 
@@ -982,10 +1087,46 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     // Spawn new shapes
     print('${children} after shape removal');
-    print('Initial stage: ${initialStage.name}');
-    runStageMissions(initialStage);
+    // print('Initial stage: ${initialStage.name}');
+    // runStageMissions(initialStage);
+    runStageWithAftermath(--_currentStageRunId);
   }
-  // ===============================================================================================================
+
+  // @override
+  // void update(double dt) {
+  //   super.update(dt);
+
+  //   if (remainingTime > 0) {
+  //     _accumulator += dt;
+  //     if (_accumulator >= 1.0) {
+  //       _accumulator -= 1.0;
+  //       remainingTime -= 1;
+
+  //       if (remainingTime != _lastShownTime) {
+  //         _lastShownTime = remainingTime;
+  //         // 필요할 때만 로그
+  //         print('remainingTime: $remainingTime');
+  //         timerBar.updateTime(remainingTime);
+  //       }
+
+  //       if (remainingTime <= 10) isTimeCritical = true;
+
+  //       if (remainingTime <= 0 && !_timerEndedNotified) {
+  //         _timerEndedNotified = true;
+  //         // 마지막으로 0초 반영 후 더 이상 건드리지 않음
+  //         timerBar.updateTime(0);
+  //         // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
+  //         // print("Time's up!");
+  //       }
+  //       // if (remainingTime <= 10) isTimeCritical = true;
+  //       // if (remainingTime <= 0) {
+  //       //   remainingTime = 0;
+  //       //   print("Time's up!");
+  //       // }
+  //       // timerBar.updateTime(remainingTime);
+  //     }
+  //   }
+  // }
 
   @override
   void render(Canvas canvas) {
