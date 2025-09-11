@@ -115,11 +115,14 @@ class SheetService {
       final String shape = row.length > 3
           ? row[3]?.toString().trim() ?? ''
           : '';
-      final String movement = row.length > 4
+      final String attach = row.length > 4
           ? row[4]?.toString().trim() ?? ''
           : '';
-      final String position = row.length > 5
+      final String movement = row.length > 5
           ? row[5]?.toString().trim() ?? ''
+          : '';
+      final String position = row.length > 6
+          ? row[6]?.toString().trim() ?? ''
           : '';
       final missionMatch = RegExp(
         r'm(\d+)',
