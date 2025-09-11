@@ -59,6 +59,14 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   late final screenWidth;
   late final screenHeight;
 
+  late PositionComponent screenArea;
+  late PositionComponent playArea;
+
+  late double playAreaScaleX;
+  late double playAreaScaleY;
+
+
+
   // gestures
   Vector2? dragStart;
   Vector2? sliceStartPoint;
@@ -74,16 +82,65 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     screenWidth = size.x;
     screenHeight = size.y;
 
-    PositionComponent cameraViewfinder = RectangleComponent(
-      position: Vector2.zero(),
+    screenArea = RectangleComponent(
+      position: Vector2(size.x / 2, size.y / 2),
       size: size,
       anchor: Anchor.center,
       paint: Paint()..color = Colors.transparent,
     );
-    cameraViewfinder.flipVerticallyAroundCenter();
+    add(screenArea);
 
-    print('center: ${cameraViewfinder.center.toString()}');
-    print('topLeft: ${cameraViewfinder.absoluteTopLeftPosition.toString()}');
+    final availWidth = size.x - (UIsidePadding * 2);
+    final availHeight = size.y - (UItopPadding);
+
+    double playWidth, playHeight;
+
+    if (size.x > rangeX) {
+    double actualRatio = availWidth / availHeight;
+
+    print("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
+    if(availWidth / availHeight > aspectRatio) {
+    playHeight = availHeight;
+    playWidth = playHeight * aspectRatio;
+    } else {
+    playWidth = availWidth;
+    playHeight = playWidth / aspectRatio;
+    }
+    } else {
+    if(availWidth / availHeight > aspectRatio) {
+    playHeight = availHeight;
+    playWidth = playHeight * aspectRatio;
+    } else {
+    playWidth = availWidth;
+    playHeight = playWidth / aspectRatio;
+    }
+    }
+
+    playWidth = math.min(playWidth, targetPlayWidth);
+    playHeight = math.min(playHeight, targetPlayHeight);
+
+    double playCenterX = ((size.x - playWidth) / 2) + (playWidth / 2);
+    double playCenterY = UItopPadding + (playHeight / 2);
+
+    // print('play area = ($playWidth, $playHeight)');
+    playArea = RectangleComponent(
+    position: Vector2(playCenterX, playCenterY),
+    size: Vector2(playWidth, playHeight),
+    anchor: Anchor.center,
+    paint: Paint()..color = Colors.transparent,
+    );
+    add(playArea);
+
+    // 로그 s
+    double playX = playArea.width;
+    double playY = playArea.height;
+
+    print("playArea size = ($playX, $playY)");
+    // 로그 e
+
+    playAreaScaleX = playWidth / targetPlayWidth;
+    playAreaScaleY = playHeight / targetPlayHeight;
+
 
     // Add refresh button to top-right corner
     refreshButton = RefreshButton(
@@ -109,6 +166,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       print('Sheet fetch error: $e');
     }
 
+    // TODO : make this as button
     debugMode = true;
   }
 
@@ -166,7 +224,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   }
 
   Future<StageResult> runSingleMissions(StageData stage, int stageIndex) async {
-    final centerOffset = size / 2;
+    final centerOffset = playArea.size / 2;
     final runId = ++_currentStageRunId;
 
     if (runId != _currentStageRunId) {
@@ -235,7 +293,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       if (posMatch == null) continue;
       final x = double.parse(posMatch.group(1)!);
       final y = double.parse(posMatch.group(2)!);
-      final position = centerOffset + flipY(Vector2(x, y));
+      final position = toPlayArea(flipY(Vector2(x, y)));
       print('Spawning enemy at $position: ${enemy.shape}');
 
       PositionComponent? shape;
@@ -791,6 +849,38 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     }
 
     return StageResult.success;
+  }
+
+  // Convert from your coordinate system to play area coordinates
+  Vector2 toPlayArea(Vector2 yourCoordinates) {
+    double playX;
+    double playY;
+
+    double normalizedX = (yourCoordinates.x - minX) / rangeX;
+    double normalizedY = (yourCoordinates.y - minY) / rangeY;
+
+    // extract shape size from the coordinate so they can always spawn in the play area
+    if(normalizedX < 0.5) {
+      playX = (normalizedX * playArea.width) + (shapePadding / 2);
+    } else if(normalizedX > 0.5) {
+      playX = (normalizedX * playArea.width) - (shapePadding / 2);
+    } else {
+      playX = (normalizedX * playArea.width);
+    }
+
+    if(normalizedY < 0.5) {
+      playY = (normalizedY * playArea.height) + (shapePadding / 2);
+    } else if(normalizedY > 0.5) {
+      playY = (normalizedY * playArea.height) - (shapePadding / 2);
+    } else {
+      playY = (normalizedY * playArea.height);
+    }
+
+    print("norm X = $normalizedX, norm Y = $normalizedY");
+    print("new coordinate = ($playX,$playY)");
+    print('Expected center: (${playArea.size.x/2}, ${playArea.size.y/2})');
+
+    return Vector2(playX, playY);
   }
 
   int _calculateStarRating(StageResult stgResult) {

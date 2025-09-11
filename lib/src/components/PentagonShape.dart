@@ -87,8 +87,6 @@ class PentagonShape extends PositionComponent
   void onTapUp(TapUpEvent event) {
     super.onTapUp(event);
 
-    print("stoppppped");
-
     final blinking = parent?.children
         .whereType<BlinkingBehaviorComponent>()
         .cast<BlinkingBehaviorComponent?>()
