@@ -1,11 +1,11 @@
 import 'dart:ui';
 import 'dart:async' as async;
-import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
-import 'BlinkingBehavior.dart';
+import 'package:figureout/src/functions/BlinkingBehavior.dart';
 
 class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable {

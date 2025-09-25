@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';

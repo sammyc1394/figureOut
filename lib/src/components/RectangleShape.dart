@@ -1,19 +1,19 @@
-import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame_svg/svg.dart';
 import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
 class RectangleShape extends PositionComponent with UserRemovable {
-  int count = 0;
+  int energy = 0;
   late final SvgComponent svg;
 
   bool isSliced = false;
   Vector2? sliceStart;
   Vector2? sliceEnd;
 
-  // RectangleShape(Vector2 position, this.energy)
-  RectangleShape(Vector2 position)
+  RectangleShape(Vector2 position, this.energy)
+  // RectangleShape(Vector2 position)
     : super(position: position, size: Vector2(40, 80));
 
   @override
@@ -43,8 +43,8 @@ class RectangleShape extends PositionComponent with UserRemovable {
   void _renderRectangleShape(Canvas canvas) {
     svg.render(canvas);
 
-    if (count > 1) {
-      _drawText(canvas, count.toString());
+    if (energy > 1) {
+      _drawText(canvas, energy.toString());
     }
   }
 

@@ -2,14 +2,15 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
-import 'UserRemovable.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
 import 'dart:math' as math;
 
 class HexagonShape extends PositionComponent with DragCallbacks, UserRemovable {
   double cumulativeScale = 1.0;
   late final SvgComponent svg;
+  int energy = 0;
 
-  HexagonShape(Vector2 position)
+  HexagonShape(Vector2 position, this.energy)
     : super(position: position, size: Vector2.all(100), anchor: Anchor.center);
 
   @override
