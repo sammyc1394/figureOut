@@ -15,7 +15,7 @@ class SheetService {
   }
   String get sheetName => 'Stages & Missions';
   String get encodedSheetName => Uri.encodeComponent(sheetName);
-  String get range => 'B3:I'; // Start from row 5, columns C~I
+  String get range => 'B3:J'; // Start from row 5, columns C~J
 
   Future<List<StageData>> fetchData() async {
     final uri = Uri.parse(
@@ -55,6 +55,8 @@ class SheetService {
         final rewardFromS = _safeGet(cells, 7); // I
         final timeFromS = _safeGet(cells, 8); // J
 
+        print("rewardFromS = $rewardFromS, timeFromS = $timeFromS");
+
         currentMissionMap = {};
         timeLimitMap = {};
         currentStage = StageData(
@@ -77,6 +79,7 @@ class SheetService {
           if (currentStage != null) {
             final timeFromJ = _safeGet(cells, 8); // J
             final parsed = double.tryParse(timeFromJ);
+            print("timeFromJ = $timeFromJ");
             if (parsed != null) {
               currentStage!.missionTimeLimits[currentMission] = parsed;
             }
@@ -85,8 +88,10 @@ class SheetService {
           if (currentStage != null && !firstMissionHeaderSeen) {
             firstMissionHeaderSeen = true;
 
-            final rewardFromM = _safeGet(cells, 6); // H
-            final timeFromM = _safeGet(cells, 7); // I
+            final rewardFromM = _safeGet(cells, 7); // H
+            final timeFromM = _safeGet(cells, 8); // I
+
+            print("rewardFromM = $rewardFromM, timeFromM = $timeFromM");
 
             if ((currentStage!.reward.isEmpty) && rewardFromM.isNotEmpty) {
               currentStage!.reward = rewardFromM;

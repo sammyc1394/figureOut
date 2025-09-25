@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
 
 class BlinkingBehaviorComponent extends Component with HasGameReference {
