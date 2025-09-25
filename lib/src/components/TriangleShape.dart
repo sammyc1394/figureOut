@@ -1,14 +1,15 @@
 import 'dart:ui';
 
-import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 class TriangleShape extends PositionComponent with UserRemovable {
   late final SvgComponent svg;
+  int energy = 0;
 
-  TriangleShape(Vector2 position)
+  TriangleShape(Vector2 position, this.energy)
     : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
 
   @override

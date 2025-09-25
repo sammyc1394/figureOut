@@ -1,4 +1,4 @@
-import 'package:figureout/src/components/svgButton.dart';
+import 'package:figureout/src/functions/svgButton.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/text.dart';
@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'OneSecondGame.dart';
-import 'config.dart';
+import 'package:figureout/src/config.dart';
 
 class AftermathScreen extends PositionComponent with TapCallbacks {
   // results

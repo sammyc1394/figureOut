@@ -1,28 +1,32 @@
+import 'package:flame/components.dart';
+
 import 'dart:async';
 import 'dart:ui';
-import 'package:figureout/src/components/UserRemovable.dart';
-import 'package:figureout/src/AftermathScreen.dart';
+import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:figureout/src/routes/AftermathScreen.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
-import 'components/RefreshButton.dart';
+import 'package:figureout/src/temp/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-import 'components/CircleShape.dart';
-import 'components/HexagonShape.dart';
-import 'components/PentagonShape.dart';
-import 'components/RectangleShape.dart';
+import 'package:figureout/src/components/CircleShape.dart';
+import 'package:figureout/src/components/HexagonShape.dart';
+import 'package:figureout/src/components/PentagonShape.dart';
+import 'package:figureout/src/components/RectangleShape.dart';
+import 'package:figureout/src/components/TriangleShape.dart';
+import 'package:figureout/src/components/GameTimerComponent.dart';
 
-import 'components/TriangleShape.dart';
-import 'config.dart';
+import 'package:figureout/src/config.dart';
 
-import 'components/sheet_service.dart';
-import 'components/OrbitingComponent.dart';
-import 'components/BlinkingBehavior.dart';
-import 'components/GameTimerComponent.dart';
+import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:figureout/src/functions/OrbitingComponent.dart';
+import 'package:figureout/src/functions/BlinkingBehavior.dart';
+
+
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
