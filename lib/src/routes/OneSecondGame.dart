@@ -29,12 +29,19 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   // temporary function
   late RefreshButton refreshButton;
+  // bool debugYN = true;
 
   //stage data
   late StageData initialStage;
 
-  int _currentStageRunId = 0;
+  int _currentStageIndex = 0;
+  int _currentMissionIndex = 1;
+
   List<StageData> _allStages = [];
+
+  // temp data
+  int maxMissionIndex = 8;
+  int maxStageIndex = 10;
 
   final SheetService sheetService = SheetService();
 
@@ -65,8 +72,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   late double playAreaScaleX;
   late double playAreaScaleY;
 
-
-
   // gestures
   Vector2? dragStart;
   Vector2? sliceStartPoint;
@@ -96,24 +101,23 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     double playWidth, playHeight;
 
     if (size.x > rangeX) {
-    double actualRatio = availWidth / availHeight;
-
-    print("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
-    if(availWidth / availHeight > aspectRatio) {
-    playHeight = availHeight;
-    playWidth = playHeight * aspectRatio;
+      double actualRatio = availWidth / availHeight;
+      print("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
+      if(availWidth / availHeight > aspectRatio) {
+        playHeight = availHeight;
+        playWidth = playHeight * aspectRatio;
+      } else {
+        playWidth = availWidth;
+        playHeight = playWidth / aspectRatio;
+      }
     } else {
-    playWidth = availWidth;
-    playHeight = playWidth / aspectRatio;
-    }
-    } else {
-    if(availWidth / availHeight > aspectRatio) {
-    playHeight = availHeight;
-    playWidth = playHeight * aspectRatio;
-    } else {
-    playWidth = availWidth;
-    playHeight = playWidth / aspectRatio;
-    }
+      if(availWidth / availHeight > aspectRatio) {
+        playHeight = availHeight;
+        playWidth = playHeight * aspectRatio;
+      } else {
+        playWidth = availWidth;
+        playHeight = playWidth / aspectRatio;
+      }
     }
 
     playWidth = math.min(playWidth, targetPlayWidth);
@@ -124,10 +128,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     // print('play area = ($playWidth, $playHeight)');
     playArea = RectangleComponent(
-    position: Vector2(playCenterX, playCenterY),
-    size: Vector2(playWidth, playHeight),
-    anchor: Anchor.center,
-    paint: Paint()..color = Colors.transparent,
+      position: Vector2(playCenterX, playCenterY),
+      size: Vector2(playWidth, playHeight),
+      anchor: Anchor.center,
+      paint: Paint()..color = Colors.transparent,
     );
     add(playArea);
 
@@ -141,11 +145,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     playAreaScaleX = playWidth / targetPlayWidth;
     playAreaScaleY = playHeight / targetPlayHeight;
 
-
     // Add refresh button to top-right corner
     refreshButton = RefreshButton(
       position: Vector2(size.x - 60, 40),
-      onPressed: refreshGame,
+      onPressed: onRefresh,
     );
     add(refreshButton);
 
@@ -160,14 +163,26 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       _allStages = await sheetService.fetchData();
       if (_allStages.isNotEmpty) {
         print('Fetched stages: ${_allStages.toString()}');
-        runStageWithAftermath(_currentStageRunId);
+
+        runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
       }
     } catch (e) {
       print('Sheet fetch error: $e');
     }
 
     // TODO : make this as button
-    debugMode = true;
+    debugMode = false;
+  }
+
+  @override
+  void onMount() {
+    // TODO: implement onMount
+    super.onMount();
+
+    // _clearAllShapes();
+    // _spawnAllShapes();
+
+    toggleDebug();
   }
 
   //스폰 중단
@@ -208,7 +223,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   // runStageWithAftermath -> runSingleMissions
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
-  Future<void> runStageWithAftermath(int stageIndex) async {
+  Future<void> runStageWithAftermath(int stageIndex, int missionIndex) async {
+    print("mission index = $missionIndex");
+
     if (stageIndex > _allStages.length) {
       print('all stages completed!');
       return;
@@ -216,24 +233,20 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     final stage = _allStages[stageIndex];
 
-    final result = await runSingleMissions(stage, stageIndex);
+    final result = await runSingleMissions(stage, missionIndex);
 
     final starRating = _calculateStarRating(result);
     // showAftermathScreen(result);
     showAftermathScreen(result, starRating, stageIndex);
   }
 
-  Future<StageResult> runSingleMissions(StageData stage, int stageIndex) async {
+  Future<StageResult> runSingleMissions(StageData stage, int missionIndex) async {
     final centerOffset = playArea.size / 2;
-    final runId = ++_currentStageRunId;
-
-    if (runId != _currentStageRunId) {
-      // print('Stage run $runId cancelled (current: $_currentStageRunId)');
-      return StageResult.fail;
-    }
+    int runId = missionIndex;
 
     double? missionSeconds = stage.missionTimeLimits[runId];
 
+    String tl = stage.timeLimit;
     double? stageSeconds;
     if (missionSeconds == null) {
       stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
@@ -247,11 +260,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       );
     }
 
-    print(
-      'stage index = $stageIndex, and current stage index = $_currentStageRunId',
-    );
+    print('current stage index = $runId');
     int stgLength = _allStages.length;
-    print('stages length = $stgLength');
+    maxMissionIndex = stage.missions.length;
+    print('mission length = $maxMissionIndex');
 
     final enemies = stage.missions[runId]!;
     print(enemies);
@@ -263,11 +275,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       if (_isTimeOver) return StageResult.fail;
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
-        // final duration = durationMatch != null
-        //     ? double.tryParse(durationMatch.group(1)!) ?? 1.0
-        //     : 1.0;
-        // print('[WAIT] $duration sec');
-        // await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+
         final duration = durationMatch != null
             ? double.tryParse(durationMatch.group(1)!) ?? 0.0
             : 0.0;
@@ -293,41 +301,28 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       if (posMatch == null) continue;
       final x = double.parse(posMatch.group(1)!);
       final y = double.parse(posMatch.group(2)!);
-      final position = toPlayArea(flipY(Vector2(x, y)));
+      Vector2 position = Vector2(x, y);
+
       print('Spawning enemy at $position: ${enemy.shape}');
 
-      PositionComponent? shape;
-      if (enemy.shape.startsWith('Circle')) {
-        final radiusMatch = RegExp(
-          r'Circle\s*\((\d+)\)',
-        ).firstMatch(enemy.shape);
-        final radius = radiusMatch != null
-            ? int.parse(radiusMatch.group(1)!)
-            : 10;
-        shape = CircleShape(position, radius);
-      } else if (enemy.shape == 'Rectangle') {
-        shape = RectangleShape(position);
-      } else if (enemy.shape.startsWith('Pentagon')) {
-        final energyMatch = RegExp(
-          r'Pentagon\s*\((\d+)\)',
-        ).firstMatch(enemy.shape);
-        final energy = energyMatch != null
-            ? int.parse(energyMatch.group(1)!)
-            : 10;
-        shape = PentagonShape(position, energy);
-      } else if (enemy.shape == 'Triangle') {
-        shape = TriangleShape(position);
-      } else if (enemy.shape == 'Hexagon') {
-        shape = HexagonShape(position);
-      }
+      PositionComponent? shape = spawnShape(enemy, position);
 
       if (shape != null) {
+
+        double halfSizeX = shape.size.x;
+
+        Vector2 actPosition = toPlayArea(flipY(Vector2(x, y)), halfSizeX, clampInside: true);
+
+        shape.position = actPosition;
+
         final shapeRect = shape.toRect();
         final isWithinBounds =
             shapeRect.left >= 0 &&
             shapeRect.top >= 0 &&
             shapeRect.right <= screenWidth &&
             shapeRect.bottom <= screenHeight;
+
+        print("is within bounds? = $isWithinBounds");
 
         if (isWithinBounds) {
           await add(shape);
@@ -349,8 +344,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             final speed = double.parse(moveMatch.group(5)!); // px/sec
 
             // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
-            final p1 = position + flipY(Vector2(dx1, dy1));
-            final p2 = position + flipY(Vector2(dx2, dy2));
+            // 도형 화면 밖으로 안나가도록
+            final p1 = toPlayArea(flipY(Vector2(dx1, dy1)), halfSizeX, clampInside: true);
+            final p2 = toPlayArea(flipY(Vector2(dx2, dy2)), halfSizeX, clampInside: true);
 
             // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
             final comp = shape!;
@@ -529,6 +525,83 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             continue;
           }
 
+          // Movement: M(angle, speed, stopX, stopY)
+          final MMatch = RegExp(
+            r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
+          ).firstMatch(enemy.movement);
+
+          if (MMatch != null) {
+            print("Mmatch");
+
+            final angleDeg = double.parse(MMatch.group(1)!);
+            final speed = double.parse(MMatch.group(2)!); // px/sec
+            final stopY = MMatch.group(3)!;
+
+            print("stopY = $stopY");
+            double yCoord = position.y;
+            if(stopY.contains("Y")) {
+
+              yCoord = size.y;
+            } else {
+              yCoord = double.parse(stopY);
+            }
+
+            // 목표 지점 (에디터 좌표 → 실제 플레이좌표)
+            final target = toPlayArea(flipY(Vector2(position.x, yCoord)), halfSizeX, clampInside: false);
+
+            print("target = (${target.x}, ${target.y})");
+
+            // shape는 nullable이므로 non-null 로컬 변수로 캡쳐
+            final comp = shape!;
+
+            // 이전 이펙트 제거
+            for (final e in List.of(comp.children.whereType<Effect>())) {
+              e.removeFromParent();
+            }
+
+            // 1) 스폰 위치에서 잠깐 보임
+            comp.position = position;
+
+            const showDelay = 0.25;
+            final originalScale = comp.scale.clone();
+
+            // (a) 잠깐 있다가 축소
+            comp.add(
+              ScaleEffect.to(
+                Vector2.zero(),
+                EffectController(duration: 0.10, startDelay: showDelay),
+                onComplete: () {
+                  // (b) target 방향에서 다시 스폰 후 확대
+                  comp.position = position; // 처음 위치에서 시작
+                  comp.add(
+                    ScaleEffect.to(
+                      originalScale,
+                      EffectController(duration: 0.50),
+                      onComplete: () {
+                        // (c) target 으로 이동 → 도착하면 멈춤
+                        final distance = comp.position.distanceTo(target);
+                        final duration = distance / speed;
+
+                        comp.add(
+                          MoveEffect.to(
+                            target,
+                            EffectController(
+                              duration: duration,
+                              curve: Curves.linear,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            );
+
+            continue;
+          }
+
+
           await Future.delayed(Duration(milliseconds: 100));
         }
       }
@@ -540,278 +613,72 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     return ret;
   }
 
-  Future<void> runStageMissions(StageData stage) async {
-    final centerOffset = size / 2;
-    final runId = ++_currentStageRunId;
+  PositionComponent? spawnShape(EnemyData enemy, Vector2 position) {
+    PositionComponent? shape;
 
-    final sortedMissions = stage.missions.keys.toList()..sort();
+    if (enemy.shape.startsWith('Circle')) {
 
-    for (final missionNum in sortedMissions) {
-      if (runId != _currentStageRunId) {
-        // print('Stage run $runId cancelled (current: $_currentStageRunId)');
-        return;
-      }
+      final energyMatch = RegExp(
+        r'Circle\s*\((\d+)\)',
+      ).firstMatch(enemy.shape);
+      final energy = energyMatch != null
+          ? int.parse(energyMatch.group(1)!)
+          : 1;
 
-      double? missionSeconds = stage.missionTimeLimits[missionNum];
+      shape = CircleShape(position, energy);
 
-      double? stageSeconds;
-      if (missionSeconds == null) {
-        stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
-      }
-      final chosen = missionSeconds ?? stageSeconds;
-      if (chosen != null && chosen > 0) {
-        startMissionTimer(chosen);
-      } else {
-        print(
-          '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
-        );
-      }
+    } else if (enemy.shape.startsWith('Rectangle')) {
 
-      final enemies = stage.missions[missionNum]!;
-      print('Starting Mission $missionNum');
+      final energyMatch = RegExp(
+        r'Rectangle\s*\((\d+)\)',
+      ).firstMatch(enemy.shape);
+      final energy = energyMatch != null
+          ? int.parse(energyMatch.group(1)!)
+          : 1;
 
-      final spawnedThisMission = <Component>{};
-      final currentWave = <Component>{};
+      shape = RectangleShape(position, energy);
 
-      for (final enemy in enemies) {
-        if (enemy.command == 'wait') {
-          final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
-          final duration = durationMatch != null
-              ? double.tryParse(durationMatch.group(1)!) ?? 0.0
-              : 0.0;
+    } else if (enemy.shape.startsWith('Pentagon')) {
 
-          if (duration == 0) {
-            // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
-            if (currentWave.isNotEmpty) {
-              await waitUntilMissionCleared(currentWave);
-              currentWave.clear();
-            }
-          } else {
-            // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
-            await Future.delayed(
-              Duration(milliseconds: (duration * 1000).toInt()),
-            );
-          }
-          continue;
-        }
+      final energyMatch = RegExp(
+        r'Pentagon\s*\((\d+)\)',
+      ).firstMatch(enemy.shape);
+      final energy = energyMatch != null
+          ? int.parse(energyMatch.group(1)!)
+          : 10;
 
-        final posMatch = RegExp(
-          r'\((-?\d+),\s*(-?\d+)\)',
-        ).firstMatch(enemy.position);
-        if (posMatch == null) continue;
-        final x = double.parse(posMatch.group(1)!);
-        final y = double.parse(posMatch.group(2)!);
-        final position = centerOffset + flipY(Vector2(x, y));
-        print('Spawning enemy at $position: ${enemy.shape}');
+      shape = PentagonShape(position, energy);
 
-        PositionComponent? shape;
-        if (enemy.shape.startsWith('Circle')) {
-          final radiusMatch = RegExp(
-            r'Circle\s*\((\d+)\)',
-          ).firstMatch(enemy.shape);
-          final radius = radiusMatch != null
-              ? int.parse(radiusMatch.group(1)!)
-              : 10;
-          shape = CircleShape(position, radius);
-        } else if (enemy.shape == 'Rectangle') {
-          shape = RectangleShape(position);
-        } else if (enemy.shape.startsWith('Pentagon')) {
-          final energyMatch = RegExp(
-            r'Pentagon\s*\((\d+)\)',
-          ).firstMatch(enemy.shape);
-          final energy = energyMatch != null
-              ? int.parse(energyMatch.group(1)!)
-              : 10;
-          shape = PentagonShape(position, energy);
-        } else if (enemy.shape == 'Triangle') {
-          shape = TriangleShape(position);
-        } else if (enemy.shape == 'Hexagon') {
-          shape = HexagonShape(position);
-        }
+    } else if (enemy.shape.startsWith('Triangle')) {
 
-        if (shape != null) {
-          final shapeRect = shape.toRect();
-          final isWithinBounds =
-              shapeRect.left >= 0 &&
-              shapeRect.top >= 0 &&
-              shapeRect.right <= screenWidth &&
-              shapeRect.bottom <= screenHeight;
+      print("triangle");
 
-          if (isWithinBounds) {
-            await add(shape);
-            await shape.loaded;
-            print('shape spawned: ${shape.position.toString()}');
-            spawnedThisMission.add(shape);
-            currentWave.add(shape);
+      final energyMatch = RegExp(
+        r'Triangle\s*\((\d+)\)',
+      ).firstMatch(enemy.shape);
+      final energy = energyMatch != null
+          ? int.parse(energyMatch.group(1)!)
+          : 1;
 
-            // Movement
-            final moveMatch = RegExp(
-              r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
-            ).firstMatch(enemy.movement);
-            print('Move match: ${enemy.movement}');
-            if (moveMatch != null) {
-              final x1 = double.parse(moveMatch.group(1)!);
-              final y1 = double.parse(moveMatch.group(2)!);
-              final x2 = double.parse(moveMatch.group(3)!);
-              final y2 = double.parse(moveMatch.group(4)!);
-              final speed = double.parse(moveMatch.group(5)!);
+      shape = TriangleShape(position, energy);
 
-              final startPos = centerOffset + flipY(Vector2(x1, y1));
-              final endPos = centerOffset + flipY(Vector2(x2, y2));
-              shape.position = startPos;
+    } else if (enemy.shape.startsWith('Hexagon')) {
 
-              final distance = startPos.distanceTo(endPos);
-              final travelTime = distance / speed;
+      final energyMatch = RegExp(
+        r'Hexagon\s*\((\d+)\)',
+      ).firstMatch(enemy.shape);
+      final energy = energyMatch != null
+          ? int.parse(energyMatch.group(1)!)
+          : 1;
 
-              shape.add(
-                MoveEffect.to(
-                  endPos,
-                  EffectController(
-                    duration: travelTime,
-                    alternate: true,
-                    infinite: true,
-                  ),
-                ),
-              );
-              continue;
-            }
+      shape = HexagonShape(position, energy);
 
-            // Movement
-            final cMatch = RegExp(
-              r'C\((-?\d+),\s*(-?\d+),\s*(\d+),\s*(\d+)\)',
-            ).firstMatch(enemy.movement);
-            if (cMatch != null) {
-              final cx = double.parse(cMatch.group(1)!);
-              final cy = double.parse(cMatch.group(2)!);
-              final r = double.parse(cMatch.group(3)!);
-              final s = double.parse(cMatch.group(4)!); // degree per second
-
-              final center = centerOffset + flipY(Vector2(cx, cy));
-              final angularSpeed = s * math.pi / 180;
-
-              shape.position = center + Vector2(r, 0); // 초기 위치
-
-              shape.add(
-                OrbitingComponent(
-                  target: shape,
-                  center: center,
-                  radius: r,
-                  angularSpeed: angularSpeed,
-                ),
-              );
-              continue;
-            }
-
-            Rect _timerRectWorld() => timerBar.toRect();
-
-            // Movement
-            final dMatch = RegExp(
-              r'D\(\s*(\d+)\s*,\s*(\d+)\s*\)',
-            ).firstMatch(enemy.movement);
-            if (dMatch != null && shape != null) {
-              final a = double.parse(dMatch.group(1)!);
-              final b = double.parse(dMatch.group(2)!);
-
-              await add(shape); // 초기 visible 상태로 추가
-              await shape.loaded;
-
-              final r = _timerRectWorld();
-              const pad = 8.0;
-              const margin = 50.0;
-
-              final halfW = shape.size.x / 2;
-              final halfH = shape.size.y / 2;
-              // 타이머바 "아래" 영역 (Y는 아래로 증가)
-              final minYCenter = r.bottom + pad + halfH;
-              final maxYCenter = size.y - margin - halfH;
-
-              // 화면 좌우 여백 고려
-              final minXCenter = margin + halfW;
-              final maxXCenter = size.x - margin - halfW;
-
-              // 시작 위치도 즉시 범위 안으로
-              shape.position = Vector2(
-                shape.position.x.clamp(minXCenter, maxXCenter),
-                shape.position.y.clamp(minYCenter, maxYCenter),
-              );
-
-              final blinking = BlinkingBehaviorComponent(
-                shape: shape,
-                visibleDuration: a,
-                invisibleDuration: b,
-                isRandomRespawn: false,
-                xMin: minXCenter,
-                xMax: maxXCenter,
-                yMin: minYCenter,
-                yMax: maxYCenter,
-              );
-
-              blinkingMap[shape] = blinking;
-
-              shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
-            }
-
-            // Movement
-            // DR(a,b): 깜빡이며 랜덤 위치로 재등장
-            final drMatch = RegExp(
-              r'DR\(\s*(\d+)\s*,\s*(\d+)\s*\)',
-            ).firstMatch(enemy.movement);
-            if (drMatch != null && shape != null) {
-              final a = double.parse(drMatch.group(1)!);
-              final b = double.parse(drMatch.group(2)!);
-
-              await add(shape); // 초기에 등장
-              await shape.loaded;
-
-              final r = _timerRectWorld();
-              const pad = 8.0;
-              const margin = 50.0;
-
-              final halfW = shape.size.x / 2;
-              final halfH = shape.size.y / 2;
-
-              // 타이머바 "아래" 영역 (Y는 아래로 증가)
-              final minYCenter = r.bottom + pad + halfH;
-              final maxYCenter = size.y - margin - halfH;
-
-              // 화면 좌우 여백 고려
-              final minXCenter = margin + halfW;
-              final maxXCenter = size.x - margin - halfW;
-
-              // 시작 위치도 즉시 범위 안으로
-              shape.position = Vector2(
-                shape.position.x.clamp(minXCenter, maxXCenter),
-                shape.position.y.clamp(minYCenter, maxYCenter),
-              );
-
-              final blinking = BlinkingBehaviorComponent(
-                shape: shape,
-                visibleDuration: a,
-                invisibleDuration: b,
-                isRandomRespawn: true,
-                xMin: minXCenter,
-                xMax: maxXCenter,
-                yMin: minYCenter,
-                yMax: maxYCenter,
-              );
-
-              blinkingMap[shape] = blinking;
-
-              add(blinking);
-              continue;
-            }
-
-            await Future.delayed(Duration(milliseconds: 100));
-          }
-        }
-      }
-      await waitUntilMissionCleared(spawnedThisMission);
-      await waitUntilMissionCleared(currentWave);
     }
+
+    return shape;
   }
 
   // 그냥 도형 다 죽였는지 여부
-  // 추후 시간 제한 체크 여기에 추가...
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
     while (true) {
       if (_isTimeOver) {
@@ -852,33 +719,27 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   }
 
   // Convert from your coordinate system to play area coordinates
-  Vector2 toPlayArea(Vector2 yourCoordinates) {
+  Vector2 toPlayArea(Vector2 yourCoordinates, double actShapePading, {bool clampInside = true}) {
     double playX;
     double playY;
+
+    print("my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePading");
+    // print("x axis : ${playArea.width / 2}, y axis : ${playArea.height / 2}");
+    // print("min : ${playArea.topLeftPosition}, max : ${playArea.toRect().bottomRight}");
 
     double normalizedX = (yourCoordinates.x - minX) / rangeX;
     double normalizedY = (yourCoordinates.y - minY) / rangeY;
 
-    // extract shape size from the coordinate so they can always spawn in the play area
-    if(normalizedX < 0.5) {
-      playX = (normalizedX * playArea.width) + (shapePadding / 2);
-    } else if(normalizedX > 0.5) {
-      playX = (normalizedX * playArea.width) - (shapePadding / 2);
-    } else {
-      playX = (normalizedX * playArea.width);
+    playX = (normalizedX * playArea.width);
+    playY = (normalizedY * playArea.height);
+
+    if (clampInside) {
+      // 화면 안에 들어오도록 강제 (스폰 시점)
+      playX = playX.clamp(shapePadding / 2, playArea.width - shapePadding / 2);
+      playY = playY.clamp(shapePadding / 2, playArea.height - shapePadding / 2);
     }
 
-    if(normalizedY < 0.5) {
-      playY = (normalizedY * playArea.height) + (shapePadding / 2);
-    } else if(normalizedY > 0.5) {
-      playY = (normalizedY * playArea.height) - (shapePadding / 2);
-    } else {
-      playY = (normalizedY * playArea.height);
-    }
-
-    print("norm X = $normalizedX, norm Y = $normalizedY");
-    print("new coordinate = ($playX,$playY)");
-    print('Expected center: (${playArea.size.x/2}, ${playArea.size.y/2})');
+    print("X = $playX, Y = $playY");
 
     return Vector2(playX, playY);
   }
@@ -925,6 +786,46 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     // 못 읽음
     return null;
+  }
+
+  void toggleDebug() {
+    debugMode = !debugMode; // Toggle debugMode
+    if (debugMode) {
+      print('Debug mode is now ON');
+    } else {
+      print('Debug mode is now OFF');
+    }
+  }
+
+  void onRefresh() {
+    print("Refreshing Game...");
+    userPath.clear();
+    currentCircleCenter = null;
+    currentCircleRadius = null;
+    print('${children} before shape removal');
+    blinkingMap.clear();
+    children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
+      blinking.removeFromParent();
+    });
+
+    // Remove all existing shapes (but keep the refresh button)
+    children.whereType<CircleShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<RectangleShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<PentagonShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<TriangleShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+    children.whereType<HexagonShape>().forEach((shape) {
+      shape.removeFromParent();
+    });
+
+    runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
   }
 
   void startMissionTimer(double seconds) {
@@ -982,37 +883,64 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
     _timerPaused = true;
 
+    print("stage result is = $result");
     final aftermath = AftermathScreen(
       result: result,
       starCount: starCount,
       stgIndex: stgIndex,
       screenSize: size,
       onContinue: () {
-        // Move to next stage
-        final nextIndex = stgIndex + 1;
-        if (nextIndex < _allStages.length) {
+        // move to next stage
+        if(_currentStageIndex < maxStageIndex) {
+          if(_currentMissionIndex < maxMissionIndex) {
+            _currentMissionIndex = _currentMissionIndex + 1;
+          } else {
+            print("last mission - move to next stage");
+            _currentStageIndex = _currentStageIndex + 1;
+            _currentMissionIndex = 0;
+          }
+
+          print("stage index = $_currentStageIndex, mission index = $_currentMissionIndex");
+          print("playing next stage/mission");
           removeAll(children.where((c) => c is AftermathScreen).toList());
-          runStageWithAftermath(nextIndex);
+          runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+
         } else {
           print("No more stages left!");
-          // Optionally show game end screen
         }
       },
       onRetry: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
-        runStageWithAftermath(stgIndex);
+        runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
       },
-      onPlay: () {
+      onPlay: () { // play next stage
         removeAll(children.where((c) => c is AftermathScreen).toList());
         // Could start from stage 0 or a chosen stage
-        runStageWithAftermath(stgIndex);
+// move to next stage
+        if(_currentStageIndex < maxStageIndex) {
+          if(_currentMissionIndex < maxMissionIndex) {
+            _currentMissionIndex = _currentMissionIndex + 1;
+          } else {
+            print("last mission - move to next stage");
+            _currentStageIndex = _currentStageIndex + 1;
+            _currentMissionIndex = 0;
+          }
+
+          print("stage index = $_currentStageIndex, mission index = $_currentMissionIndex");
+          print("playing next stage/mission");
+          removeAll(children.where((c) => c is AftermathScreen).toList());
+          runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+
+        } else {
+          print("No more stages left!");
+        }
       },
       onMenu: () {
         print("Go to menu screen");
         // TODO: implement menu navigation
       },
     );
-
+    print("aftermath Screen defined");
     add(aftermath);
   }
   // ===========================================================================================================
@@ -1145,42 +1073,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   // ==== temporary functions ======================================================================================
 
-  void refreshGame() {
-    print("Refreshing game!");
 
-    // Clear user path
-    userPath.clear();
-    currentCircleCenter = null;
-    currentCircleRadius = null;
-    print('${children} before shape removal');
-    blinkingMap.clear();
-    children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
-      blinking.removeFromParent();
-    });
-
-    // Remove all existing shapes (but keep the refresh button)
-    children.whereType<CircleShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<RectangleShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<PentagonShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<TriangleShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<HexagonShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-
-    // Spawn new shapes
-    print('${children} after shape removal');
-    // print('Initial stage: ${initialStage.name}');
-    // runStageMissions(initialStage);
-    runStageWithAftermath(--_currentStageRunId);
-  }
 
   // @override
   // void update(double dt) {

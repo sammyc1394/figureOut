@@ -52,6 +52,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
 
   Future<void> _loadSuccessScreen() async {
     try {
+
       final bgSvg = await Svg.load('bg.svg');
       background = SvgComponent(
         svg: bgSvg,
@@ -93,21 +94,22 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       );
       add(menuButton);
 
+      final playNextButton = SvgButton(
+        assetPath: 'State=Default, Type=Play.svg',
+        size: size / 8,
+        position: Vector2(buttonX + buttonSpacing, buttonY),
+        onTap: onPlay,
+      );
+      add(playNextButton);
+
       final retryButton = SvgButton(
         assetPath: 'State=Default, Type=Retry.svg',
         size: size / 8,
-        position: Vector2(buttonX + buttonSpacing, buttonY),
+        position: Vector2(buttonX + buttonSpacing * 2, buttonY),
         onTap: onRetry,
       );
       add(retryButton);
 
-      final playNextButton = SvgButton(
-        assetPath: 'State=Default, Type=Play.svg',
-        size: size / 8,
-        position: Vector2(buttonX + buttonSpacing * 2, buttonY),
-        onTap: onPlay,
-      );
-      add(playNextButton);
     } catch (e) {
       print('Error loading success aftermath : $e');
     }
@@ -205,49 +207,6 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
     }
   }
 
-  Future<SvgButtonComponent> _createSvgButton(
-    String svgPath,
-    Vector2 position,
-    VoidCallback onTap,
-  ) async {
-    try {
-      final svg = await Svg.load(svgPath);
-      return SvgButtonComponent(
-        svg: svg,
-        position: position,
-        anchor: Anchor.center,
-        onTap: onTap,
-      );
-    } catch (e) {
-      print('Error loading button SVG $svgPath: $e');
-
-      // TODO : temporary - to be removed
-      String text = svgPath
-          .split(',')
-          .last
-          .split('=')
-          .last
-          .split('.')
-          .first
-          .toUpperCase();
-      print('button text = $text');
-
-      // Fallback to simple rectangle button
-      return SvgButtonComponent.fallback(
-        position: position,
-        onTap: onTap,
-        fallbackText: svgPath
-            .split(',')
-            .last
-            .split('=')
-            .last
-            .split('.')
-            .first
-            .toUpperCase(),
-      );
-    }
-  }
-
   String _addStars() {
     // temporary code while not scoring - if we starts scoring, will try sth else
     if (starCount == 0) {
@@ -330,59 +289,5 @@ class SvgButtonComponent extends PositionComponent with TapCallbacks {
   @override
   void onTapDown(TapDownEvent event) {
     onTap();
-  }
-}
-
-extension AftermathScreenExtensions on OneSecondGame {
-  // Method to show aftermath screen with SVG assets
-  void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
-    print('stage done : starting aftermath screen');
-
-    final aftermathScreen = AftermathScreen(
-      result: result,
-      starCount: starCount,
-      screenSize: size,
-      onContinue: () => _handleContinue(),
-      onRetry: () => _handleRetry(),
-      onMenu: () => _handleMenu(),
-      onPlay: () => _handleNextLevel(),
-      stgIndex: stgIndex,
-    );
-
-    add(aftermathScreen);
-  }
-
-  void _handleContinue() {
-    _removeAftermathScreen();
-    // Continue with current progress
-    refreshGame();
-  }
-
-  void _handleRetry() {
-    _removeAftermathScreen();
-    // Retry current stage
-    refreshGame();
-  }
-
-  void _handleMenu() {
-    _removeAftermathScreen();
-    // Go to main menu (implement your menu logic)
-    print("Going to menu...");
-
-    // Todo : change it to move to main stage
-    refreshGame();
-  }
-
-  void _handleNextLevel() {
-    _removeAftermathScreen();
-    // Load next level (implement your level progression logic)
-    print("Loading next level...");
-    refreshGame(); // or load next stage
-  }
-
-  void _removeAftermathScreen() {
-    children.whereType<AftermathScreen>().forEach((screen) {
-      screen.removeFromParent();
-    });
   }
 }
