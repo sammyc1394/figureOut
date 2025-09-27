@@ -3,12 +3,13 @@ import 'dart:async' as async;
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
   int energy = 0;
   bool _isLongPressing = false;
   late final SvgComponent svg;
@@ -66,19 +67,20 @@ class PentagonShape extends PositionComponent
     canvas.restore();
   }
 
+  BlinkingBehaviorComponent? _myBlinking() {
+    for (final b in game.children.whereType<BlinkingBehaviorComponent>()) {
+      if (identical(b.shape, this)) return b;
+    }
+    return null;
+  }
+
   @override
   void onLongTapDown(TapDownEvent event) {
     super.onLongTapDown(event);
 
     print("presseddddd");
     _isLongPressing = true;
-    final blinking = parent?.children
-        .whereType<BlinkingBehaviorComponent>()
-        .cast<BlinkingBehaviorComponent?>()
-        .firstWhere((b) => b?.shape == this, orElse: () => null);
-    if (blinking != null) {
-      blinking.isPaused = true; // Pause blinking behavior
-    }
+    _myBlinking()?.isPaused = true;
 
     _startLongPress(); // Consume the event
   }
@@ -87,13 +89,7 @@ class PentagonShape extends PositionComponent
   void onTapUp(TapUpEvent event) {
     super.onTapUp(event);
 
-    final blinking = parent?.children
-        .whereType<BlinkingBehaviorComponent>()
-        .cast<BlinkingBehaviorComponent?>()
-        .firstWhere((b) => b?.shape == this, orElse: () => null);
-    if (blinking != null) {
-      blinking.isPaused = false; // Pause blinking behavior
-    }
+    _myBlinking()?.isPaused = false;
     _stopLongPress();
   }
 
