@@ -25,8 +25,8 @@ import 'package:figureout/src/config.dart';
 import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:figureout/src/functions/OrbitingComponent.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
-
-
+import 'package:figureout/src/components/PauseButton.dart';
+import 'PausedScreen.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   final math.Random _random = math.Random();
@@ -34,6 +34,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   // temporary function
   late RefreshButton refreshButton;
   // bool debugYN = true;
+  
+  //pause
+  late PauseButton pauseButton;
+  PausedScreen? pausedScreen;
 
   //stage data
   late StageData initialStage;
@@ -155,6 +159,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
       onPressed: onRefresh,
     );
     add(refreshButton);
+    
+    pauseButton = PauseButton(
+      position: Vector2(size.x*0.11, 40),
+      onPressed: pauseGame,
+    );
+    add(pauseButton);
 
     timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
@@ -277,6 +287,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     for (final enemy in enemies) {
       if (_isTimeOver) return StageResult.fail;
+      if (_timerPaused) {
+        // 게임이 resume될 때까지 기다림
+        while (_timerPaused) {
+          await Future.delayed(Duration(milliseconds: 100));
+        }
+      }
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
 
@@ -475,7 +491,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
             blinkingMap[shape] = blinking;
 
-            shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
+            // shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
+            add(blinking);
+            continue;
           }
 
           // Movement
@@ -544,7 +562,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
             print("stopY = $stopY");
             double yCoord = position.y;
             if(stopY.contains("Y")) {
-
               yCoord = size.y;
             } else {
               yCoord = double.parse(stopY);
@@ -696,9 +713,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         if (c.isMounted) {
           return true;
         }
-        if (!c.isMounted) {
-          if (blinking != null && !blinking.isRemoving) {
-            blinkingMap.remove(c);
+        if (blinking != null) {
+          if (!blinking.isRemoving && blinking.willReappear) {
+            // blinkingMap.remove(c);
             return true;
           }
         }
@@ -1114,6 +1131,49 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   //     }
   //   }
   // }
+
+  void pauseGame() {
+    print("blinkingMap:${blinkingMap.values}");
+    if (pausedScreen != null && pausedScreen!.isMounted) return;
+
+    _timerPaused = true;
+
+    for (final b in blinkingMap.values) {
+      print('Pausing ${b.shape}');
+      b.isPaused = true;
+    }
+
+    pausedScreen = PausedScreen(
+      screenSize: size,
+      onResume: () {
+        resumeGame();
+      },
+      onRetry: () {
+        resumeGame();
+        refreshGame();
+      },
+      onMenu: () {
+        print("Go to menu");
+      },
+    );
+
+    add(pausedScreen!);
+  }
+
+  void resumeGame() {
+    print("resumed");
+    _timerPaused = false;
+
+    for (final b in blinkingMap.values) {
+      b.isPaused = false;
+      
+    }
+
+    if (pausedScreen != null) {
+      pausedScreen!.removeFromParent();
+      pausedScreen = null;
+    }
+  }
 
   @override
   void render(Canvas canvas) {

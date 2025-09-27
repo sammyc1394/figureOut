@@ -24,6 +24,7 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   bool get isBlinkingInvisible => !_visible;
   bool get willReappear => !_visible && !isRemoving && !shape.isRemoving;
   bool isPaused = false;
+  double? _pausedTimer;
 
   BlinkingBehaviorComponent({
     required this.shape,
@@ -40,12 +41,19 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
 
   @override
   void update(double dt) {
-    super.update(dt);
 
     if (isPaused) return;
 
+    if (_pausedTimer != null) {
+      _timer = _pausedTimer!;
+      _pausedTimer = null;
+    }
+
+    super.update(dt);
+
     if (shape is UserRemovable && (shape as UserRemovable).wasRemovedByUser) {
       // 사용자가 삼각형을 제거한 경우 깜빡임 종료
+      shape.removeFromParent();
       removeFromParent(); // 깜빡임 종료
       return;
     }
@@ -77,7 +85,8 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
           shape.position = Vector2(x, y);
         }
 
-        game.add(shape);
+        // game.add(shape);
+        parent?.add(shape);
       }
     }
   }
