@@ -120,4 +120,36 @@ class GameTimerComponent extends PositionComponent {
     stateIndicator?.svg = fillSvg;
     frame?.svg = frameSvg;
   }
+  
+  void flashPenalty({double durationSec = 0.4}) {
+    if (!_ready) return;
+    timerText.textRenderer = TextPaint(
+      style: const TextStyle(
+        fontFamily: 'Moulpali',
+        fontSize: 16,
+        height: 21 / 16,
+        letterSpacing: -0.32,
+        color: Colors.red, // 빨간색
+      ),
+    );
+    // 일정 시간 뒤 검정으로 복구
+    add(
+      TimerComponent(
+        period: durationSec,
+        onTick: () {
+          timerText.textRenderer = TextPaint(
+            style: const TextStyle(
+              fontFamily: 'Moulpali',
+              fontSize: 16,
+              height: 21 / 16,
+              letterSpacing: -0.32,
+              color: Colors.black,
+            ),
+          );
+        },
+        removeOnFinish: true,
+        repeat: false,
+      ),
+    );
+  }
 }

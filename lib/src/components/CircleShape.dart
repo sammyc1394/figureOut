@@ -9,17 +9,26 @@ import 'package:flutter/material.dart';
 
 class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
   int count;
+  final bool isDark;
+  final VoidCallback? onForbiddenTouch;
+
+
   late final SvgComponent svg;
   late final TextComponent label;
+  bool _penaltyFired = false;
 
-  CircleShape(Vector2 position, this.count)
+  CircleShape(Vector2 position, this.count,{
+    this.isDark = false,
+    this.onForbiddenTouch,
+  })
     : super(position: position, size: Vector2.all(80), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final svgData = await Svg.load('Circle (tap).svg');
+    final String asset = isDark ? 'DarkCircle.svg' : 'Circle (tap).svg';
+    final svgData = await Svg.load(asset);
     svg = SvgComponent(
       svg: svgData,
       size: size,
@@ -35,7 +44,7 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
 
     svg.render(canvas);
 
-    if (count > 0) {
+    if (!isDark && count > 0) {
       _drawText(canvas, count.toString());
     }
   }
@@ -66,6 +75,10 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
 
   @override
   void onTapDown(TapDownEvent e) {
+    if (isDark) {
+      onForbiddenTouch?.call();
+      return;
+    }
     count -= 1;
     if (count <= 0) {
       wasRemovedByUser = true;

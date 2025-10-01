@@ -1,10 +1,11 @@
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame_svg/svg.dart';
 import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
-class RectangleShape extends PositionComponent with UserRemovable {
+class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
   int energy = 0;
   late final SvgComponent svg;
 
@@ -12,7 +13,14 @@ class RectangleShape extends PositionComponent with UserRemovable {
   Vector2? sliceStart;
   Vector2? sliceEnd;
 
-  RectangleShape(Vector2 position, this.energy)
+  final bool isDark;
+  final VoidCallback? onForbiddenTouch;
+  bool _penaltyFired = false;
+
+  RectangleShape(Vector2 position, this.energy, {
+    this.isDark = false,
+    this.onForbiddenTouch,
+  })
   // RectangleShape(Vector2 position)
     : super(position: position, size: Vector2(40, 80));
 
@@ -20,7 +28,8 @@ class RectangleShape extends PositionComponent with UserRemovable {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final svgData = await Svg.load('Rectangle 3.svg');
+    final String asset = isDark ? 'DarkRectangle.svg' : 'Rectangle 3.svg';
+    final svgData = await Svg.load(asset);
     svg = SvgComponent(
       svg: svgData,
       size: size,
@@ -43,7 +52,7 @@ class RectangleShape extends PositionComponent with UserRemovable {
   void _renderRectangleShape(Canvas canvas) {
     svg.render(canvas);
 
-    if (energy > 1) {
+    if (!isDark && energy > 1) {
       _drawText(canvas, energy.toString());
     }
   }
@@ -87,6 +96,13 @@ class RectangleShape extends PositionComponent with UserRemovable {
       );
     }
   }
+  
+  @override
+  void onTapDown(TapDownEvent event) {
+    if (isDark) {
+      onForbiddenTouch?.call();
+    }
+  }
 
   void touchAtPoint(List<Vector2> userPath) {
     if (userPath.length < 2 || isSliced) return;
@@ -94,6 +110,17 @@ class RectangleShape extends PositionComponent with UserRemovable {
     // Check if the user path slices through the rectangle
     final slicePoints = getSlicePoints(userPath);
     if (slicePoints != null) {
+      if (isDark) {
+        for (final p in userPath) {
+          if (toRect().contains(Offset(p.x, p.y))) {
+            onForbiddenTouch?.call();
+            break;
+          }
+        }
+        // 다크는 잘리지 않음
+        return;
+      }
+
       print('[SLICE] Rectangle at $position');
 
       // Store the slice line points
@@ -102,7 +129,7 @@ class RectangleShape extends PositionComponent with UserRemovable {
       isSliced = true;
 
       // Remove after showing the slice effect
-      Future.delayed(Duration(milliseconds: 800), () {
+      Future.delayed(Duration(milliseconds: 400), () {
         removeFromParent();
         wasRemovedByUser = true;
       });

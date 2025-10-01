@@ -5,19 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'dart:math' as math;
 
-class HexagonShape extends PositionComponent with DragCallbacks, UserRemovable {
+class HexagonShape extends PositionComponent with DragCallbacks,TapCallbacks, UserRemovable {
   double cumulativeScale = 1.0;
   late final SvgComponent svg;
   int energy = 0;
 
-  HexagonShape(Vector2 position, this.energy)
+  final bool isDark;
+  final VoidCallback? onForbiddenTouch;
+  bool _penaltyFired = false;
+
+  HexagonShape(Vector2 position, this.energy,{
+    this.isDark = false,
+    this.onForbiddenTouch,
+  })
     : super(position: position, size: Vector2.all(100), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final svgData = await Svg.load('hexagon.svg');
+    final String asset = isDark ? 'DarkHexagon.svg' : 'hexagon.svg';
+    final svgData = await Svg.load(asset);
     svg = SvgComponent(
       svg: svgData,
       size: size,
@@ -40,9 +48,21 @@ class HexagonShape extends PositionComponent with DragCallbacks, UserRemovable {
     }
     return points;
   }
+  
+  @override
+  void onTapDown(TapDownEvent event) { 
+    if (isDark) {
+      onForbiddenTouch?.call();
+    }
+  }
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
+    if (isDark) {
+      onForbiddenTouch?.call();
+      return;
+    }
+
     cumulativeScale += 0.01;
 
     if (cumulativeScale >= 1.25) {
