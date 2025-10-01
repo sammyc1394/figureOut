@@ -198,6 +198,19 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
     toggleDebug();
   }
+  
+  //시간 패널티
+  void applyTimePenalty(double seconds) {
+    if (_isTimeOver) return;
+    remainingTime = math.max(0, remainingTime - seconds);
+    timerBar.updateTime(remainingTime);
+    timerBar.flashPenalty();
+    if (remainingTime <= 0 && !_timerEndedNotified) {
+      _timerEndedNotified = true;
+      _isTimeOver = true;
+      timerBar.updateTime(0);
+    }
+  }
 
   //스폰 중단
   void _stopEnemyBehaviors() {
@@ -257,6 +270,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   Future<StageResult> runSingleMissions(StageData stage, int missionIndex) async {
     final centerOffset = playArea.size / 2;
     int runId = missionIndex;
+    
+    _stopEnemyBehaviors();
+    _clearAllShapes();
 
     double? missionSeconds = stage.missionTimeLimits[runId];
 
@@ -349,8 +365,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
           await shape.loaded;
           print('shape spawned: ${shape.position.toString()}');
           spawnedThisMission.add(shape);
-          currentWave.add(shape);
-
+          if(!_isDarkShape(shape)){
+            currentWave.add(shape);
+          }
           // Movement
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
@@ -636,67 +653,44 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   PositionComponent? spawnShape(EnemyData enemy, Vector2 position) {
     PositionComponent? shape;
+    
+    // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
+    final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
+    // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
+    int _parseEnergy(String s, int def) {
+      final m = RegExp(r'\(\s*(\d+)\s*\)').firstMatch(s);
+      return m != null ? int.parse(m.group(1)!) : def;
+    }
+
+    void Function()? penalty = () => applyTimePenalty(5);
 
     if (enemy.shape.startsWith('Circle')) {
-
-      final energyMatch = RegExp(
-        r'Circle\s*\((\d+)\)',
-      ).firstMatch(enemy.shape);
-      final energy = energyMatch != null
-          ? int.parse(energyMatch.group(1)!)
-          : 1;
-
-      shape = CircleShape(position, energy);
-
+      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      shape = CircleShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
     } else if (enemy.shape.startsWith('Rectangle')) {
-
-      final energyMatch = RegExp(
-        r'Rectangle\s*\((\d+)\)',
-      ).firstMatch(enemy.shape);
-      final energy = energyMatch != null
-          ? int.parse(energyMatch.group(1)!)
-          : 1;
-
-      shape = RectangleShape(position, energy);
-
+      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      shape = RectangleShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
     } else if (enemy.shape.startsWith('Pentagon')) {
-
-      final energyMatch = RegExp(
-        r'Pentagon\s*\((\d+)\)',
-      ).firstMatch(enemy.shape);
-      final energy = energyMatch != null
-          ? int.parse(energyMatch.group(1)!)
-          : 10;
-
-      shape = PentagonShape(position, energy);
-
+      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
+      shape = PentagonShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
     } else if (enemy.shape.startsWith('Triangle')) {
-
-      print("triangle");
-
-      final energyMatch = RegExp(
-        r'Triangle\s*\((\d+)\)',
-      ).firstMatch(enemy.shape);
-      final energy = energyMatch != null
-          ? int.parse(energyMatch.group(1)!)
-          : 1;
-
-      shape = TriangleShape(position, energy);
-
+      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      shape = TriangleShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
     } else if (enemy.shape.startsWith('Hexagon')) {
-
-      final energyMatch = RegExp(
-        r'Hexagon\s*\((\d+)\)',
-      ).firstMatch(enemy.shape);
-      final energy = energyMatch != null
-          ? int.parse(energyMatch.group(1)!)
-          : 1;
-
-      shape = HexagonShape(position, energy);
-
+      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      shape = HexagonShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
     }
 
     return shape;
+  }
+
+  bool _isDarkShape(Component c) {
+    if (c is CircleShape) return c.isDark;
+    if (c is RectangleShape) return c.isDark;
+    if (c is PentagonShape) return c.isDark;
+    if (c is TriangleShape) return c.isDark;
+    if (c is HexagonShape) return c.isDark;
+    return false;
   }
 
   // 그냥 도형 다 죽였는지 여부
@@ -708,6 +702,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
         return StageResult.fail;
       }
       final remaining = targets.where((c) {
+        if (_isDarkShape(c)) return false;
         final blinking = blinkingMap[c];
 
         if (c.isMounted) {
@@ -903,6 +898,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
     _timerPaused = true;
+    
+    _stopEnemyBehaviors();
+    _clearAllShapes();
 
     print("stage result is = $result");
     final aftermath = AftermathScreen(
@@ -1059,9 +1057,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     for (final comp in children.whereType<TriangleShape>()) {
       final enclosed = comp.isFullyEnclosedByUserPath(userPath);
       if (enclosed) {
-        print('[REMOVE] Triangle at ${comp.position}');
-        comp.wasRemovedByUser = true;
-        comp.removeFromParent();
+        if (comp.isDark) {
+          // 다크 삼각형: 제거 금지 + 패널티
+          applyTimePenalty(5);
+          print('[PENALTY] Dark Triangle touched');
+        } else {
+          print('[REMOVE] Triangle at ${comp.position}');
+          comp.wasRemovedByUser = true;
+          comp.removeFromParent();
+        }
       }
     }
 

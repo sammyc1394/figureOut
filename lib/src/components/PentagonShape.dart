@@ -14,7 +14,15 @@ class PentagonShape extends PositionComponent
   bool _isLongPressing = false;
   late final SvgComponent svg;
 
-  PentagonShape(Vector2 position, int energy)
+  final bool isDark;
+  final VoidCallback? onForbiddenTouch;
+  bool _penaltyFired = false;
+
+
+  PentagonShape(Vector2 position, int energy, {
+    this.isDark = false,
+    this.onForbiddenTouch,
+  })
     : super(position: position, size: Vector2.all(100), anchor: Anchor.center) {
     this.energy = energy;
   }
@@ -22,7 +30,9 @@ class PentagonShape extends PositionComponent
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    final svgData = await Svg.load('pentagon.svg');
+    
+    final String asset = isDark ? 'DarkPentagon.svg' : 'pentagon.svg';
+    final svgData = await Svg.load(asset);
 
     svg = SvgComponent(
       svg: svgData,
@@ -38,7 +48,7 @@ class PentagonShape extends PositionComponent
     super.render(canvas);
     // svg.render(canvas);
 
-    if (energy > 0) {
+    if (!isDark && energy > 0) {
       _drawText(canvas, energy.toString());
     }
   }
@@ -73,10 +83,24 @@ class PentagonShape extends PositionComponent
     }
     return null;
   }
+  
+  @override
+  void onTapDown(TapDownEvent event) { 
+    // if (isDark && !_penaltyFired) {
+    if (isDark) {
+      // _penaltyFired = true;
+      onForbiddenTouch?.call();
+    }
+  }
 
   @override
   void onLongTapDown(TapDownEvent event) {
     super.onLongTapDown(event);
+
+    if (isDark) {
+        onForbiddenTouch?.call();
+      return;
+    }
 
     print("presseddddd");
     _isLongPressing = true;

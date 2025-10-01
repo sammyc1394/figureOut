@@ -2,21 +2,29 @@ import 'dart:ui';
 
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-class TriangleShape extends PositionComponent with UserRemovable {
+class TriangleShape extends PositionComponent with TapCallbacks,  UserRemovable {
   late final SvgComponent svg;
   int energy = 0;
 
-  TriangleShape(Vector2 position, this.energy)
+  final bool isDark;
+  final VoidCallback? onForbiddenTouch;
+
+  TriangleShape(Vector2 position, this.energy, {
+    this.isDark = false,
+    this.onForbiddenTouch,
+  })
     : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final svgData = await Svg.load('triangle.svg');
+    final String asset = isDark ? 'DarkPolygon.svg' : 'triangle.svg';
+    final svgData = await Svg.load(asset);
     svg = SvgComponent(
       svg: svgData,
       size: size,
@@ -24,6 +32,11 @@ class TriangleShape extends PositionComponent with UserRemovable {
       position: Vector2(size.x / 2, size.y / 2),
     );
     add(svg);
+  }
+  
+  @override
+  void onTapDown(TapDownEvent event) {
+    onForbiddenTouch?.call();
   }
 
   @override
