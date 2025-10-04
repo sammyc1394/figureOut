@@ -285,8 +285,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     if (_isTimeOver) return;
     _isTimeOver = true;
     _timerPaused = true; // 타이머 틱 중단
-    _stopEnemyBehaviors(); // 깜빡임 중단
-    _clearAllShapes(); // 화면 도형 즉시 클리어(반짝 없음)
+    for (final b in blinkingMap.values) {
+      b.isPaused = true;
+    }
+
+    removeAll(children.where((c) => c is AftermathScreen).toList());
+
+    Future.microtask(() {
+      final starRating = _calculateStarRating(StageResult.fail);
+      showAftermathScreen(StageResult.fail, starRating, _currentStageIndex);
+    });
   }
 
   // ==== running missions ======================================================================================
@@ -740,8 +748,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
     while (true) {
       if (_isTimeOver) {
-        _stopEnemyBehaviors();
-        _clearAllShapes();
+        // _stopEnemyBehaviors();
+        // _clearAllShapes();
         return StageResult.fail;
       }
       final remaining = targets.where((c) {
@@ -928,13 +936,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
         if (remainingTime <= 10) isTimeCritical = true;
 
-        if (remainingTime <= 0 && !_timerEndedNotified) {
+        if (remainingTime <= 0) {
           _timerEndedNotified = true;
           // 마지막으로 0초 반영 후 더 이상 건드리지 않음
           timerBar.updateTime(0);
           // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
           // print("Time's up!");
-          _isTimeOver = true;
+          if (!_isTimeOver) {
+            print('[UPDATE] Time is up → triggering _onTimeOver()');
+            _onTimeOver();
+          }
         }
       }
     }
@@ -943,8 +954,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
     _timerPaused = true;
     
-    _stopEnemyBehaviors();
-    _clearAllShapes();
+    if (result == StageResult.success) {
+      _stopEnemyBehaviors();
+      _clearAllShapes();
+    }
 
     print("stage result is = $result");
     final aftermath = AftermathScreen(
@@ -953,24 +966,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       stgIndex: stgIndex,
       screenSize: size,
       onContinue: () {
-        // move to next stage
-        if(_currentStageIndex < maxStageIndex) {
-          if(_currentMissionIndex < maxMissionIndex) {
-            _currentMissionIndex = _currentMissionIndex + 1;
-          } else {
-            print("last mission - move to next stage");
-            _currentStageIndex = _currentStageIndex + 1;
-            _currentMissionIndex = 0;
-          }
-
-          print("stage index = $_currentStageIndex, mission index = $_currentMissionIndex");
-          print("playing next stage/mission");
-          removeAll(children.where((c) => c is AftermathScreen).toList());
-          runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
-
-        } else {
-          print("No more stages left!");
-        }
+        print('[AFTERMATH] Continue pressed.');
+        removeAll(children.where((c) => c is AftermathScreen).toList());
+        _resumeFromFailure();
       },
       onRetry: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
@@ -1006,6 +1004,27 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     print("aftermath Screen defined");
     add(aftermath);
   }
+
+  void _resumeFromFailure() {
+    print('[RESUME] Resuming failed mission...');
+    _isTimeOver = false;
+    _timerPaused = false;
+    _timerEndedNotified = false;
+    isTimeCritical = false;
+
+    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
+    remainingTime = 10;
+    timerBar.updateTime(remainingTime);
+
+    // 깜빡임 도형 재개
+    for (final b in blinkingMap.values) {
+      b.isPaused = false;
+    }
+
+    // 타이머 재시작
+    print('[RESUME] Timer restarted at 10 seconds.');
+  }
+
   // ===========================================================================================================
 
   Vector2 flipY(Vector2 point) {
