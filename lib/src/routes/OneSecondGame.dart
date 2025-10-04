@@ -28,7 +28,7 @@ import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/components/PauseButton.dart';
 import 'PausedScreen.dart';
 
-class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
+class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, TapCallbacks {
   final math.Random _random = math.Random();
 
   // temporary function
@@ -87,6 +87,26 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
   List<Vector2> userPath = [];
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
+  
+  //toggle debug
+  int _debugTapCount = 0;
+  double _lastTapTime = 0;
+
+  void _applyDebugToTree(Component root, bool value) {
+    root.debugMode = value;
+    for (final child in root.children) {
+      _applyDebugToTree(child, value);
+    }
+  }
+
+  @override
+  void onChildrenChanged(Component child, ChildrenChangeType type) {
+    super.onChildrenChanged(child, type);
+    // 새 컴포넌트가 추가될 때마다 현재 디버그 상태를 그대로 적용
+    if (type == ChildrenChangeType.added) {
+      _applyDebugToTree(child, debugMode);
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -197,6 +217,29 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
     // _spawnAllShapes();
 
     toggleDebug();
+  }
+  
+  @override
+  void onTapDown(TapDownEvent event) {
+    super.onTapDown(event);
+    final tapPos = event.canvasPosition;
+    final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+
+    // 오른쪽 위 구석 감지 (화면 폭/높이의 일부 영역)
+    if (tapPos.x > size.x * 0.8 && tapPos.y < size.y * 0.2) {
+      if (now - _lastTapTime < 1500) {
+        print('tapped');
+        _debugTapCount++;
+      } else {
+        _debugTapCount = 1;
+      }
+      _lastTapTime = now;
+
+      if (_debugTapCount >= 5) {
+        toggleDebug();
+        _debugTapCount = 0;
+      }
+    }
   }
   
   //시간 패널티
@@ -806,6 +849,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks {
 
   void toggleDebug() {
     debugMode = !debugMode; // Toggle debugMode
+    _applyDebugToTree(this, debugMode);
     if (debugMode) {
       print('Debug mode is now ON');
     } else {
