@@ -1217,7 +1217,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       },
       onRetry: () {
         resumeGame();
-        onRefresh();
+        refreshGame();
       },
       onMenu: () {
         print("Go to menu");
