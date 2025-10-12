@@ -53,7 +53,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
   Future<void> _loadSuccessScreen() async {
     try {
 
-      final bgSvg = await Svg.load('bg.svg');
+      final bgSvg = await Svg.load('menu/common/bg.svg');
       background = SvgComponent(
         svg: bgSvg,
         size: size,
@@ -117,7 +117,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
 
   Future<void> _loadFailScreen() async {
     try {
-      final bgSvg = await Svg.load('bg.svg');
+      final bgSvg = await Svg.load('menu/common/bg.svg');
       background = SvgComponent(
         svg: bgSvg,
         size: size,
