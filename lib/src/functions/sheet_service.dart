@@ -120,7 +120,7 @@ class SheetService {
       final String shape = row.length > 3
           ? row[3]?.toString().trim() ?? ''
           : '';
-      final String attach = row.length > 4
+      final String attackRaw= row.length > 4
           ? row[4]?.toString().trim() ?? ''
           : '';
       final String movement = row.length > 5
@@ -134,6 +134,16 @@ class SheetService {
       ).firstMatch(row[0]?.toString() ?? '');
 
       final int mission = currentMission ?? 1;
+      
+      double? _parseAttackSeconds(String s) {
+        final t = s.trim();
+        if (t.isEmpty || t == '0') return null;
+        // 숫자 또는 "3s" 같은 표현 허용
+        final m = RegExp(r'^\s*(\d+(?:\.\d+)?)\s*s?\s*$').firstMatch(t);
+        if (m != null) return double.tryParse(m.group(1)!);
+        return null;
+      }
+      final double? attackSeconds = _parseAttackSeconds(attackRaw);
 
       final enemy = EnemyData(
         command: command,
@@ -141,6 +151,7 @@ class SheetService {
         movement: movement,
         position: position,
         mission: currentMission ??= 1,
+        attackSeconds: attackSeconds,
       );
 
       currentMissionMap!.putIfAbsent(currentMission!, () => []).add(enemy);
@@ -183,6 +194,7 @@ class EnemyData {
   final String movement;
   final String position;
   final int mission;
+  final double? attackSeconds;
 
   EnemyData({
     required this.command,
@@ -190,10 +202,11 @@ class EnemyData {
     required this.movement,
     required this.position,
     required this.mission,
+    this.attackSeconds,
   });
 
   @override
   String toString() {
-    return '[$command, $shape, $movement, $position, $mission]';
+    return '[$command, $shape, $movement, $position, $mission, attack=${attackSeconds ?? 0}]';
   }
 }
