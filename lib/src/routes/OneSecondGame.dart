@@ -1,3 +1,5 @@
+import 'package:figureout/src/routes/MainMenu.dart';
+import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:flame/components.dart';
 
 import 'dart:async';
@@ -29,7 +31,12 @@ import 'package:figureout/src/components/PauseButton.dart';
 import 'PausedScreen.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, TapCallbacks {
+  OneSecondGame({required this.nevigatorContext});
+
   final math.Random _random = math.Random();
+
+  // navigate
+  final BuildContext nevigatorContext;
 
   // temporary function
   late RefreshButton refreshButton;
@@ -998,7 +1005,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       },
       onMenu: () {
         print("Go to menu screen");
-        // TODO: implement menu navigation
+        removeAll(children.where((c) => c is AftermathScreen).toList());
+
+        Navigator.pushAndRemoveUntil(
+          nevigatorContext,
+            MaterialPageRoute(builder: (_) => const StageSelectScreen()),
+            (route) => false,
+        );
       },
     );
     print("aftermath Screen defined");
@@ -1217,9 +1230,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       },
       onRetry: () {
         resumeGame();
-        refreshGame();
+        onRefresh();
       },
       onMenu: () {
+
         print("Go to menu");
       },
     );
