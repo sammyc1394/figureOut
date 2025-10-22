@@ -1243,8 +1243,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         onRefresh();
       },
       onMenu: () {
+        removeAll(children.where((c) => c is AftermathScreen).toList());
 
-        print("Go to menu");
+        Navigator.pushAndRemoveUntil(
+          nevigatorContext,
+            MaterialPageRoute(builder: (_) => const StageSelectScreen()),
+            (route) => false,
+        );
       },
     );
 
@@ -1258,7 +1263,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     for (final c in children.whereType<CircleShape>()) {
       c.isPaused = false;
     }
-    
+
     for (final b in blinkingMap.values) {
       b.isPaused = false;
       
