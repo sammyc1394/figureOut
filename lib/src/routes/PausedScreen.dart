@@ -28,7 +28,7 @@ class PausedScreen extends PositionComponent {
 
     // Pause 창 패널
     final panelSvg = await Svg.load('Paused window.svg');
-    final panelSize = Vector2(size.x * 0.8, size.y*0.6);
+    final panelSize = Vector2(size.x * 0.8, size.y*0.30);
     final panel = SvgComponent(
       svg: panelSvg,
       size: panelSize,
@@ -37,12 +37,27 @@ class PausedScreen extends PositionComponent {
     );
     add(panel);
 
-    final buttonSize = Vector2(panelSize.x * 0.2, panelSize.x * 0.2);
+    final pausedText = TextComponent(
+      text: 'Paused',
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+          fontFamily: 'Moulpali', 
+        ),
+      ),
+      anchor: Anchor.topCenter,
+      position: Vector2(panelSize.x / 2, panel.y * 0.12),
+    );
+    panel.add(pausedText);
+
+    final buttonSize = Vector2(panelSize.x * 0.18, panelSize.x * 0.18);
 
     final centerY = panelSize.y / 2;
 
     // 버튼 배치
-    final buttonY = centerY;
+    final buttonY = centerY* 1.1;
     final spacing = panelSize.x * 0.3;
 
     final menuButton = SvgButton(
