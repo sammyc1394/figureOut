@@ -1223,6 +1223,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     if (pausedScreen != null && pausedScreen!.isMounted) return;
 
     _timerPaused = true;
+    
+    for (final c in children.whereType<CircleShape>()) {
+      c.isPaused = true;
+    }
 
     for (final b in blinkingMap.values) {
       print('Pausing ${b.shape}');
@@ -1251,6 +1255,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     print("resumed");
     _timerPaused = false;
 
+    for (final c in children.whereType<CircleShape>()) {
+      c.isPaused = false;
+    }
+    
     for (final b in blinkingMap.values) {
       b.isPaused = false;
       

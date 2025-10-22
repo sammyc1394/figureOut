@@ -16,6 +16,7 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
   double _attackElapsed = 0.0;
   bool _attackDone = false;
   bool _penaltyFired = false;
+  bool isPaused = false;
 
   late SvgComponent _svg;
   String _currentAsset = '';
@@ -49,6 +50,7 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
   void update(double dt) {
     super.update(dt);
 
+    if(isPaused) return;
     if ((attackSeconds ?? 0) <= 0) return;
 
     _attackElapsed += dt;
