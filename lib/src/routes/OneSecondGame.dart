@@ -15,6 +15,8 @@ import 'package:figureout/src/temp/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import 'package:figureout/main.dart';
+
 import 'package:figureout/src/components/CircleShape.dart';
 import 'package:figureout/src/components/HexagonShape.dart';
 import 'package:figureout/src/components/PentagonShape.dart';
@@ -28,6 +30,7 @@ import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:figureout/src/functions/OrbitingComponent.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/components/PauseButton.dart';
+import 'MissionSelect.dart';
 import 'PausedScreen.dart';
 
 class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, TapCallbacks {
@@ -1013,10 +1016,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         print("Go to menu screen");
         removeAll(children.where((c) => c is AftermathScreen).toList());
 
-        Navigator.pushAndRemoveUntil(
-          nevigatorContext,
-            MaterialPageRoute(builder: (_) => const StageSelectScreen()),
-            (route) => false,
+        globalNavigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MissionSelectScreen()),
+              (route) => false,
         );
       },
     );
@@ -1245,10 +1247,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       onMenu: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
 
-        Navigator.pushAndRemoveUntil(
-          nevigatorContext,
-            MaterialPageRoute(builder: (_) => const StageSelectScreen()),
-            (route) => false,
+        globalNavigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const MissionSelectScreen(),
+
+          ),
+              (route) => false,
         );
       },
     );
