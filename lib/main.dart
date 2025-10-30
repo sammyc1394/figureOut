@@ -12,6 +12,9 @@ import 'package:flame/flame.dart';
 //for testing
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+
+
 void main() async {
   debugPrintGestureArenaDiagnostics = true;
 
@@ -29,6 +32,7 @@ class figureoutMain extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: globalNavigatorKey,
       title: "figure out",
       theme: new ThemeData(
         scaffoldBackgroundColor:Color(0xFFEDEBE0),

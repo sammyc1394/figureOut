@@ -3,6 +3,8 @@ import 'package:figureout/src/routes/menuAppBar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../functions/sheet_service.dart';
+
 class StageSelectScreen extends StatefulWidget {
   const StageSelectScreen({super.key});
 
@@ -12,13 +14,22 @@ class StageSelectScreen extends StatefulWidget {
 
 class _StageSelectScreenState extends State<StageSelectScreen> {
   int _currentIndex = 0;
+  late List<StageData> stages;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+    ModalRoute.of(context)!.settings.arguments as List<StageData>;
+    stages = args;
+  }
 
   // SVG 파일 목록 (assets 폴더에 미리 넣어야 함)
-  final List<String> stages = [
-    "assets/menu/stage/Black_Default.svg",
-    "assets/menu/stage/Blue_Default.svg",
-    "assets/menu/stage/Orange_Default.svg",
-    "assets/menu/stage/Pink_Default.svg"
+  final List<String> stagesSVG = [
+    "assets/menu/stage/Blue_Default.png",
+    "assets/menu/stage/Black_Default.png",
+    "assets/menu/stage/Pink_Default.png",
+    "assets/menu/stage/Orange_Default.png",
   ];
 
   @override
@@ -46,32 +57,50 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
               enableInfiniteScroll: true,
               autoPlay: false,           // 자동 슬라이드 원하면 true
               onPageChanged: (index, reason) {
-                setState(() {
-                  _currentIndex = index;
-                });
+                setState(() => _currentIndex = index);
               },
             ),
-            items: stages.map((file) {
+            items: List.generate(stages.length, (index) {
+              final svgPath = stagesSVG[index % stagesSVG.length];
+              final stage = stages[index];
+
               return Builder(
-                builder: (BuildContext context) {
+                builder: (context) {
                   return GestureDetector(
                     onTap: () {
-                      // 여기서 해당 스테이지 선택 시 이동
                       Navigator.pushNamed(
                         context,
-                        "/missions",
-                        arguments: {"stage": file}, // stage 정보 전달
+                        '/missions',
+                        arguments: {"stage": stage},
                       );
                     },
-                    child: SvgPicture.asset(
-                      file,
-                      width: 200,
-                      height: 200,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // 🎨 SVG 이미지
+                        Image.asset(
+                          svgPath,
+                          width: 200,
+                          height: 200,
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 🏷 Stage 이름
+                        Text(
+                          stage.name.isNotEmpty ?
+                          stage.name : 'Stage ${index + 1}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Moulpali',
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
               );
-            }).toList(),
+            })
           ),
           const SizedBox(height: 20),
           // 기존 Row 전체를 이 코드로 교체
@@ -81,22 +110,34 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // ⬅️ 왼쪽: 뒤로가기 버튼
-                IconButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: SvgPicture.asset(
-                    "assets/menu/common/Arrow back.svg",
-                    width: 36,
-                    height: 36,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: SvgPicture.asset(
+                      "assets/menu/common/Arrow back.svg",
+                      width: 40,
+                      height: 40,
+                    ),
                   ),
                 ),
+
                 Expanded(
                   child: Center(
-                    child: SvgPicture.asset(
-                      "assets/menu/stage/Dots.svg",
-                      width: 80,
-                      height: 16,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(stages.length, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: SvgPicture.asset(
+                            _currentIndex == index
+                                ? "assets/menu/stage/Selected dot.svg"
+                                : "assets/menu/stage/Not selected dot.svg",
+                            width: 12,
+                            height: 12,
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 ),

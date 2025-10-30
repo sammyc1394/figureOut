@@ -1,3 +1,4 @@
+import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
@@ -13,6 +14,7 @@ class MissionSelectScreen extends StatefulWidget {
 
 class _MissionSelectScreenState extends State<MissionSelectScreen> {
   int? selectedIndex;
+  late StageData stage;
 
   // TODO: 나중에 Google Sheet에서 데이터 받아오기
   final List<Map<String, dynamic>> missions = List.generate(12, (index) {
@@ -45,7 +47,17 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+    ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    stage = args['stage'] as StageData; // ✅ 전달받은 stage 데이터 저장
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final missions = stage.missions;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFDFBF5),
       appBar: const Menuappbar(),
@@ -67,10 +79,23 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                 final rotationAngle = _rotationAngleFor(index);
 
                 return GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     setState(() {
                       selectedIndex = index;
                     });
+
+                    await Future.delayed(const Duration(milliseconds: 800));
+
+                    if (!mounted) return; // 위젯이 사라졌을 때 예외 방지
+
+                    Navigator.pushNamed(
+                      context,
+                      '/game',
+                      arguments: {
+                        "stage": stage,
+                        "mission": missions[index],
+                      },
+                    );
                   },
                   child: Transform.rotate(
                     angle: rotationAngle,
@@ -101,7 +126,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                         Positioned(
                           bottom: 10,
                           child: SvgPicture.asset(
-                            _difficultyStars(mission["difficulty"]),
+                            _difficultyStars(1),
                             width: 50,
                             height: 20,
                           ),

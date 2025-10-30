@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:figureout/src/functions/sheet_service.dart';
+
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
 
@@ -13,6 +15,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  bool _isLoading = false;
+  bool _hasLoadedOnce = false;
+
+  final SheetService sheetService = SheetService();
+
+  List<StageData> _stages = [];
+
   final List<String> shapes = [
     "assets/Circle (tap).svg",
     "assets/triangle.svg",
@@ -21,7 +30,6 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     "assets/pentagon.svg",
   ];
 
-
   @override
   void initState() {
     super.initState();
@@ -29,6 +37,24 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       vsync: this,
       duration: const Duration(seconds: 8),
     )..repeat(reverse: true);
+
+    _loadDataOnStart();
+  }
+
+  Future<void> _loadDataOnStart() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await SheetService().fetchData();
+      setState(() {
+        _stages = data;
+        _hasLoadedOnce = true;
+      });
+      debugPrint("✅ 초기 데이터 불러오기 완료: ${_stages.length}개 스테이지");
+    } catch (e) {
+      debugPrint("❌ 초기 데이터 불러오기 실패: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -47,6 +73,43 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       const Alignment(0.0, -0.7),
     ];
     return alignments[index % alignments.length];
+  }
+
+  void _goToStages() {
+    if (_stages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('먼저 데이터를 갱신해주세요')),
+      );
+      return;
+    }
+    Navigator.pushNamed(context, '/stages', arguments: _stages);
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final data = await sheetService.fetchData();
+      setState(() {
+        _stages = data;
+      });
+
+      debugPrint("${data.length}개의 StageData 불러옴!");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("데이터가 새로고침되었습니다.")),
+      );
+    } catch (e) {
+      debugPrint("데이터 불러오기 실패: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("데이터 불러오기에 실패했습니다.")),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -84,17 +147,45 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               );
             }),
 
-            // 🎮 중앙 게임 제목
-            const Text(
-              'Figure',
-              style: TextStyle(
-                fontFamily: 'Moulpali',
-                fontSize: 48,
-                fontWeight: FontWeight.w300,
-                color: Colors.black,
-                letterSpacing: 0,
-              ),
-            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Figure',
+                  style: TextStyle(
+                    fontFamily: 'Moulpali',
+                    fontSize: 48,
+                    fontWeight: FontWeight.w300,
+                    color: Colors.black,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height : 100),
+
+                GestureDetector(
+                  onTap: () {
+                    _goToStages();
+                  },
+                  child: SvgPicture.asset(
+                    "assets/menu/common/Play_default.svg",
+                    width: 60,
+                    height: 60,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                _isLoading
+                    ? const CircularProgressIndicator() // 로딩 중이면 인디케이터 표시
+                    : IconButton(
+                  icon: const Icon(Icons.refresh),
+                  iconSize: 40,
+                  color: Colors.black87,
+                  onPressed: _refreshData,
+                ),
+
+              ],
+            )
+
           ],
         ),
       ),
