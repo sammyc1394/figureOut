@@ -14,6 +14,7 @@ import 'package:flame/game.dart';
 import 'package:figureout/src/temp/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flame/events.dart';
 
 import 'package:figureout/main.dart';
 
@@ -30,16 +31,24 @@ import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:figureout/src/functions/OrbitingComponent.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/components/PauseButton.dart';
+import 'package:go_router/go_router.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
 
-class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, TapCallbacks {
-  OneSecondGame({required this.nevigatorContext});
+class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, TapCallbacks { // ← 이것 추가 {
+  final BuildContext navigatorContext;
+  final List<StageData> stages;
+  final int stageIndex;
+  final int missionIndex;
+
+  OneSecondGame({
+  required this.navigatorContext,
+  required this.stages,
+  required this.stageIndex,
+  required this.missionIndex,
+  });
 
   final math.Random _random = math.Random();
-
-  // navigate
-  final BuildContext nevigatorContext;
 
   // temporary function
   late RefreshButton refreshButton;
@@ -52,8 +61,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   //stage data
   late StageData initialStage;
 
-  int _currentStageIndex = 0;
-  int _currentMissionIndex = 1;
+
+  late int _currentStageIndex;
+  late int _currentMissionIndex;
 
   List<StageData> _allStages = [];
 
@@ -184,17 +194,21 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     playAreaScaleY = playHeight / targetPlayHeight;
 
     // Add refresh button to top-right corner
-    refreshButton = RefreshButton(
-      position: Vector2(size.x - 60, 40),
-      onPressed: onRefresh,
-    );
-    add(refreshButton);
-    
-    pauseButton = PauseButton(
-      position: Vector2(size.x*0.11, 40),
-      onPressed: pauseGame,
-    );
-    add(pauseButton);
+    // add(
+    //     RefreshButton(
+    //       position: Vector2(size.x - 60, 40),
+    //       onPressed: onRefresh,
+    //     )..priority = 1000,
+    // );
+
+    overlays.add('pause');
+    overlays.add('refresh');
+
+    // pauseButton = PauseButton(
+    //   position: Vector2(size.x*0.11, 40),
+    //   onPressed: pauseGame,
+    // );
+    // add(pauseButton);
 
     timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
@@ -203,8 +217,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     add(timerBar);
 
     try {
-      // final stages = await sheetService.fetchData();
-      _allStages = await sheetService.fetchData();
+      // _allStages = await sheetService.fetchData();
+      _allStages = stages;
+
+      _currentStageIndex = stageIndex;
+      _currentMissionIndex = missionIndex + 1;
+
       if (_allStages.isNotEmpty) {
         print('Fetched stages: ${_allStages.toString()}');
 
@@ -223,15 +241,14 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     // TODO: implement onMount
     super.onMount();
 
-    // _clearAllShapes();
-    // _spawnAllShapes();
-
     toggleDebug();
   }
-  
+
   @override
   void onTapDown(TapDownEvent event) {
-    super.onTapDown(event);
+    // super.onTapDown(event);
+    event.continuePropagation = true; // refresh 등 다른 컴포넌트 동작하기 위해 터치이벤트 전달
+
     final tapPos = event.canvasPosition;
     final now = DateTime.now().millisecondsSinceEpoch.toDouble();
 
@@ -881,7 +898,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     }
   }
 
-  void onRefresh() {
+  Future<void> onRefresh() async {
     print("Refreshing Game...");
     userPath.clear();
     currentCircleCenter = null;
@@ -909,7 +926,25 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       shape.removeFromParent();
     });
 
-    runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+    try{
+      final newStages = await sheetService.fetchData();
+      if(newStages.isEmpty) {
+        print("새로 불러온 데이터가 비어있음");
+        return;
+      }
+
+      _allStages = newStages;
+
+      // 기존 오브젝트, 타이머, 이펙트 다 정리
+      _stopEnemyBehaviors();
+      _clearAllShapes();
+
+      // 동일 스테이지 / 미션으로 재시작
+      runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+
+    } catch(e) {
+      print("데이터 새로고침 실패: $e");
+    }
   }
 
   void startMissionTimer(double seconds) {
@@ -1016,10 +1051,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         print("Go to menu screen");
         removeAll(children.where((c) => c is AftermathScreen).toList());
 
-        globalNavigatorKey.currentState?.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const MissionSelectScreen()),
-              (route) => false,
-        );
+        rootNavigatorKey.currentContext!.push('/missions', extra: {
+          "stages": stages,
+          "index": _currentStageIndex,
+        });
       },
     );
     print("aftermath Screen defined");
@@ -1246,14 +1281,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       },
       onMenu: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
-
-        globalNavigatorKey.currentState?.pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const MissionSelectScreen(),
-
-          ),
-              (route) => false,
-        );
+        rootNavigatorKey.currentContext!.push('/missions', extra: {
+          "stages": stages,
+          "index": _currentStageIndex,
+        });
       },
     );
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:go_router/go_router.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -49,9 +50,9 @@ class _MainMenuScreenState extends State<MainMenuScreen>
         _stages = data;
         _hasLoadedOnce = true;
       });
-      debugPrint("✅ 초기 데이터 불러오기 완료: ${_stages.length}개 스테이지");
+      debugPrint("초기 데이터 불러오기 완료: ${_stages.length}개 스테이지");
     } catch (e) {
-      debugPrint("❌ 초기 데이터 불러오기 실패: $e");
+      debugPrint("초기 데이터 불러오기 실패: $e");
     } finally {
       setState(() => _isLoading = false);
     }
@@ -82,7 +83,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       );
       return;
     }
-    Navigator.pushNamed(context, '/stages', arguments: _stages);
+    context.push('/stages', extra: _stages);
   }
 
   Future<void> _refreshData() async {
@@ -119,7 +120,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       body: GestureDetector(
         behavior: HitTestBehavior.opaque, // 빈 영역 터치도 인식
         onTap: () {
-          Navigator.pushNamed(context, '/stages');
+          context.push('/stages', extra: _stages);
         },
         child: Stack(
           alignment: Alignment.center,

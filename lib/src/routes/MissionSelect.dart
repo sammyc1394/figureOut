@@ -1,12 +1,16 @@
 import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:math' as math;
 
 import 'menuAppBar.dart';
 
 class MissionSelectScreen extends StatefulWidget {
-  const MissionSelectScreen({super.key});
+  final List<StageData> stages;
+  final int stageIndex;
+
+  const MissionSelectScreen({super.key, required this.stages, required this.stageIndex});
 
   @override
   State<MissionSelectScreen> createState() => _MissionSelectScreenState();
@@ -14,9 +18,7 @@ class MissionSelectScreen extends StatefulWidget {
 
 class _MissionSelectScreenState extends State<MissionSelectScreen> {
   int? selectedIndex;
-  late StageData stage;
 
-  // TODO: 나중에 Google Sheet에서 데이터 받아오기
   final List<Map<String, dynamic>> missions = List.generate(12, (index) {
     return {
       "name": "Stage ${index + 1}",
@@ -47,15 +49,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final args =
-    ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    stage = args['stage'] as StageData; // ✅ 전달받은 stage 데이터 저장
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final stages = widget.stages;
+    final stage = widget.stages[widget.stageIndex];
     final missions = stage.missions;
 
     return Scaffold(
@@ -88,14 +84,11 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
                     if (!mounted) return; // 위젯이 사라졌을 때 예외 방지
 
-                    Navigator.pushNamed(
-                      context,
-                      '/game',
-                      arguments: {
-                        "stage": stage,
-                        "mission": missions[index],
-                      },
-                    );
+                    context.push('/game', extra: {
+                      "stages": widget.stages,
+                      "stageIndex": widget.stageIndex,
+                      "missionIndex": index,
+                    });
                   },
                   child: Transform.rotate(
                     angle: rotationAngle,
@@ -149,7 +142,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.push('/stages', extra: stages),
                     child: SvgPicture.asset(
                       "assets/menu/common/Arrow back.svg",
                       width: 40,
@@ -160,12 +153,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
                 if (selectedIndex != null)
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        "/game",
-                      );
-                    },
+                    onTap: () => context.pop(),
                     child: SvgPicture.asset(
                       "assets/menu/mission/Play_default.svg",
                       width: 120,

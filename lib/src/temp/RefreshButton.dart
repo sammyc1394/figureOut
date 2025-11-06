@@ -1,9 +1,10 @@
+import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-class RefreshButton extends PositionComponent with TapCallbacks {
+class RefreshButton extends PositionComponent with TapCallbacks, GestureHitboxes {
   final VoidCallback onPressed;
   final double radius;
 
@@ -18,7 +19,17 @@ class RefreshButton extends PositionComponent with TapCallbacks {
   );
 
   @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    // 반드시 충돌 판정 허용(Hitbox)
+    add(RectangleHitbox()
+      ..collisionType = CollisionType.passive);
+  }
+
+  @override
   bool onTapDown(TapDownEvent event) {
+    print("Refresh button pressed - to the function");
     onPressed();
     return true;
   }

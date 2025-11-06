@@ -2,11 +2,14 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:figureout/src/routes/menuAppBar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
 import '../functions/sheet_service.dart';
 
 class StageSelectScreen extends StatefulWidget {
-  const StageSelectScreen({super.key});
+  final List<StageData> stages;
+
+  const StageSelectScreen({super.key, required this.stages});
 
   @override
   State<StageSelectScreen> createState() => _StageSelectScreenState();
@@ -14,15 +17,6 @@ class StageSelectScreen extends StatefulWidget {
 
 class _StageSelectScreenState extends State<StageSelectScreen> {
   int _currentIndex = 0;
-  late List<StageData> stages;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final args =
-    ModalRoute.of(context)!.settings.arguments as List<StageData>;
-    stages = args;
-  }
 
   // SVG 파일 목록 (assets 폴더에 미리 넣어야 함)
   final List<String> stagesSVG = [
@@ -34,6 +28,8 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final stages = widget.stages;
+
     return Scaffold(
       appBar: const Menuappbar(),
       body: Column(
@@ -68,11 +64,11 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                 builder: (context) {
                   return GestureDetector(
                     onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/missions',
-                        arguments: {"stage": stage},
-                      );
+                      context.push('/missions', extra: {
+                        "stages": stages,
+                        // TODO : 인덱스 찾아줘라
+                        "index": _currentIndex,
+                      });
                     },
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -109,11 +105,11 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // ⬅️ 왼쪽: 뒤로가기 버튼
+                // : 뒤로가기 버튼
                 Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.push('/'),
                     child: SvgPicture.asset(
                       "assets/menu/common/Arrow back.svg",
                       width: 40,

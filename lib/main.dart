@@ -1,3 +1,4 @@
+import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:figureout/src/routes/MainGameScreen.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/MissionSelect.dart';
@@ -5,6 +6,7 @@ import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'src/routes/OneSecondGame.dart';
 import 'package:flame/flame.dart';
@@ -12,8 +14,7 @@ import 'package:flame/flame.dart';
 //for testing
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
-
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   debugPrintGestureArenaDiagnostics = true;
@@ -31,8 +32,48 @@ class figureoutMain extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: globalNavigatorKey,
+    final router = GoRouter(
+      navigatorKey: rootNavigatorKey,
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const MainMenuScreen(),
+        ),
+        GoRoute(
+          path: '/stages',
+          builder: (context, state) {
+            final data = state.extra as List<StageData>;
+            return StageSelectScreen(stages: data);
+          },
+        ),
+        GoRoute(
+          path: '/missions',
+          builder: (context, state) {
+            final data = state.extra as Map;
+            return MissionSelectScreen(
+              stages: data["stages"],
+              stageIndex: data["index"],
+            );
+          },
+        ),
+        GoRoute(
+          path: '/game',
+          builder: (context, state) {
+            final data = state.extra as Map;
+            return MainGameScreen(
+              stages: data["stages"],
+              stageIndex: data["stageIndex"],
+              missionIndex: data["missionIndex"],
+            );
+          },
+        ),
+      ],
+    );
+
+    return MaterialApp.router(
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
       title: "figure out",
       theme: new ThemeData(
         scaffoldBackgroundColor:Color(0xFFEDEBE0),
@@ -40,13 +81,6 @@ class figureoutMain extends StatelessWidget {
           backgroundColor: Color(0xFFEDEBE0),
         ),
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => MainMenuScreen(),
-        '/stages': (context) => StageSelectScreen(),
-        '/missions': (context) => MissionSelectScreen(),
-        '/game': (context) => MainGameScreen(),
-      },
     );
   }
 }
