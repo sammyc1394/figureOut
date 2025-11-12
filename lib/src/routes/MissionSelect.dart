@@ -2,7 +2,6 @@ import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:math' as math;
 
 import 'menuAppBar.dart';
 
