@@ -33,7 +33,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
   @override
   void initState() {
     super.initState();
-
     _decreaseHeartOnStart();
 
     oneSec = OneSecondGame(
@@ -48,76 +47,30 @@ class _MainGameScreenState extends State<MainGameScreen> {
     final prefs = await SharedPreferences.getInstance();
     int currentHearts = prefs.getInt('hearts') ?? 100;
 
-    if(currentHearts <= 0 ) {
+    if (currentHearts <= 0) {
       currentHearts = 100;
     } else {
       currentHearts -= 1;
     }
 
     await prefs.setInt('hearts', currentHearts);
-
-    setState(() {
-      _initialized = true;
-    });
+    setState(() => _initialized = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    if(!_initialized) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(),),
-      );
+    if (!_initialized) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-        body: Stack(
-          children: [
-            GameWidget(
-              backgroundBuilder: (context) => Container(color: const Color(0xFFEDEBE0)),
-              game: oneSec,
-              overlayBuilderMap: {
-                'refresh': (context, game) {
-                  return Positioned(
-                    top: 50,
-                    right: 30,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        print("Flutter refresh button pressed");
-                        oneSec.onRefresh();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Colors.black26, blurRadius: 6),
-                          ],
-                        ),
-                        child: Icon(Icons.refresh, size: 25, color: Colors.green),
-                      ),
-                    ),
-                  );
-                },
-                'pause': (context, game) {
-                  return Positioned(
-                    top: 50,
-                    left: 20,
-                    child: GestureDetector(
-                      onTap: () => oneSec.pauseGame(),
-                      child: SvgPicture.asset(
-                        'assets/pause.svg',
-                        width: 25,
-                        height: 25,
-                      ),
-                    ),
-                  );
-                },
-              },
-            ),
-          ],
-        )
+    return ColoredBox(
+      color: const Color(0xFFEDEBE0), // 배경 색
+      child: GameWidget(
+        game: OneSecondGame(nevigatorContext: context),
+        // Flame의 캔버스에 덮이는 배경 지정
+        backgroundBuilder: (context) =>
+            Container(color: const Color(0xFFEDEBE0)),
+      ),
     );
   }
 }

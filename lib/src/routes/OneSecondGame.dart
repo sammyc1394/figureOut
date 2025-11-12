@@ -112,6 +112,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   int _debugTapCount = 0;
   double _lastTapTime = 0;
 
+  Vector2? _dragLastPos; // 마지막 드래그 좌표
+  Vector2? _dragStartPos; // 드래그 시작 좌표
+  int _dragStartTimeMs = 0;
+
+  static const int _tapWindowMs = 180; // 이 시간 이하면 탭으로 간주
+  static const double _tapMoveMax = 18.0; // 이 거리 이하면 탭으로 간주
+  static const double _cornerRatio = 0.18; // 화면의 18% 정사각형 영역을 코너로 간주
+  static const int _debugWindowMs = 1500; // 디버그 5연타 유효 시간
+  static const int _debugNeedTaps = 5;
+
   void _applyDebugToTree(Component root, bool value) {
     root.debugMode = value;
     for (final child in root.children) {
@@ -151,7 +161,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     if (size.x > rangeX) {
       double actualRatio = availWidth / availHeight;
       print("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
-      if(availWidth / availHeight > aspectRatio) {
+      if (availWidth / availHeight > aspectRatio) {
         playHeight = availHeight;
         playWidth = playHeight * aspectRatio;
       } else {
@@ -159,7 +169,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         playHeight = playWidth / aspectRatio;
       }
     } else {
-      if(availWidth / availHeight > aspectRatio) {
+      if (availWidth / availHeight > aspectRatio) {
         playHeight = availHeight;
         playWidth = playHeight * aspectRatio;
       } else {
@@ -194,21 +204,17 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     playAreaScaleY = playHeight / targetPlayHeight;
 
     // Add refresh button to top-right corner
-    // add(
-    //     RefreshButton(
-    //       position: Vector2(size.x - 60, 40),
-    //       onPressed: onRefresh,
-    //     )..priority = 1000,
-    // );
+    refreshButton = RefreshButton(
+      position: Vector2(size.x - 60, 40),
+      onPressed: onRefresh,
+    );
+    add(refreshButton);
 
-    overlays.add('pause');
-    overlays.add('refresh');
-
-    // pauseButton = PauseButton(
-    //   position: Vector2(size.x*0.11, 40),
-    //   onPressed: pauseGame,
-    // );
-    // add(pauseButton);
+    pauseButton = PauseButton(
+      position: Vector2(size.x * 0.11, 40),
+      onPressed: pauseGame,
+    );
+    add(pauseButton);
 
     timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
@@ -241,6 +247,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     // TODO: implement onMount
     super.onMount();
 
+    // _clearAllShapes();
+    // _spawnAllShapes();
+
     toggleDebug();
   }
 
@@ -268,7 +277,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       }
     }
   }
-  
+
   //시간 패널티
   void applyTimePenalty(double seconds) {
     if (_isTimeOver) return;
@@ -422,7 +431,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       PositionComponent? shape = spawnShape(enemy, position);
 
       if (shape != null) {
-
         double halfSizeX = shape.size.x;
 
         Vector2 actPosition = toPlayArea(flipY(Vector2(x, y)), halfSizeX, clampInside: true);
@@ -443,7 +451,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
           await shape.loaded;
           print('shape spawned: ${shape.position.toString()}');
           spawnedThisMission.add(shape);
-          if(!_isDarkShape(shape)){
+          if (!_isDarkShape(shape)) {
             currentWave.add(shape);
           }
           // Movement
@@ -656,7 +664,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
             print("stopY = $stopY");
             double yCoord = position.y;
-            if(stopY.contains("Y")) {
+            if (stopY.contains("Y")) {
               yCoord = size.y;
             } else {
               yCoord = double.parse(stopY);
@@ -716,7 +724,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
             continue;
           }
-
 
           await Future.delayed(Duration(milliseconds: 100));
         }
@@ -1028,9 +1035,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       onPlay: () { // play next stage
         removeAll(children.where((c) => c is AftermathScreen).toList());
         // Could start from stage 0 or a chosen stage
-// move to next stage
-        if(_currentStageIndex < maxStageIndex) {
-          if(_currentMissionIndex < maxMissionIndex) {
+        // move to next stage
+        if (_currentStageIndex < maxStageIndex) {
+          if (_currentMissionIndex < maxMissionIndex) {
             _currentMissionIndex = _currentMissionIndex + 1;
           } else {
             print("last mission - move to next stage");
@@ -1157,10 +1164,53 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     dragStart = event.canvasPosition;
     userPath.clear();
     userPath.add(event.canvasPosition);
+
+    _dragStartPos = event.canvasPosition;
+    _dragLastPos = event.canvasPosition;
+    _dragStartTimeMs = DateTime.now().millisecondsSinceEpoch;
   }
 
   @override
   void onDragEnd(DragEndEvent event) {
+    final endPos = _dragLastPos ?? _dragStartPos ?? Vector2.zero();
+    final nowMs = DateTime.now().millisecondsSinceEpoch.toDouble();
+    final durMs = nowMs - _dragStartTimeMs;
+    final startPos = _dragStartPos ?? endPos;
+    final moved = startPos.distanceTo(endPos);
+
+    if (durMs <= _tapWindowMs && moved <= _tapMoveMax) {
+      final corner = size.x * _cornerRatio;
+
+      // 좌상단: Pause
+      if (endPos.x <= corner && endPos.y <= corner) {
+        pauseGame();
+        userPath.clear();
+        currentCircleCenter = null;
+        currentCircleRadius = null;
+        return;
+      }
+
+      // 우상단: Debug 5연타 토글
+      if (endPos.x >= size.x - corner && endPos.y <= corner) {
+        if (_lastTapTime == 0 || (nowMs - _lastTapTime) <= _debugWindowMs) {
+          _debugTapCount += 1;
+        } else {
+          _debugTapCount = 1;
+        }
+        _lastTapTime = nowMs;
+
+        if (_debugTapCount >= _debugNeedTaps) {
+          toggleDebug();
+          _debugTapCount = 0;
+        }
+
+        userPath.clear();
+        currentCircleCenter = null;
+        currentCircleRadius = null;
+        return;
+      }
+    }
+
     if (userPath.length < 3) {
       print("Drag too short: ${userPath.length} pts");
       userPath.clear();
@@ -1197,11 +1247,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   void onDragUpdate(DragUpdateEvent event) {
     super.onDragUpdate(event);
 
-    userPath.add(event.canvasEndPosition);
+    final p = event.canvasEndPosition;
+    _dragLastPos = p;
+    userPath.add(p);
+
+    // userPath.add(event.canvasEndPosition);
 
     if (dragStart != null) {
-      final end = event.canvasEndPosition;
-      final radius = dragStart!.distanceTo(end);
+      // final end = event.canvasEndPosition;
+      // final radius = dragStart!.distanceTo(end);
+      final radius = dragStart!.distanceTo(p);
       currentCircleCenter = dragStart!;
       currentCircleRadius = radius;
     }
@@ -1216,8 +1271,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   // ===========================================================================================================
 
   // ==== temporary functions ======================================================================================
-
-
 
   // @override
   // void update(double dt) {
@@ -1301,7 +1354,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     for (final b in blinkingMap.values) {
       b.isPaused = false;
-      
     }
 
     if (pausedScreen != null) {
