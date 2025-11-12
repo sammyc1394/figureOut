@@ -66,7 +66,6 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                     onTap: () {
                       context.push('/missions', extra: {
                         "stages": stages,
-                        // TODO : 인덱스 찾아줘라
                         "index": _currentIndex,
                       });
                     },

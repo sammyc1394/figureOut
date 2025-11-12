@@ -125,7 +125,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 💠 주변 도형들
+            // 주변 도형들
             ...List.generate(shapes.length, (index) {
               final base = _baseAlignment(index);
               return AnimatedBuilder(

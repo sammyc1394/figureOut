@@ -3,10 +3,7 @@ import 'dart:ffi';
 import 'package:figureout/src/routes/OneSecondGame.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
 
 import '../functions/sheet_service.dart';
 
@@ -66,7 +63,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
     return ColoredBox(
       color: const Color(0xFFEDEBE0), // 배경 색
       child: GameWidget(
-        game: OneSecondGame(nevigatorContext: context),
+        game: oneSec,
         // Flame의 캔버스에 덮이는 배경 지정
         backgroundBuilder: (context) =>
             Container(color: const Color(0xFFEDEBE0)),
