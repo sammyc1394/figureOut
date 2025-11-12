@@ -240,6 +240,11 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     // TODO : make this as button
     debugMode = false;
+    
+    Future.delayed(Duration.zero, () {
+      debugMode = false;
+      _applyDebugToTree(this, false);
+    });
   }
 
   @override
