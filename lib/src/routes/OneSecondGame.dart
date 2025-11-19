@@ -181,7 +181,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     playWidth = math.min(playWidth, targetPlayWidth);
     playHeight = math.min(playHeight, targetPlayHeight);
 
-    double playCenterX = ((size.x - playWidth) / 2) + (playWidth / 2);
+    double playCenterX = size.x / 2;
     double playCenterY = UItopPadding + (playHeight / 2);
 
     // print('play area = ($playWidth, $playHeight)');
@@ -436,11 +436,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       PositionComponent? shape = spawnShape(enemy, position);
 
       if (shape != null) {
-        double halfSizeX = shape.size.x;
+        final halfSizeX = shape.size.x / 2;
+        final halfSizeY = shape.size.y / 2;
 
-        Vector2 actPosition = toPlayArea(flipY(Vector2(x, y)), halfSizeX, clampInside: true);
+        Vector2 actPosition = toPlayArea(Vector2(x, y), halfSizeX, clampInside: true);
 
         shape.position = actPosition;
+        
+        final localPos = worldToPlayLocal(actPosition);
+        print('playLocal = (${localPos.x}, ${localPos.y})');
 
         final shapeRect = shape.toRect();
         final isWithinBounds =
@@ -473,8 +477,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
             // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
             // 도형 화면 밖으로 안나가도록
-            final p1 = toPlayArea(flipY(Vector2(dx1, dy1)), halfSizeX, clampInside: true);
-            final p2 = toPlayArea(flipY(Vector2(dx2, dy2)), halfSizeX, clampInside: true);
+            final p1 = toPlayArea(Vector2(dx1, dy1), halfSizeX, clampInside: true);
+            final p2 = toPlayArea(Vector2(dx2, dy2), halfSizeX, clampInside: true);
 
             // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
             final comp = shape!;
@@ -485,7 +489,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             }
 
             // 1) 스폰: H열 위치에서 잠깐 보임
-            comp.position = position;
+            comp.position = actPosition;
 
             // 2) 사라졌다가(p1로 재스폰) → 3) p1<->p2 왕복
             const showDelay = 0.25; // 최초 노출 시간 (필요시 조절)
@@ -537,7 +541,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             final r = double.parse(cMatch.group(3)!);
             final s = double.parse(cMatch.group(4)!); // degree per second
 
-            final center = centerOffset + flipY(Vector2(cx, cy));
+            final center = centerOffset + Vector2(cx, cy);
             final angularSpeed = s * math.pi / 180;
 
             shape.position = center + Vector2(r, 0); // 초기 위치
@@ -676,7 +680,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             }
 
             // 목표 지점 (에디터 좌표 → 실제 플레이좌표)
-            final target = toPlayArea(flipY(Vector2(position.x, yCoord)), halfSizeX, clampInside: false);
+            final target = toPlayArea(Vector2(position.x, yCoord), halfSizeX, clampInside: false);
 
             print("target = (${target.x}, ${target.y})");
 
@@ -831,29 +835,56 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   }
 
   // Convert from your coordinate system to play area coordinates
-  Vector2 toPlayArea(Vector2 yourCoordinates, double actShapePading, {bool clampInside = true}) {
-    double playX;
-    double playY;
+  Vector2 toPlayArea(
+    Vector2 yourCoordinates,
+    double actShapePadding,
+    {bool clampInside = true}
+  ) {
+    // 1) playArea 전역 영역 계산
+    final double playMinX = playArea.position.x - playArea.size.x / 2;
+    final double playMinY = playArea.position.y - playArea.size.y / 2;
+    final double playMaxX = playArea.position.x + playArea.size.x / 2;
+    final double playMaxY = playArea.position.y + playArea.size.y / 2;
 
-    print("my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePading");
-    // print("x axis : ${playArea.width / 2}, y axis : ${playArea.height / 2}");
-    // print("min : ${playArea.topLeftPosition}, max : ${playArea.toRect().bottomRight}");
+    // 2) 도형 중심의 이동 가능한 최소/최대 (반지름/반폭 보정)
+    final double minCenterX = playMinX + actShapePadding;
+    final double maxCenterX = playMaxX - actShapePadding;
+    final double minCenterY = playMinY + actShapePadding;
+    final double maxCenterY = playMaxY - actShapePadding;
 
-    double normalizedX = (yourCoordinates.x - minX) / rangeX;
-    double normalizedY = (yourCoordinates.y - minY) / rangeY;
+    print("my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding");
 
-    playX = (normalizedX * playArea.width);
-    playY = (normalizedY * playArea.height);
+    // 3) 에디터 좌표 정상화
+    final double normalizedX = (yourCoordinates.x - minX) / rangeX;
+    final double normalizedY = (yourCoordinates.y - minY) / rangeY;
 
+    // 4) playArea 내부 상대 좌표 → 절대 좌표 변환
+    double playX = playMinX + (normalizedX * playArea.size.x);
+    double playY = playMinY + (normalizedY * playArea.size.y);
+
+    // 5) 도형이 playArea 밖으로 나가지 않게 중심 위치 clamp
     if (clampInside) {
-      // 화면 안에 들어오도록 강제 (스폰 시점)
-      playX = playX.clamp(shapePadding / 2, playArea.width - shapePadding / 2);
-      playY = playY.clamp(shapePadding / 2, playArea.height - shapePadding / 2);
+      playX = playX.clamp(minCenterX, maxCenterX);
+      playY = playY.clamp(minCenterY, maxCenterY);
     }
 
-    print("X = $playX, Y = $playY");
+    print("final = ($playX, $playY)");
+    print("playMin=($playMinX,$playMinY) playMax=($playMaxX,$playMaxY)");
+    print("centerClampX=$minCenterX ~ $maxCenterX");
+
 
     return Vector2(playX, playY);
+  }
+
+  Vector2 worldToPlayLocal(Vector2 worldPos) {
+    final double playMinX = playArea.position.x - playArea.size.x / 2;
+    final double playMinY = playArea.position.y - playArea.size.y / 2;
+
+    // playArea 왼쪽 위를 (0,0)으로 보는 로컬 좌표
+    return Vector2(
+      worldPos.x - playMinX,
+      worldPos.y - playMinY,
+    );
   }
 
   int _calculateStarRating(StageResult stgResult) {

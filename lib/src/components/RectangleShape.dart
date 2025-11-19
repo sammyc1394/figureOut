@@ -22,7 +22,7 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
     this.onForbiddenTouch,
   })
   // RectangleShape(Vector2 position)
-    : super(position: position, size: Vector2(40, 80));
+    : super(position: position, size: Vector2(40, 80),anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
