@@ -443,7 +443,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
         shape.position = actPosition;
         
-        final localPos = worldToPlayLocal(actPosition);
+        final localPos = worldToVirtualPlay(actPosition);
         print('playLocal = (${localPos.x}, ${localPos.y})');
 
         final shapeRect = shape.toRect();
@@ -868,10 +868,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       playY = playY.clamp(minCenterY, maxCenterY);
     }
 
-    print("final = ($playX, $playY)");
-    print("playMin=($playMinX,$playMinY) playMax=($playMaxX,$playMaxY)");
-    print("centerClampX=$minCenterX ~ $maxCenterX");
-
+    final virtual = worldToVirtualPlay(Vector2(playX, playY));
+    print("Max (x,y) = (${virtual.x.toStringAsFixed(1)}, ${virtual.y.toStringAsFixed(1)})");
 
     return Vector2(playX, playY);
   }
@@ -885,6 +883,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       worldPos.x - playMinX,
       worldPos.y - playMinY,
     );
+  }
+
+  Vector2 worldToVirtualPlay(Vector2 worldPos) {
+    final local = worldToPlayLocal(worldPos); // 0 ~ playArea.size
+    final vx = local.x / playArea.size.x * targetPlayWidth;
+    final vy = local.y / playArea.size.y * targetPlayHeight;
+    return Vector2(vx, vy);
   }
 
   int _calculateStarRating(StageResult stgResult) {
