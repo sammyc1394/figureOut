@@ -541,16 +541,46 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             final r = double.parse(cMatch.group(3)!);
             final s = double.parse(cMatch.group(4)!); // degree per second
 
-            final center = centerOffset + Vector2(cx, cy);
+            final halfSizeX = shape.size.x / 2;
+            
+            // 중심 월드 좌표 (스폰과 동일한 변환 사용)
+            final centerWorld = toPlayArea(
+              Vector2(cx, cy),
+              halfSizeX,
+              clampInside: false,
+            );
+
+            // 에디터 좌표에서 (cx + r, cy), (cx, cy + r)가
+            // 실제 화면에서는 어디에 오는지 직접 계산
+            final eastWorld = toPlayArea(
+              Vector2(cx + r, cy),
+              halfSizeX,
+              clampInside: false,
+            );
+            final northWorld = toPlayArea(
+              Vector2(cx, cy + r),
+              halfSizeX,
+              clampInside: false,
+            );
+
+            // X/Y 방향 각각의 실제 반지름(픽셀)
+            final radiusWorldX = (eastWorld.x  - centerWorld.x).abs();
+            final radiusWorldY = (northWorld.y - centerWorld.y).abs();
+
             final angularSpeed = s * math.pi / 180;
 
-            shape.position = center + Vector2(r, 0); // 초기 위치
+            shape.position = Vector2(
+              centerWorld.x + radiusWorldX,
+              centerWorld.y,
+            );
 
+            // 타원 궤도로 회전 (radiusX / radiusY 별도)
             shape.add(
               OrbitingComponent(
                 target: shape,
-                center: center,
-                radius: r,
+                center: centerWorld,
+                radiusX: radiusWorldX,
+                radiusYParam: radiusWorldY,
                 angularSpeed: angularSpeed,
               ),
             );
