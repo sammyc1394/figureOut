@@ -412,8 +412,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
           // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
           if (currentWave.isNotEmpty) {
             await waitUntilMissionCleared(currentWave);
-            currentWave.clear();
           }
+
+          // 다크도형까지 제거위함
+          for (final comp in List<Component>.from(spawnedThisMission)) {
+            comp.removeFromParent();
+          }
+
+          currentWave.clear();
+          spawnedThisMission.clear();
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
           await Future.delayed(
