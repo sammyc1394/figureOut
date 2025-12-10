@@ -334,7 +334,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     Future.microtask(() {
       final starRating = _calculateStarRating(StageResult.fail);
-      showAftermathScreen(StageResult.fail, starRating, _currentStageIndex);
+      showAftermathScreen(StageResult.fail, starRating, _currentStageIndex, _currentMissionIndex);
     });
   }
 
@@ -356,7 +356,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     final starRating = _calculateStarRating(result);
     // showAftermathScreen(result);
-    showAftermathScreen(result, starRating, stageIndex);
+    showAftermathScreen(result, starRating, stageIndex, missionIndex);
   }
 
   Future<StageResult> runSingleMissions(StageData stage, int missionIndex) async {
@@ -1087,7 +1087,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     }
   }
 
-  void showAftermathScreen(StageResult result, int starCount, int stgIndex) {
+  void showAftermathScreen(StageResult result, int starCount, int stgIndex, int msnIndex) {
     _timerPaused = true;
     
     if (result == StageResult.success) {
@@ -1099,6 +1099,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     final aftermath = AftermathScreen(
       result: result,
       starCount: starCount,
+      msnIndex: msnIndex,
       stgIndex: stgIndex,
       screenSize: size,
       onContinue: () {

@@ -28,7 +28,7 @@ class PausedScreen extends PositionComponent {
 
     // Pause 창 패널
     final panelSvg = await Svg.load('Paused window.svg');
-    final panelSize = Vector2(size.x * 0.8, size.y*0.30);
+    final panelSize = Vector2(size.x * 0.8, size.y * 0.30);
     final panel = SvgComponent(
       svg: panelSvg,
       size: panelSize,
