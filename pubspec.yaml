@@ -69,6 +69,7 @@ flutter:
     - assets/menu/stage/
     - assets/menu/mission/
     - assets/menu/common/
+    - assets/shapes/
   fonts:
     - family: Moulpali
       fonts:
