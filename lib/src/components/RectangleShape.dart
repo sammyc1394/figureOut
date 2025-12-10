@@ -85,9 +85,10 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
         ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke;
 
-      // Convert absolute coordinates to local coordinates
-      final localStart = sliceStart! - position;
-      final localEnd = sliceEnd! - position;
+      final toLocal = absoluteCenter - size /2;
+
+      final localStart = sliceStart! - toLocal;
+      final localEnd = sliceEnd! - toLocal;
 
       canvas.drawLine(
         Offset(localStart.x, localStart.y),

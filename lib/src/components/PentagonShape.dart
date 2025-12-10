@@ -130,7 +130,7 @@ class PentagonShape extends PositionComponent
     // Use Flame's built-in timer approach
     add(
       TimerComponent(
-        period: 0.03, // 0.3 seconds
+        period: 0.1, // 0.3 seconds
         repeat: _isLongPressing,
         onTick: () {
           if (energy > 0) {

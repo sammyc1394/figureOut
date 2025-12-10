@@ -14,6 +14,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
   final StageResult result;
   late final int starCount;
   late final int stgIndex;
+  late final int msnIndex;
 
   // ui svgs
   late final SvgComponent background;
@@ -39,6 +40,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
     required this.onMenu,
     required Vector2 screenSize,
     required this.stgIndex,
+    required this.msnIndex,
   }) : super(position: Vector2.zero(), size: screenSize);
 
   @override
@@ -58,6 +60,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         svg: bgSvg,
         size: size,
         position: Vector2.zero(),
+        anchor: Anchor.topLeft,
       );
       add(background);
 
@@ -65,13 +68,41 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       levelStatus = SvgComponent(
         svg: statusSvg,
         size: size / 2,
-        position: Vector2(size.x * 0.5, size.y * 0.2),
+        position: Vector2(size.x * 0.5, size.y * 0.4),
         anchor: Anchor.center,
       );
       add(levelStatus);
 
+      final levelTitle = TextComponent(
+        text: "S ${stgIndex + 1} - M ${msnIndex}",
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            fontFamily: 'Moulpali',
+            fontSize: 22,
+            color: Colors.black,
+          ),
+        ),
+        position: Vector2(size.x * 0.5, size.y * 0.4),
+        anchor: Anchor.center,
+      );
+      add(levelTitle);
+
+      final label = TextComponent(
+        text: "Level completed!",
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            fontFamily: 'Moulpali',
+            fontSize: 22,
+            color: Colors.black,
+          ),
+        ),
+        position: Vector2(size.x * 0.5, size.y * 0.55),
+        anchor: Anchor.center,
+      );
+      add(label);
+
       // Stars based on rating (centered)
-      String starSvgTitle = _addStars();
+      final starSvgTitle = _addStars();
       final levelIconSvg = await Svg.load(starSvgTitle);
       levelIcon = SvgComponent(
         svg: levelIconSvg,
@@ -122,6 +153,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         svg: bgSvg,
         size: size,
         position: Vector2.zero(),
+        anchor: Anchor.topLeft,
       );
       add(background);
 
@@ -132,7 +164,22 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         position: Vector2(size.x * 0.5, size.y * 0.2),
         anchor: Anchor.center,
       );
-      add(levelStatus);
+      background.add(levelStatus);
+
+      final levelLabel = TextComponent(
+        text: "S ${stgIndex + 1} - M ${msnIndex} failed",
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            fontFamily: 'Moulpali',
+            fontFamilyFallback: ['Moulpali'],
+            fontSize: 22.0,
+            color: Colors.black,
+          ),
+        ),
+        position: Vector2(size.x * 0.5, size.y * 0.55),
+        anchor: Anchor.center,
+      );
+      // levelStatus.add(levelLabel);
 
       // Stars based on rating (centered)
       final levelIconSvg = await Svg.load('Heart.svg');
@@ -142,7 +189,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         position: Vector2(size.x * 0.5, size.y * 0.45),
         anchor: Anchor.center,
       );
-      add(levelIcon);
+      background.add(levelIcon);
 
       final label = TextComponent(
         text: "Almost there!",
@@ -185,7 +232,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         position: Vector2(buttonX, buttonY),
         onTap: onMenu,
       );
-      add(menuButton);
+      background.add(menuButton);
 
       final continueButton = SvgButton(
         assetPath: 'State=Default, Type=Continue.svg',
@@ -193,7 +240,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         position: Vector2(buttonX + buttonSpacing, buttonY),
         onTap: onContinue,
       );
-      add(continueButton);
+      background.add(continueButton);
 
       final retryButton = SvgButton(
         assetPath: 'State=Default, Type=Retry.svg',
@@ -201,7 +248,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         position: Vector2(buttonX + buttonSpacing * 2, buttonY),
         onTap: onRetry,
       );
-      add(retryButton);
+      background.add(retryButton);
     } catch (e) {
       print('Error loading fail aftermath : $e');
     }
