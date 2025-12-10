@@ -1,11 +1,13 @@
 import 'dart:math';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 
-class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
+class CircleShape extends PositionComponent
+    with TapCallbacks, UserRemovable, HasGameRef {
   int count;
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
@@ -18,8 +20,16 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
   bool _penaltyFired = false;
   bool isPaused = false;
 
-  late SvgComponent _svg;
-  String _currentAsset = '';
+  late SvgComponent _svg;         // 기본 도형(테두리 O)
+  late SpriteComponent _png;      // 공격 타이머 도형(테두리 X)
+
+  // arc paint
+  final Paint _attackPaint = Paint()
+    ..color = Colors.orangeAccent
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 6;
+
+  final Color dangerColor = const Color(0xFFEE0505);
 
   CircleShape(
     Vector2 position,
@@ -34,68 +44,122 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final String initial = isDark ? 'DarkCircle.svg' : 'Circle (tap).svg';
-    _currentAsset = initial;
+    // ------------------------------------------------------------
+    // 1) 기본 SVG 로드
+    // ------------------------------------------------------------
+    final svgAsset = isDark ? 'DarkCircle.svg' : 'Circle (tap).svg';
 
     _svg = SvgComponent(
-      svg: await Svg.load(initial),
+      svg: await Svg.load(svgAsset),
       size: size,
       anchor: Anchor.center,
       position: size / 2,
     );
+
+    // ------------------------------------------------------------
+    // 2) PNG (타이머용) 로드
+    // ------------------------------------------------------------
+    final images = Images(prefix: 'assets/');
+    final img = await images.load('shapes/Circle.png');
+
+    _png = SpriteComponent(
+      sprite: Sprite(img),
+      size: size,
+      anchor: Anchor.center,
+      position: size / 2,
+    );
+
+    // 기본 = PNG 숨김
+    _png.opacity = 0;
+
     add(_svg);
+    add(_png);
+
+    // ------------------------------------------------------------
+    // 3) attackSeconds 있으면 PNG 표시 / SVG 숨김
+    // ------------------------------------------------------------
+    if ((attackSeconds ?? 0) > 0) {
+      _svg.opacity = 0;
+      _png.opacity = 1;
+    }
   }
 
   @override
   void update(double dt) {
     super.update(dt);
 
-    if(isPaused) return;
+    if (isPaused) return;
+
     if ((attackSeconds ?? 0) <= 0) return;
 
     _attackElapsed += dt;
-    final remain = max(0.0, attackSeconds! - _attackElapsed);
-    final ratio = (remain / attackSeconds!).clamp(0.0, 1.0);
 
-    if (!_attackDone) {
-      // 타이머 진행 중 → attack SVG 프레임으로 교체
-      final int frame = max(1, (ratio * 14).ceil());
-      final String frameAsset = '$frame.svg';
-      if (_currentAsset != frameAsset) {
-        _replaceSvg(frameAsset);
-      }
+    // ------------------------------------------------------------
+    // 타이머 종료
+    // ------------------------------------------------------------
+    if (!_attackDone && _attackElapsed >= attackSeconds!) {
+      _attackDone = true;
 
-      if (_attackElapsed >= attackSeconds!) {
-        _attackDone = true;
-        if (!_penaltyFired) {
-          _penaltyFired = true;
-          onAttackTimeout?.call();
-        }
+      // PNG 숨기고 SVG 복귀
+      _png.opacity = 0;
+      _png.paint = Paint(); // tint 제거
+      _svg.opacity = 1;
 
-        // 타이머 끝나면 원래 원으로 복귀
-        final String reset = isDark ? 'DarkCircle.svg' : 'Circle (tap).svg';
-        _replaceSvg(reset);
+      if (!_penaltyFired) {
+        _penaltyFired = true;
+        onAttackTimeout?.call();
       }
     }
-  }
 
-  Future<void> _replaceSvg(String asset) async {
-    _currentAsset = asset;
-    final newSvg = await Svg.load(asset);
-    _svg.svg = newSvg;
+    // ------------------------------------------------------------
+    // 절반 이하 → 빨간색 tint 적용
+    // ------------------------------------------------------------
+    if (!_attackDone && _attackSecondsHalfLeft) {
+      _png.paint = Paint()
+        ..colorFilter = ColorFilter.mode(
+          dangerColor,
+          BlendMode.srcIn,
+        );
+    }
   }
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // 숫자 (다크 도형 제외)
+    // ------------------------------------------------------------
+    // Arc 타이머
+    // ------------------------------------------------------------
+    if ((attackSeconds ?? 0) > 0 && !_attackDone) {
+      final ratio =
+          ((attackSeconds! - _attackElapsed) / attackSeconds!).clamp(0.0, 1.0);
+      final sweep = 2 * pi * ratio;
+
+      _attackPaint.color =
+          _attackSecondsHalfLeft ? dangerColor : Colors.orangeAccent;
+
+      final center = Offset(size.x / 2, size.y / 2);
+      final radius = size.x * 0.48;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -pi / 2,
+        sweep,
+        false,
+        _attackPaint,
+      );
+    }
+
+    // ------------------------------------------------------------
+    // 숫자 렌더링
+    // ------------------------------------------------------------
     if (!isDark && count > 0) {
       final tp = TextPainter(
         text: TextSpan(
           text: count.toString(),
-          style: const TextStyle(
-            color: Color(0xFFFF9D33),
+          style: TextStyle(
+            color:
+                _attackSecondsHalfLeft ? dangerColor : const Color(0xFFFF9D33),
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -103,11 +167,16 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
         textDirection: TextDirection.ltr,
       )..layout();
 
-      tp.paint(
-        canvas,
-        Offset((size.x - tp.width) / 2, (size.y - tp.height) / 2),
-      );
+      tp.paint(canvas,
+          Offset((size.x - tp.width) / 2, (size.y - tp.height) / 2));
     }
+  }
+
+  bool get _attackSecondsHalfLeft {
+    if ((attackSeconds ?? 0) <= 0) return false;
+    final ratio =
+        ((attackSeconds! - _attackElapsed) / attackSeconds!).clamp(0.0, 1.0);
+    return ratio <= 0.5;
   }
 
   @override
@@ -124,3 +193,4 @@ class CircleShape extends PositionComponent with TapCallbacks, UserRemovable {
     }
   }
 }
+
