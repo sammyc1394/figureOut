@@ -598,7 +598,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
           // Movement
           final dMatch = RegExp(
-            r'D\(\s*(\d+)\s*,\s*(\d+)\s*\)',
+            r'D\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
           ).firstMatch(enemy.movement);
           if (dMatch != null && shape != null) {
             final a = double.parse(dMatch.group(1)!);
@@ -648,7 +648,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
           // Movement
           // DR(a,b): 깜빡이며 랜덤 위치로 재등장
           final drMatch = RegExp(
-            r'DR\(\s*(\d+)\s*,\s*(\d+)\s*\)',
+            r'DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
           ).firstMatch(enemy.movement);
           if (drMatch != null && shape != null) {
             final a = double.parse(drMatch.group(1)!);
