@@ -12,8 +12,8 @@ class CircleShape extends PositionComponent
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
 
-  final double? attackSeconds;
-  final VoidCallback? onAttackTimeout;
+  final double? attackTime;
+  final VoidCallback? onExplode;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -36,8 +36,8 @@ class CircleShape extends PositionComponent
     this.count, {
     this.isDark = false,
     this.onForbiddenTouch,
-    this.attackSeconds,
-    this.onAttackTimeout,
+    this.attackTime,
+    this.onExplode,
   }) : super(position: position, size: Vector2.all(80), anchor: Anchor.center);
 
   @override
@@ -76,9 +76,9 @@ class CircleShape extends PositionComponent
     add(_png);
 
     // ------------------------------------------------------------
-    // 3) attackSeconds 있으면 PNG 표시 / SVG 숨김
+    // 3) attackTime 있으면 PNG 표시 / SVG 숨김
     // ------------------------------------------------------------
-    if ((attackSeconds ?? 0) > 0) {
+    if ((attackTime ?? 0) > 0) {
       _svg.opacity = 0;
       _png.opacity = 1;
     }
@@ -90,14 +90,14 @@ class CircleShape extends PositionComponent
 
     if (isPaused) return;
 
-    if ((attackSeconds ?? 0) <= 0) return;
+    if ((attackTime ?? 0) <= 0) return;
 
     _attackElapsed += dt;
 
     // ------------------------------------------------------------
     // 타이머 종료
     // ------------------------------------------------------------
-    if (!_attackDone && _attackElapsed >= attackSeconds!) {
+    if (!_attackDone && _attackElapsed >= attackTime!) {
       _attackDone = true;
 
       // PNG 숨기고 SVG 복귀
@@ -107,14 +107,14 @@ class CircleShape extends PositionComponent
 
       if (!_penaltyFired) {
         _penaltyFired = true;
-        onAttackTimeout?.call();
+        onExplode?.call();
       }
     }
 
     // ------------------------------------------------------------
     // 절반 이하 → 빨간색 tint 적용
     // ------------------------------------------------------------
-    if (!_attackDone && _attackSecondsHalfLeft) {
+    if (!_attackDone && _attackTimeHalfLeft) {
       _png.paint = Paint()
         ..colorFilter = ColorFilter.mode(
           dangerColor,
@@ -130,13 +130,13 @@ class CircleShape extends PositionComponent
     // ------------------------------------------------------------
     // Arc 타이머
     // ------------------------------------------------------------
-    if ((attackSeconds ?? 0) > 0 && !_attackDone) {
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
-          ((attackSeconds! - _attackElapsed) / attackSeconds!).clamp(0.0, 1.0);
+          ((attackTime! - _attackElapsed) / attackSeconds!).clamp(0.0, 1.0);
       final sweep = 2 * pi * ratio;
 
       _attackPaint.color =
-          _attackSecondsHalfLeft ? dangerColor : Colors.orangeAccent;
+          _attackTimeHalfLeft ? dangerColor : Colors.orangeAccent;
 
       final center = Offset(size.x / 2, size.y / 2);
       final radius = size.x * 0.48;
@@ -159,7 +159,7 @@ class CircleShape extends PositionComponent
           text: count.toString(),
           style: TextStyle(
             color:
-                _attackSecondsHalfLeft ? dangerColor : const Color(0xFFFF9D33),
+                _attackTimeHalfLeft ? dangerColor : const Color(0xFFFF9D33),
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -172,10 +172,10 @@ class CircleShape extends PositionComponent
     }
   }
 
-  bool get _attackSecondsHalfLeft {
-    if ((attackSeconds ?? 0) <= 0) return false;
+  bool get _attackTimeHalfLeft {
+    if ((attackTime ?? 0) <= 0) return false;
     final ratio =
-        ((attackSeconds! - _attackElapsed) / attackSeconds!).clamp(0.0, 1.0);
+        ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
     return ratio <= 0.5;
   }
 
