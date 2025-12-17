@@ -135,15 +135,12 @@ class SheetService {
 
       final int mission = currentMission ?? 1;
       
-      double? _parseAttackSeconds(String s) {
-        final t = s.trim();
-        if (t.isEmpty || t == '0') return null;
-        // 숫자 또는 "3s" 같은 표현 허용
-        final m = RegExp(r'^\s*(\d+(?:\.\d+)?)\s*s?\s*$').firstMatch(t);
-        if (m != null) return double.tryParse(m.group(1)!);
-        return null;
-      }
-      final double? attackSeconds = _parseAttackSeconds(attackRaw);
+      double? attackSeconds;
+      double? attackDamage;
+
+      final attackMatch =
+        RegExp(r'\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)')
+            .firstMatch(attackRaw);
 
       final enemy = EnemyData(
         command: command,
@@ -152,6 +149,7 @@ class SheetService {
         position: position,
         mission: currentMission ??= 1,
         attackSeconds: attackSeconds,
+        attackDamage: attackDamage,
       );
 
       currentMissionMap!.putIfAbsent(currentMission!, () => []).add(enemy);
@@ -195,6 +193,7 @@ class EnemyData {
   final String position;
   final int mission;
   final double? attackSeconds;
+  final double? attackDamage;
 
   EnemyData({
     required this.command,
@@ -203,10 +202,11 @@ class EnemyData {
     required this.position,
     required this.mission,
     this.attackSeconds,
+    this.attackDamage,
   });
 
   @override
   String toString() {
-    return '[$command, $shape, $movement, $position, $mission, attack=${attackSeconds ?? 0}]';
+    return '[$command, $shape, $movement, $position, $mission, attack=($attackSeconds, $attackDamage)]';
   }
 }
