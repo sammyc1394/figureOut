@@ -812,7 +812,15 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       shape = RectangleShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
     } else if (enemy.shape.startsWith('Pentagon')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
-      shape = PentagonShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
+      shape = PentagonShape(
+        position,
+        energy, 
+        isDark: isDark, 
+        onForbiddenTouch: penalty,
+        attackTime: enemy.attackSeconds,
+        onExplode: damage != null
+          ? () => applyTimePenalty(damage.abs()) 
+          : null,);
     } else if (enemy.shape.startsWith('Triangle')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       shape = TriangleShape(position, energy, isDark: isDark, onForbiddenTouch: penalty);
