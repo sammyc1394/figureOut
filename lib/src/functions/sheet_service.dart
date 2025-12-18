@@ -142,6 +142,11 @@ class SheetService {
         RegExp(r'\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)')
             .firstMatch(attackRaw);
 
+      if (attackMatch != null) {
+        attackSeconds = double.tryParse(attackMatch.group(1)!);
+        attackDamage  = double.tryParse(attackMatch.group(2)!);
+      }
+
       final enemy = EnemyData(
         command: command,
         shape: shape,
