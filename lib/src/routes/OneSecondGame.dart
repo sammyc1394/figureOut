@@ -446,7 +446,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         final halfSizeX = shape.size.x / 2;
         final halfSizeY = shape.size.y / 2;
 
-        Vector2 actPosition = toPlayArea(Vector2(x, y), halfSizeX, clampInside: true);
+        Vector2 actPosition = toPlayArea(flipY(Vector2(x, y)), halfSizeX, clampInside: true);
 
         shape.position = actPosition;
         
@@ -470,12 +470,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
           if (!_isDarkShape(shape)) {
             currentWave.add(shape);
           }
+
+          await Future.delayed(const Duration(seconds: 1));
+
           // Movement
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
 
           if (moveMatch != null) {
+            print("-----moveMatch runnung---------------------------------");
             final dx1 = double.parse(moveMatch.group(1)!);
             final dy1 = double.parse(moveMatch.group(2)!);
             final dx2 = double.parse(moveMatch.group(3)!);
@@ -484,8 +488,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
             // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
             // 도형 화면 밖으로 안나가도록
-            final p1 = toPlayArea(Vector2(dx1, dy1), halfSizeX, clampInside: true);
-            final p2 = toPlayArea(Vector2(dx2, dy2), halfSizeX, clampInside: true);
+            final p1 = toPlayArea(flipY(Vector2(dx1, dy1)), halfSizeX, clampInside: true);
+            final p2 = toPlayArea(flipY(Vector2(dx2, dy2)), halfSizeX, clampInside: true);
 
             // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
             final comp = shape!;
@@ -552,7 +556,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             
             // 중심 월드 좌표 (스폰과 동일한 변환 사용)
             final centerWorld = toPlayArea(
-              Vector2(cx, cy),
+              flipY(Vector2(cx, cy)),
               halfSizeX,
               clampInside: false,
             );
@@ -560,12 +564,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             // 에디터 좌표에서 (cx + r, cy), (cx, cy + r)가
             // 실제 화면에서는 어디에 오는지 직접 계산
             final eastWorld = toPlayArea(
-              Vector2(cx + r, cy),
+              flipY(Vector2(cx + r, cy)),
               halfSizeX,
               clampInside: false,
             );
             final northWorld = toPlayArea(
-              Vector2(cx, cy + r),
+              flipY(Vector2(cx, cy + r)),
               halfSizeX,
               clampInside: false,
             );
@@ -717,7 +721,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             }
 
             // 목표 지점 (에디터 좌표 → 실제 플레이좌표)
-            final target = toPlayArea(Vector2(position.x, yCoord), halfSizeX, clampInside: false);
+            final target = toPlayArea(flipY(Vector2(position.x, yCoord)), halfSizeX, clampInside: false);
 
             print("target = (${target.x}, ${target.y})");
 
