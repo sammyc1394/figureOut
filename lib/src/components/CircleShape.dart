@@ -132,7 +132,7 @@ class CircleShape extends PositionComponent
     // ------------------------------------------------------------
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
-          ((attackTime! - _attackElapsed) / attackSeconds!).clamp(0.0, 1.0);
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final sweep = 2 * pi * ratio;
 
       _attackPaint.color =
