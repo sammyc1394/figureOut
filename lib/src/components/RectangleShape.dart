@@ -1,4 +1,5 @@
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/svg.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
   int energy = 0;
   late final SvgComponent svg;
+  late final SpriteComponent _png;
 
   bool isSliced = false;
   Vector2? sliceStart;
@@ -17,9 +19,31 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
   final VoidCallback? onForbiddenTouch;
   bool _penaltyFired = false;
 
+  final double? attackTime;
+  final VoidCallback? onExplode;
+
+  double _attackElapsed = 0.0;
+  bool _attackDone = false;
+  bool isPaused = false;
+
+  late Path _outlinePath;
+  late double _outlineLength;
+
+  final Paint _attackPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 6
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = const Color(0xFF7CA6FF);
+
+  final Color dangerColor = const Color(0xFFEE0505);
+  final Color baseColor = const Color(0xFF7CA6FF);
+
   RectangleShape(Vector2 position, this.energy, {
     this.isDark = false,
     this.onForbiddenTouch,
+    this.attackTime,
+    this.onExplode,
   })
   // RectangleShape(Vector2 position)
     : super(position: position, size: Vector2(40, 80),anchor: Anchor.center);
@@ -38,6 +62,87 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
     );
 
     add(svg);
+
+    final images = Images(prefix: 'assets/');
+    final img = await images.load('shapes/Rectangle.png');
+
+    _png = SpriteComponent(
+      sprite: Sprite(img),
+      size: size,
+      anchor: Anchor.center,
+      position: size / 2,
+    );
+    _png.opacity = 0;
+    add(_png);
+
+    // ===== attackTime 있으면 PNG로 시작 =====
+    if ((attackTime ?? 0) > 0) {
+      svg.opacity = 0;
+      _png.opacity = 1;
+    }
+
+    // ===== build rectangle outline path =====
+    _outlinePath = _buildRectPath(size.toSize());
+    _outlineLength = _outlinePath
+        .computeMetrics()
+        .fold(0.0, (sum, m) => sum + m.length);
+  }
+
+  Path _buildRectPath(Size s) {
+    final inset = (_attackPaint.strokeWidth / 2)-1.0;
+    return Path()
+      ..moveTo(inset, inset)
+      ..lineTo(s.width - inset, inset)
+      ..lineTo(s.width - inset, s.height - inset)
+      ..lineTo(inset, s.height - inset)
+      ..close();
+  }
+
+  Path _extractPartialPath(Path path, double length) {
+    final result = Path();
+    double remaining = length;
+
+    for (final metric in path.computeMetrics()) {
+      if (remaining <= 0) break;
+      final len = remaining.clamp(0.0, metric.length);
+      result.addPath(metric.extractPath(0, len), Offset.zero);
+      remaining -= len;
+    }
+    return result;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (isPaused) return;
+    if ((attackTime ?? 0) <= 0) return;
+
+    _attackElapsed += dt;
+
+    if (!_attackDone && _attackElapsed >= attackTime!) {
+      _attackDone = true;
+
+      _png.opacity = 0;
+      svg.opacity = 1;
+      
+      onExplode?.call();
+    }
+
+    // 절반 이하 → 빨간 tint
+    if (!_attackDone && _attackTimeHalfLeft) {
+      _png.paint = Paint()
+        ..colorFilter = ColorFilter.mode(
+          dangerColor,
+          BlendMode.srcIn,
+        );
+    }
+  }
+
+  bool get _attackTimeHalfLeft {
+    if ((attackTime ?? 0) <= 0) return false;
+    final ratio =
+        ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+    return ratio <= 0.5;
   }
 
   @override
@@ -45,6 +150,18 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
     super.render(canvas);
 
     _renderRectangleShape(canvas);
+
+    // ===== perimeter timer =====
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
+      final ratio =
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+      final drawLen = _outlineLength * ratio;
+
+      _attackPaint.color = ratio <= 0.5 ? dangerColor : baseColor;
+
+      final partial = _extractPartialPath(_outlinePath, drawLen);
+      canvas.drawPath(partial, _attackPaint);
+    }
 
     _renderSliceLine(canvas);
   }
@@ -97,7 +214,7 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
       );
     }
   }
-  
+
   @override
   void onTapDown(TapDownEvent event) {
     if (isDark) {
