@@ -14,6 +14,7 @@ class CircleShape extends PositionComponent
 
   final double? attackTime;
   final VoidCallback? onExplode;
+  final int? order;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -38,6 +39,7 @@ class CircleShape extends PositionComponent
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
+    this.order,
   }) : super(position: position, size: Vector2.all(80), anchor: Anchor.center);
 
   @override
