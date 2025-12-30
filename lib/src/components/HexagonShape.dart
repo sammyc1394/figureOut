@@ -1,3 +1,4 @@
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
@@ -18,10 +19,33 @@ class HexagonShape extends PositionComponent
   double autoScale = 1.0;     // 자동 확장 스케일
 
   late final SvgComponent svg;
+  late final SpriteComponent _png;
   int energy = 0;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
+
+  final double? attackTime;
+  final VoidCallback? onExplode;
+
+  double _attackElapsed = 0.0;
+  bool _attackDone = false;
+
+  // timer path
+  late Path _outlinePath;
+  late double _outlineLength;
+
+  final Paint _attackPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 6
+    ..color = const Color(0xFF9BEE3B);
+
+    static const Color outlineNormal = Color(0xFF9BEE3B);
+    static const Color outlineDanger = Color(0xFFEE0505);
+
+  final Color dangerColor = const Color(0xFFEE0505);
+  final Color baseColor   = const Color(0xFF9BEE3B);
+
 
   HexagonState _state = HexagonState.normal;
 
@@ -39,7 +63,7 @@ class HexagonShape extends PositionComponent
 
   // orientation fix - use a single canonical angle offset everywhere
   // This matches the "flat-top" hexagon look. If your svg is point-top, flip to 0.
-  static const double _hexAngleOffset = -math.pi / 6;
+  static const double _hexAngleOffset = -math.pi / 30;
 
   static const double extraDisappearScale = 1.25;
 
@@ -48,6 +72,8 @@ class HexagonShape extends PositionComponent
     this.energy, {
     this.isDark = false,
     this.onForbiddenTouch,
+    this.attackTime,
+    this.onExplode,
   }) : super(
           position: position,
           size: Vector2.all(100),
@@ -69,7 +95,71 @@ class HexagonShape extends PositionComponent
     );
 
     add(svg);
+
+    final images = Images(prefix: 'assets/');
+    final img = await images.load('shapes/hexagon.png');
+
+    _png = SpriteComponent(
+      sprite: Sprite(img),
+      size: size,
+      anchor: Anchor.center,
+      position: size / 2,
+    );
+    _png.opacity = 0.8;
+    _png.paint.colorFilter = ColorFilter.mode(
+      baseColor,
+      BlendMode.srcATop,
+    );
+    add(_png);
+
+    // ===== attackTime → PNG로 교체 =====
+    if ((attackTime ?? 0) > 0) {
+      svg.opacity = 0;
+      _png.opacity = 1;
+    }
+
+    // ===== outline path =====
+    _outlinePath = _buildHexagonPath(size.toSize());
+    _outlineLength = _outlinePath
+        .computeMetrics()
+        .fold(0.0, (sum, m) => sum + m.length);
   }
+
+  Path _buildHexagonPath(Size s) {
+    final center = Offset(s.width / 2, s.height / 2);
+    final inset = (_attackPaint.strokeWidth / 2) + 10.0;
+    final radius = (s.width / 2) - inset;
+
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (math.pi / 3) * i + _hexAngleOffset;
+      final p = Offset(
+        center.dx + radius * math.cos(angle),
+        center.dy + radius * math.sin(angle),
+      );
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  Path _extractPartialPath(Path path, double length) {
+    final result = Path();
+    double remaining = length;
+
+    for (final metric in path.computeMetrics()) {
+      if (remaining <= 0) break;
+      final len = remaining.clamp(0.0, metric.length);
+      result.addPath(metric.extractPath(0, len), Offset.zero);
+      remaining -= len;
+    }
+    return result;
+  }
+
 
   @override
   void onTapDown(TapDownEvent event) {
@@ -109,6 +199,33 @@ class HexagonShape extends PositionComponent
   void update(double dt) {
     super.update(dt);
 
+    // ===== attack timer =====
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
+      _attackElapsed += dt;
+
+      // _png.opacity = 0.5;
+      final ratio =
+      ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+
+      final bool isDanger = ratio <= 0.2;
+
+      _png.paint.colorFilter = ColorFilter.mode(
+        isDanger ? dangerColor : baseColor,
+        BlendMode.srcATop,
+      );
+
+      _attackPaint.color =
+      isDanger ? outlineDanger : outlineNormal;
+
+      if (_attackElapsed >= attackTime!) {
+        _attackDone = true;
+        _png.opacity = 0;
+        svg.opacity = 1;
+        onExplode?.call();
+      }
+    }
+
+    //effect
     if (_state == HexagonState.autoGrowing) {
       _autoGrowT += dt / 0.4;
 
@@ -165,6 +282,18 @@ class HexagonShape extends PositionComponent
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+
+    // ===== perimeter timer draw =====
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
+      final ratio =
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+
+      final drawLen = _outlineLength * ratio;
+      _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
+
+      final partial = _extractPartialPath(_outlinePath, drawLen);
+      canvas.drawPath(partial, _attackPaint);
+    }
   }
 
   @override
