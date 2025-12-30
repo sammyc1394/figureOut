@@ -46,12 +46,13 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
     this.onExplode,
   })
   // RectangleShape(Vector2 position)
-    : super(position: position, size: Vector2(40, 80),anchor: Anchor.center);
+    : super(position: position, size: Vector2(40, 80),anchor: Anchor.center,);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // final svgData = await Svg.load('Rectangle 3.svg');
     final String asset = isDark ? 'DarkRectangle.svg' : 'Rectangle 3.svg';
     final svgData = await Svg.load(asset);
     svg = SvgComponent(
@@ -142,7 +143,7 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
     if ((attackTime ?? 0) <= 0) return false;
     final ratio =
         ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-    return ratio <= 0.5;
+    return ratio <= 0.2;
   }
 
   @override
@@ -157,7 +158,7 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final drawLen = _outlineLength * ratio;
 
-      _attackPaint.color = ratio <= 0.5 ? dangerColor : baseColor;
+      _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
 
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
@@ -202,6 +203,7 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
         ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke;
 
+      // Convert absolute coordinates to local coordinates
       final toLocal = absoluteCenter - size /2;
 
       final localStart = sliceStart! - toLocal;
@@ -228,9 +230,11 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
     // Check if the user path slices through the rectangle
     final slicePoints = getSlicePoints(userPath);
     if (slicePoints != null) {
+      // if (isDark&& !_penaltyFired) {
       if (isDark) {
         for (final p in userPath) {
           if (toRect().contains(Offset(p.x, p.y))) {
+            // _penaltyFired = true;
             onForbiddenTouch?.call();
             break;
           }
@@ -251,6 +255,7 @@ class RectangleShape extends PositionComponent with TapCallbacks,UserRemovable {
         removeFromParent();
         wasRemovedByUser = true;
       });
+      // return;
     }
   }
 

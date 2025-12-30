@@ -12,7 +12,7 @@ import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'dart:typed_data';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>  {
   int energy = 0;
   bool _isLongPressing = false;
   late final SvgComponent svg;
@@ -20,9 +20,10 @@ class PentagonShape extends PositionComponent
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
-  
+
   final double? attackTime;
   final VoidCallback? onExplode;
+  // bool _penaltyFired = false;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -45,7 +46,6 @@ class PentagonShape extends PositionComponent
   final Color baseColor = const Color(0xFFFFA6FC);
   final Color dangerColor = const Color(0xFFEE0505);
 
-
   PentagonShape(Vector2 position, int energy, {
     this.isDark = false,
     this.onForbiddenTouch,
@@ -59,9 +59,10 @@ class PentagonShape extends PositionComponent
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    
+
     final String asset = isDark ? 'DarkPentagon.svg' : 'pentagon.svg';
     final svgData = await Svg.load(asset);
+    // final svgData = await Svg.load('pentagon.svg');
 
     svg = SvgComponent(
       svg: svgData,
@@ -70,7 +71,7 @@ class PentagonShape extends PositionComponent
       position: size / 2,
     );
     add(svg);
-    
+
     final images = Images(prefix: 'assets/');
     final img = await images.load('shapes/Pentagon.png');
 
@@ -170,13 +171,13 @@ class PentagonShape extends PositionComponent
     if ((attackTime ?? 0) <= 0) return false;
     final ratio =
         ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-    return ratio <= 0.5;
+    return ratio <= 0.2;
   }
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    
+
     // ------------------------------------------------------------
     // Path 기반 공격 타이머
     // ------------------------------------------------------------
@@ -187,13 +188,13 @@ class PentagonShape extends PositionComponent
       final drawLength = _perimeter * ratio;
 
       _attackPaint.color =
-          ratio <= 0.5 ? dangerColor : baseColor;
+          ratio <= 0.2 ? dangerColor : baseColor;
 
       final partial = _extractPartialPath(_pentagonPath, drawLength);
       canvas.drawPath(partial, _attackPaint);
     }
 
-    if (!isDark && energy > 0) {
+    if (!isDark &&energy > 0) {
       _drawText(canvas, energy.toString());
     }
   }
@@ -228,7 +229,7 @@ class PentagonShape extends PositionComponent
     }
     return null;
   }
-  
+
   @override
   void onTapDown(TapDownEvent event) { 
     // if (isDark && !_penaltyFired) {
@@ -241,9 +242,11 @@ class PentagonShape extends PositionComponent
   @override
   void onLongTapDown(TapDownEvent event) {
     super.onLongTapDown(event);
-
     if (isDark) {
+      // if (!_penaltyFired) {
+        // _penaltyFired = true;
         onForbiddenTouch?.call();
+      // }
       return;
     }
 
@@ -256,6 +259,8 @@ class PentagonShape extends PositionComponent
   @override
   void onTapUp(TapUpEvent event) {
     super.onTapUp(event);
+
+    print("stoppppped");
 
     _myBlinking()?.isPaused = false;
     _stopLongPress();

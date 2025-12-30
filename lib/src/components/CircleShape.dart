@@ -178,7 +178,7 @@ class CircleShape extends PositionComponent
     if ((attackTime ?? 0) <= 0) return false;
     final ratio =
         ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-    return ratio <= 0.5;
+    return ratio <= 0.2;
   }
 
   @override
