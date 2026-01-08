@@ -123,6 +123,7 @@ class SheetService {
       final String attackRaw= row.length > 4
           ? row[4]?.toString().trim() ?? ''
           : '';
+      final int? order = parseOrder(shape);
       final String movement = row.length > 5
           ? row[5]?.toString().trim() ?? ''
           : '';
@@ -155,6 +156,7 @@ class SheetService {
         mission: currentMission ??= 1,
         attackSeconds: attackSeconds,
         attackDamage: attackDamage,
+        order: order,
       );
 
       currentMissionMap!.putIfAbsent(currentMission!, () => []).add(enemy);
@@ -167,6 +169,30 @@ class SheetService {
   String _safeGet(List<String> cells, int index) {
     if (index < cells.length) return cells[index];
     return '';
+  }
+
+  int? parseOrder(String shape) {
+    print("shape = $shape");
+    if (!shape.contains('_')) return null;
+
+    final parts = shape.split('_');
+    if (parts.length != 2) {
+      print('parts length = ${parts.length}');
+      throw FormatException('Invalid order format-parts: $shape');
+    }
+
+    final OEParse = parts[1].split('(');
+    if(OEParse.length != 2) {
+      throw FormatException('Invalid order value in-OEParse: $OEParse');
+    }
+
+    final order = int.tryParse(OEParse[0]);
+    if (order == null) {
+      throw FormatException('Invalid order value in-order: $shape');
+    }
+
+    print('order = $order');
+    return order;
   }
 }
 
@@ -199,6 +225,7 @@ class EnemyData {
   final int mission;
   final double? attackSeconds;
   final double? attackDamage;
+  final int? order;
 
   EnemyData({
     required this.command,
@@ -208,10 +235,11 @@ class EnemyData {
     required this.mission,
     this.attackSeconds,
     this.attackDamage,
+    this.order,
   });
 
   @override
   String toString() {
-    return '[$command, $shape, $movement, $position, $mission, attack=($attackSeconds, $attackDamage)]';
+    return '[$command, $shape, $movement, $position, $mission, attack=($attackSeconds, $attackDamage), order=($order)]';
   }
 }

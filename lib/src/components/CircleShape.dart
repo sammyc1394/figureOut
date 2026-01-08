@@ -6,11 +6,18 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 
+import '../functions/OrderableShape.dart';
+
 class CircleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, HasGameRef {
+    with TapCallbacks, UserRemovable, HasGameRef
+    implements OrderableShape {
   int count;
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
+  final bool Function(OrderableShape shape)? onInteracted;
+  final void Function()? onRemoved;
+  late PositionComponent _orderBadge;
+
 
   final double? attackTime;
   final VoidCallback? onExplode;
@@ -40,6 +47,8 @@ class CircleShape extends PositionComponent
     this.attackTime,
     this.onExplode,
     this.order,
+    this.onInteracted,
+    this.onRemoved,
   }) : super(position: position, size: Vector2.all(80), anchor: Anchor.center);
 
   @override
@@ -49,7 +58,17 @@ class CircleShape extends PositionComponent
     // ------------------------------------------------------------
     // 1) 기본 SVG 로드
     // ------------------------------------------------------------
-    final svgAsset = isDark ? 'DarkCircle.svg' : 'Circle (tap).svg';
+    late final String svgAsset;
+
+    if (isDark) {
+      svgAsset = 'DarkCircle.svg';
+    } else if (order != null) {
+      svgAsset = 'Circle (sequence).svg';
+    } else {
+      svgAsset = 'Circle (tap).svg';
+    }
+
+    print('---- circle svg = $svgAsset -----------------------');
 
     _svg = SvgComponent(
       svg: await Svg.load(svgAsset),
@@ -76,6 +95,11 @@ class CircleShape extends PositionComponent
 
     add(_svg);
     add(_png);
+
+    if (order != null) {
+      _addOrderBadge(order!);
+    }
+
 
     // ------------------------------------------------------------
     // 3) attackTime 있으면 PNG 표시 / SVG 숨김
@@ -188,11 +212,77 @@ class CircleShape extends PositionComponent
       return;
     }
 
+    final isValid = onInteracted?.call(this) ?? false;
+
+    if (isValid) {
+      print('[SHAPE] valid check pass');
+
+      applyValidInteraction();
+    }
+    // if (isDark) {
+    //   onForbiddenTouch?.call();
+    //   return;
+    // }
+    //
+    // count--;
+    // if (count <= 0) {
+    //   wasRemovedByUser = true;
+    //   removeFromParent();
+    // }
+  }
+
+  void applyValidInteraction() {
+    print('run Valid interactionv');
     count--;
+
     if (count <= 0) {
       wasRemovedByUser = true;
+      onRemoved?.call();
       removeFromParent();
     }
   }
+
+  void _addOrderBadge(int order) {
+    const badgeSizeRatio = 0.32; // 메인 원 대비 크기
+    final badgeSize = size.x * badgeSizeRatio;
+
+    _orderBadge = PositionComponent(
+      size: Vector2.all(badgeSize),
+      anchor: Anchor.center,
+      position: Vector2(
+        badgeSize * 0.6,        // 왼쪽
+        badgeSize * 0.6,        // 위쪽
+      ),
+    );
+
+    // 배경 원
+    final bg = CircleComponent(
+      radius: badgeSize / 2,
+      paint: Paint()..color = const Color(0xFFFFA94D),
+      anchor: Anchor.center,
+      position: _orderBadge.size / 2,
+    );
+
+    // 숫자
+    final text = TextComponent(
+      text: order.toString(),
+      anchor: Anchor.center,
+      position: _orderBadge.size / 2,
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 16,
+          fontFamily: 'Moulpali',
+          fontFamilyFallback: ['Moulpali'],
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+
+    _orderBadge.add(bg);
+    _orderBadge.add(text);
+    add(_orderBadge);
+  }
+
 }
 

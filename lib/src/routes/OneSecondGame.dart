@@ -32,6 +32,7 @@ import 'package:figureout/src/functions/OrbitingComponent.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/components/PauseButton.dart';
 import 'package:go_router/go_router.dart';
+import '../functions/OrderableShape.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
 
@@ -99,6 +100,11 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
   late double playAreaScaleX;
   late double playAreaScaleY;
+
+  // order
+  List<OrderableShape> _orderedShapes = [];
+  int _currentOrderIndex = 0;
+  bool _hasOrder = false;
 
   // gestures
   Vector2? dragStart;
@@ -411,6 +417,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         if (duration == 0) {
           // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
           if (currentWave.isNotEmpty) {
+            _initOrder();
             await waitUntilMissionCleared(currentWave);
           }
 
@@ -797,7 +804,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       return m != null ? int.parse(m.group(1)!) : def;
     }
 
-    void Function()? penalty = () => applyTimePenalty(5);
+    double tp = enemy.attackDamage ?? 5;
+
+    void Function()? penalty = () => applyTimePenalty(tp);
     final damage = enemy.attackDamage;
 
     if (enemy.shape.startsWith('Circle')) {
@@ -810,7 +819,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         attackTime: enemy.attackSeconds,
         onExplode: damage != null
       ? () => applyTimePenalty(damage.abs())
-      : null,);
+      : null,
+        order: enemy.order,
+        onInteracted: _onOrderInteracted,
+        onRemoved: _onOrderedShapeRemoved,
+      );
+
     } else if (enemy.shape.startsWith('Rectangle')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       shape = RectangleShape(
@@ -860,15 +874,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     return shape;
   }
 
-  bool _isDarkShape(Component c) {
-    if (c is CircleShape) return c.isDark;
-    if (c is RectangleShape) return c.isDark;
-    if (c is PentagonShape) return c.isDark;
-    if (c is TriangleShape) return c.isDark;
-    if (c is HexagonShape) return c.isDark;
-    return false;
-  }
-
   // 그냥 도형 다 죽였는지 여부
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
     while (true) {
@@ -908,6 +913,58 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     }
 
     return StageResult.success;
+  }
+
+
+  bool _isDarkShape(Component c) {
+    if (c is CircleShape) return c.isDark;
+    if (c is RectangleShape) return c.isDark;
+    if (c is PentagonShape) return c.isDark;
+    if (c is TriangleShape) return c.isDark;
+    if (c is HexagonShape) return c.isDark;
+    return false;
+  }
+
+  bool _onOrderInteracted(OrderableShape c) {
+    print('[GAME] circle input received. order=${c.order}');
+
+    // // 1) dark 도형 판단
+    // print('[GAME] dark shape YN = ${c.isDark}');
+    // if (c.isDark) return true;
+
+    // 2) order 퍼즐인지 아닌지 판단
+    print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
+
+    if (!_hasOrder) return true;
+
+    print('[GAME] order shape YN (order from shape)= ${c.order == null}');
+
+    // 3) order 퍼즐이고 순서가 맞는지 판단
+    final expected = _orderedShapes[_currentOrderIndex];
+
+    print('[GAME] circle input checking for validity. validity = ${identical(c, expected)}');
+    return identical(c.order, expected.order);
+  }
+
+  void _onOrderedShapeRemoved() {
+    // if (!_hasOrder) return;
+    // if (shape.order == null) return;
+
+    _currentOrderIndex++;
+
+    print('[ORDER] next index = $_currentOrderIndex');
+  }
+
+
+  void _initOrder() {
+    _orderedShapes = children
+        .whereType<OrderableShape>()
+        .where((c) => c.order != null)
+        .toList()
+      ..sort((a, b) => a.order!.compareTo(b.order!));
+
+    _currentOrderIndex = 0;
+    _hasOrder = _orderedShapes.isNotEmpty;
   }
 
   // Convert from your coordinate system to play area coordinates
