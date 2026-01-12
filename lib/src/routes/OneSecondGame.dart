@@ -478,8 +478,6 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             currentWave.add(shape);
           }
 
-          await Future.delayed(const Duration(seconds: 1));
-
           // Movement
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
