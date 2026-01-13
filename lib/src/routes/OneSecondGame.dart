@@ -1405,8 +1405,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
           print('[PENALTY] Dark Triangle touched');
         } else {
           print('[REMOVE] Triangle at ${comp.position}');
-          comp.wasRemovedByUser = true;
-          comp.removeFromParent();
+          comp.triggerDisappear();
         }
       }
     }

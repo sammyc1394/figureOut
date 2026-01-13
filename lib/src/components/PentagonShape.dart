@@ -1,44 +1,83 @@
 import 'dart:math';
 import 'dart:ui';
-import 'dart:async' as async;
+
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
-import 'package:flutter/material.dart';
-import 'package:figureout/src/functions/BlinkingBehavior.dart';
-import 'dart:typed_data';
+import 'package:flutter/material.dart' hide Matrix4;
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>  {
-  int energy = 0;
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
+  int energy;
   bool _isLongPressing = false;
+
   late final SvgComponent svg;
-  late SpriteComponent _png;
+  late final SpriteComponent _png;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
-
   final double? attackTime;
   final VoidCallback? onExplode;
-  // bool _penaltyFired = false;
 
-  double _attackElapsed = 0.0;
-  bool _attackDone = false;
   bool isPaused = false;
+  double _attackElapsed = 0;
+  bool _attackDone = false;
 
-  Rect? _pngOpaqueBounds;
-  Offset _outlineCenter = Offset.zero;
-  double _outlineRadius = 0.0;
+  // ===============================
+  // LONG PRESS TICK
+  // ===============================
+  double _pressElapsed = 0.0;
+  static const double _pressTick = 1.0;
 
-  static const double _rotationDeg = 0.0;
+  // ===============================
+  // PULSE (3 LAYERS)
+  // - Thickness ramps up once and stays (no breathing)
+  // - 3 bands alternate brightness (feels like layers rotating)
+  // - On release: thickness shrinks to 0 and disappears
+  // ===============================
+  static const Color _pulseColor = Color(0xFFFF6AD5);
 
-  final Paint _attackPaint = Paint() 
-    ..color = const Color(0xFFFFA6FC)
+  // total thickness target (adjust this)
+  static const double _pulseMaxThickness = 18.0;
+
+  // how fast thickness appears/disappears
+  static const double _pulseAppearTime = 0.10; // seconds to reach full
+  static const double _pulseDisappearTime = 0.12;
+
+  // animation speed of alternation
+  static const double _pulseCycleSeconds = 0.36; // smaller = faster
+
+  double _pulseThicknessT = 0.0; // 0..1
+  double _pulsePhase = 0.0; // keeps running while pressing
+
+  // ===============================
+  // PENTAGON GEOMETRY
+  // ===============================
+  late Offset _center;
+  late double _baseRadius;
+
+  // ===============================
+  // TOP CIRCLE
+  // ===============================
+  static const double _circleRadius = 18;
+  static const int _circleSegments = 44;
+  static const int _circleSeed = 999;
+
+  final Paint _circlePaint = Paint()
+    ..style = PaintingStyle.fill
+    ..color = const Color(0xFFFFA6FC);
+
+  // ===============================
+  // ATTACK PATH
+  // ===============================
+  final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 6;
+    ..strokeWidth = 6
+    ..color = const Color(0xFFFFA6FC);
 
   late Path _pentagonPath;
   late double _perimeter;
@@ -46,24 +85,29 @@ class PentagonShape extends PositionComponent
   final Color baseColor = const Color(0xFFFFA6FC);
   final Color dangerColor = const Color(0xFFEE0505);
 
-  PentagonShape(Vector2 position, int energy, {
+  PentagonShape(
+    Vector2 position,
+    this.energy, {
     this.isDark = false,
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
-  })
-    : super(position: position, size: Vector2.all(100), anchor: Anchor.center) {
-    this.energy = energy;
-  }
+  }) : super(
+          position: position,
+          size: Vector2.all(100),
+          anchor: Anchor.center,
+        );
+
+  Offset get _visualPentagonCenter => Offset(
+        size.x / 2 - size.x * 0.04,
+        size.y / 2 + size.y * 0.04,
+      );
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final String asset = isDark ? 'DarkPentagon.svg' : 'pentagon.svg';
-    final svgData = await Svg.load(asset);
-    // final svgData = await Svg.load('pentagon.svg');
-
+    final svgData = await Svg.load(isDark ? 'DarkPentagon.svg' : 'pentagon.svg');
     svg = SvgComponent(
       svg: svgData,
       size: size,
@@ -72,155 +116,249 @@ class PentagonShape extends PositionComponent
     );
     add(svg);
 
-    final images = Images(prefix: 'assets/');
-    final img = await images.load('shapes/Pentagon.png');
-
+    final img = await Images(prefix: 'assets/').load('shapes/Pentagon.png');
     _png = SpriteComponent(
       sprite: Sprite(img),
       size: size,
       anchor: Anchor.center,
       position: size / 2,
-    );
-
-    _png.opacity = 0;
+    )..opacity = 0;
     add(_png);
 
-    // -------------------------------
-    // 3) attackTime 있으면 PNG 사용
-    // -------------------------------
     if ((attackTime ?? 0) > 0) {
       svg.opacity = 0;
       _png.opacity = 1;
     }
 
-    // ------------------------------------------------------------
-    // 4) 오각형 Path 생성
-    // ------------------------------------------------------------
-    _pentagonPath = _buildPentagonPath(size.toSize());
+    _center = _visualPentagonCenter;
+
+    _baseRadius = size.x * 0.392;
+
+    _pentagonPath = _buildPentagonPath(_center, _baseRadius);
     _perimeter = _calculatePerimeter(_pentagonPath);
   }
 
-  Path _buildPentagonPath(Size size) {
-    final cx = size.width / 2.2;
-    final cy = size.height / 2;
-    final r = size.width * 0.40;
+  // ===============================
+  // UPDATE
+  // ===============================
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (isPaused) return;
 
+    if (_isLongPressing && !isDark) {
+      // thickness ramps to 1 and stays (no breathing)
+      if (_pulseThicknessT < 1.0) {
+        _pulseThicknessT += dt / _pulseAppearTime;
+        if (_pulseThicknessT > 1.0) _pulseThicknessT = 1.0;
+      }
+
+      // phase runs only while pressing
+      _pulsePhase += dt / _pulseCycleSeconds;
+      _pulsePhase -= _pulsePhase.floorToDouble();
+
+      // energy tick
+      _pressElapsed += dt;
+      if (_pressElapsed >= _pressTick) {
+        _pressElapsed -= _pressTick;
+        energy--;
+        if (energy <= 0) {
+          wasRemovedByUser = true;
+          removeFromParent();
+          return;
+        }
+      }
+    } else {
+      // on release: thickness shrinks to 0 (disappears by shrinking)
+      if (_pulseThicknessT > 0.0) {
+        _pulseThicknessT -= dt / _pulseDisappearTime;
+        if (_pulseThicknessT < 0.0) _pulseThicknessT = 0.0;
+      }
+      _pressElapsed = 0.0;
+    }
+
+    // attack timer
+    if ((attackTime ?? 0) > 0) {
+      _attackElapsed += dt;
+      if (!_attackDone && _attackElapsed >= attackTime!) {
+        _attackDone = true;
+        _png.opacity = 0;
+        svg.opacity = 1;
+        onExplode?.call();
+      }
+    }
+  }
+
+  // ===============================
+  // RENDER
+  // ===============================
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    // PULSE (3 bands, thickness fixed once fully appeared)
+    if (!isDark && _pulseThicknessT > 0.0) {
+      final totalThickness = _pulseMaxThickness * _pulseThicknessT;
+      final bandW = totalThickness / 2.5;
+
+      for (int i = 0; i < 3; i++) {
+        final innerR = _baseRadius + bandW * i;
+        final outerR = innerR + bandW;
+
+        final ring = _buildRingEvenOdd(_center, innerR, outerR);
+
+        // Alternation wave: each band has a phase offset.
+        // This makes "layer switching" without changing geometry.
+        final phase = (_pulsePhase + i / 3.0) % 1.0;
+
+        // triangle wave 0..1..0 (smoothened)
+        final tri = phase < 0.5 ? (phase * 2.0) : (2.0 - phase * 2.0);
+        final smooth = tri * tri * (3 - 2 * tri); // smoothstep
+
+        // base opacity + boosted band
+        final opacity = lerpDouble(0.10, 0.34, smooth)!.clamp(0.0, 1.0);
+
+        final paint = Paint()
+          ..style = PaintingStyle.fill
+          ..color = _pulseColor.withOpacity(opacity * _pulseThicknessT);
+
+        canvas.drawPath(ring, paint);
+      }
+    }
+
+    // top circle
+    if (_isLongPressing && !isDark && energy > 0) {
+      final c = _visualPentagonCenter.translate(-size.x * 0.035, -size.y * 0.7);
+      canvas.drawPath(
+        _buildHandDrawnCircle(c, _circleRadius, _circleSeed),
+        _circlePaint,
+      );
+      _drawText(canvas, energy.toString(), c, 14, Colors.white);
+    }
+
+    // attack
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
+      final ratio =
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+      _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
+      canvas.drawPath(
+        _extractPartialPath(_pentagonPath, _perimeter * ratio),
+        _attackPaint,
+      );
+    }
+
+    if (!isDark && energy > 0) {
+      _drawText(
+        canvas,
+        energy.toString(),
+        _visualPentagonCenter,
+        20,
+        const Color(0xFFC100BA),
+      );
+    }
+  }
+
+  // ===============================
+  // GEOMETRY
+  // ===============================
+  Path _buildPentagonPath(Offset c, double r) {
     final path = Path();
     for (int i = 0; i < 5; i++) {
-      final angle = (-90 + i * 70) * pi / 180;
-      final x = cx + r * cos(angle);
-      final y = cy + r * sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
+      final a = (-90 + i * 72) * pi / 180;
+      final p = Offset(c.dx + cos(a) * r, c.dy + sin(a) * r);
+      if (i == 0) path.moveTo(p.dx, p.dy);
+      else path.lineTo(p.dx, p.dy);
     }
     path.close();
     return path;
   }
 
-  double _calculatePerimeter(Path path) {
-    return path
-        .computeMetrics()
-        .fold(0.0, (sum, m) => sum + m.length);
+  Path _buildRingEvenOdd(Offset c, double innerR, double outerR) {
+    if (outerR <= innerR + 0.0001) return Path();
+
+    final outer = _buildPentagonPath(c, outerR);
+    final inner = _buildPentagonPath(c, innerR);
+
+    final ring = Path()..fillType = PathFillType.evenOdd;
+    ring.addPath(outer, Offset.zero);
+    ring.addPath(inner, Offset.zero);
+    return ring;
   }
 
-  Path _extractPartialPath(Path path, double length) {
-    final result = Path();
-    double remaining = length;
+  double _calculatePerimeter(Path p) =>
+      p.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
-    for (final metric in path.computeMetrics()) {
-      if (remaining <= 0) break;
-      final len = remaining.clamp(0.0, metric.length);
-      result.addPath(metric.extractPath(0, len), Offset.zero);
-      remaining -= len;
+  Path _extractPartialPath(Path p, double len) {
+    final r = Path();
+    double rem = len;
+    for (final m in p.computeMetrics()) {
+      if (rem <= 0) break;
+      final l = rem.clamp(0.0, m.length);
+      r.addPath(m.extractPath(0, l), Offset.zero);
+      rem -= l;
     }
-    return result;
+    return r;
   }
 
-  @override
-  void update(double dt) {
-    super.update(dt);
-    if (isPaused) return;
-    if ((attackTime ?? 0) <= 0) return;
-
-    _attackElapsed += dt;
-
-    // 타이머 종료
-    if (!_attackDone && _attackElapsed >= attackTime!) {
-      _attackDone = true;
-
-      _png.opacity = 0;
-      svg.opacity = 1;
-
-      onExplode?.call(); 
+  Path _buildHandDrawnCircle(Offset c, double r, int seed) {
+    final rand = Random(seed);
+    final path = Path();
+    for (int i = 0; i <= _circleSegments; i++) {
+      final a = (i / _circleSegments) * pi * 2;
+      final wobble = (rand.nextDouble() - 0.5) * 1.6;
+      final rr = r + wobble;
+      final p = Offset(c.dx + cos(a) * rr, c.dy + sin(a) * rr);
+      if (i == 0) path.moveTo(p.dx, p.dy);
+      else path.lineTo(p.dx, p.dy);
     }
-
-    // 절반 이하 → 빨간 tint
-    if (!_attackDone && _attackTimeHalfLeft) {
-      _png.paint = Paint()
-        ..colorFilter = ColorFilter.mode(
-          dangerColor,
-          BlendMode.srcIn,
-        );
-    }
+    path.close();
+    return path;
   }
 
-  bool get _attackTimeHalfLeft {
-    if ((attackTime ?? 0) <= 0) return false;
-    final ratio =
-        ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-    return ratio <= 0.2;
-  }
-
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas);
-
-    // ------------------------------------------------------------
-    // Path 기반 공격 타이머
-    // ------------------------------------------------------------
-    if ((attackTime ?? 0) > 0 && !_attackDone) {
-      final ratio =
-          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-
-      final drawLength = _perimeter * ratio;
-
-      _attackPaint.color =
-          ratio <= 0.2 ? dangerColor : baseColor;
-
-      final partial = _extractPartialPath(_pentagonPath, drawLength);
-      canvas.drawPath(partial, _attackPaint);
-    }
-
-    if (!isDark &&energy > 0) {
-      _drawText(canvas, energy.toString());
-    }
-  }
-
-  void _drawText(Canvas canvas, String text) {
-    final textPainter = TextPainter(
+  void _drawText(Canvas c, String t, Offset o, double s, Color col) {
+    final tp = TextPainter(
       text: TextSpan(
-        text: text,
-        style: const TextStyle(
-          color: Color(0xFFC100BA),
-          fontSize: 20,
-          textBaseline: TextBaseline.alphabetic,
+        text: t,
+        style: TextStyle(
+          fontSize: s,
           fontWeight: FontWeight.bold,
+          color: col,
+          height: 1,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
+    tp.paint(c, Offset(o.dx - tp.width / 2, o.dy - tp.height * 0.52));
+  }
 
-    final offset = Offset(
-      (size.x - textPainter.width - 5) / 2,
-      (size.y - textPainter.height) / 2,
-    );
+  // ===============================
+  // INPUT
+  // ===============================
+  @override
+  void onTapDown(TapDownEvent e) {
+    if (isDark) onForbiddenTouch?.call();
+  }
 
-    canvas.save();
-    textPainter.paint(canvas, offset);
-    canvas.restore();
+  @override
+  void onLongTapDown(TapDownEvent e) {
+    if (isDark) {
+      onForbiddenTouch?.call();
+      return;
+    }
+
+    _isLongPressing = true;
+    _myBlinking()?.isPaused = true;
+
+    // reset pulse so it ramps up cleanly
+    _pulseThicknessT = 0.0;
+    _pulsePhase = 0.0;
+    _pressElapsed = 0.0;
+  }
+
+  @override
+  void onTapUp(TapUpEvent e) {
+    _isLongPressing = false;
+    _myBlinking()?.isPaused = false;
   }
 
   BlinkingBehaviorComponent? _myBlinking() {
@@ -228,73 +366,5 @@ class PentagonShape extends PositionComponent
       if (identical(b.shape, this)) return b;
     }
     return null;
-  }
-
-  @override
-  void onTapDown(TapDownEvent event) { 
-    // if (isDark && !_penaltyFired) {
-    if (isDark) {
-      // _penaltyFired = true;
-      onForbiddenTouch?.call();
-    }
-  }
-
-  @override
-  void onLongTapDown(TapDownEvent event) {
-    super.onLongTapDown(event);
-    if (isDark) {
-      // if (!_penaltyFired) {
-        // _penaltyFired = true;
-        onForbiddenTouch?.call();
-      // }
-      return;
-    }
-
-    _isLongPressing = true;
-    _myBlinking()?.isPaused = true;
-
-    _startLongPress(); // Consume the event
-  }
-
-  @override
-  void onTapUp(TapUpEvent event) {
-    super.onTapUp(event);
-
-    print("stoppppped");
-
-    _myBlinking()?.isPaused = false;
-    _stopLongPress();
-  }
-
-  void _startLongPress() {
-    _isLongPressing = true;
-    _startRepeatingDecrement();
-  }
-
-  void _stopLongPress() {
-    _isLongPressing = false;
-  }
-
-  void _startRepeatingDecrement() {
-    // Use Flame's built-in timer approach
-    add(
-      TimerComponent(
-        period: 1, // 0.3 seconds
-        repeat: _isLongPressing,
-        onTick: () {
-          if (energy > 0) {
-            if (_isLongPressing) {
-              energy -= 1;
-              // print('Number decreased to: $energy, press status : $_isLongPressing');
-            } else {
-              _stopLongPress();
-            }
-          } else {
-            wasRemovedByUser = true;
-            removeFromParent();
-          }
-        },
-      ),
-    );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:figureout/src/functions/UserRemovable.dart';
@@ -10,18 +11,35 @@ import 'package:flutter/material.dart';
 class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   late final SvgComponent svg;
   int energy = 0;
-
   late final SpriteComponent _png;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
-
   final double? attackTime;
   final VoidCallback? onExplode;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
   bool isPaused = false;
+
+  // ===== 사라짐 애니메이션 상태 =====
+  bool _isDisappearing = false;
+  double _disappearTime = 0.0;
+
+  // 단계형 연출을 위해 duration 유지 + 구간 분할
+  final double _disappearDuration = 0.8;
+
+  // shrink/hold/fade 타이밍 (0~1)
+  static const double _shrinkEndT = 0.85;
+  static const double _holdEndT = 0.97;
+  static const double _minScale = 0.06; // 끝까지 0으로 안 보내고 "작게 남겨두기"
+
+  late double _startAngle;
+  late Vector2 _startScale;
+
+  // 회전 가속용
+  double _baseRotationSpeed = 0.0; // rad/sec
+  double _rotDir = 1.0;
 
   late Path _outlinePath;
   late double _outlineLength;
@@ -36,26 +54,31 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   final Color baseColor = const Color(0xFFFFD84D);
   final Color dangerColor = const Color(0xFFEE0505);
 
-  TriangleShape(Vector2 position, this.energy, {
+  TriangleShape(
+    Vector2 position,
+    this.energy, {
     this.isDark = false,
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
-  })
-    : super(position: position, size: Vector2.all(70), anchor: Anchor.center);
+  }) : super(
+          position: position,
+          size: Vector2.all(70),
+          anchor: Anchor.center,
+        );
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // final svgData = await Svg.load('triangle.svg');
-    final String asset = isDark ? 'DarkPolygon.svg' : 'triangle.svg';
+    final asset = isDark ? 'DarkPolygon.svg' : 'triangle.svg';
     final svgData = await Svg.load(asset);
+
     svg = SvgComponent(
       svg: svgData,
       size: size,
       anchor: Anchor.center,
-      position: Vector2(size.x / 2, size.y / 2),
+      position: size / 2,
     );
     add(svg);
 
@@ -71,71 +94,95 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     _png.opacity = 0;
     add(_png);
 
-    // attackTime 있으면 PNG부터
     if ((attackTime ?? 0) > 0) {
       svg.opacity = 0;
       _png.opacity = 1;
     }
 
-    // 삼각형 외곽 Path 생성
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength = _outlinePath
         .computeMetrics()
         .fold(0.0, (sum, m) => sum + m.length);
   }
 
-  Path _buildTrianglePath(Size s) {
-    final inset = _attackPaint.strokeWidth / 2;
+  // ==========================================================
+  // 사라짐 트리거
+  // ==========================================================
+  void triggerDisappear() {
+    if (_isDisappearing) return;
 
-    final cx = s.width / 2;
-    final cy = s.height / 2;
+    _isDisappearing = true;
+    wasRemovedByUser = true;
 
-    final r = (s.width / 2) - inset;
+    _disappearTime = 0.0;
+    _startScale = scale.clone();
+    _startAngle = angle;
 
-    final p1 = Offset(cx, cy - r);
-    final p2 = Offset(cx - r, cy + r);
-    final p3 = Offset(cx + r, cy + r);
-
-    return Path()
-      ..moveTo(p1.dx, p1.dy)
-      ..lineTo(p2.dx, p2.dy)
-      ..lineTo(p3.dx, p3.dy)
-      ..close();
-  }
-
-  Path _extractPartialPath(Path path, double length) {
-    final result = Path();
-    double remaining = length;
-
-    for (final metric in path.computeMetrics()) {
-      if (remaining <= 0) break;
-      final len = remaining.clamp(0.0, metric.length);
-      result.addPath(metric.extractPath(0, len), Offset.zero);
-      remaining -= len;
-    }
-    return result;
+    // 회전 방향 + 기본 속도 설정 (후반 가속은 update에서)
+    _rotDir = math.Random().nextBool() ? 1.0 : -1.0;
+    _baseRotationSpeed = math.pi * 2.2; // 초반엔 과하지 않게 (약 1.1회전/초)
   }
 
   @override
   void update(double dt) {
     super.update(dt);
     if (isPaused) return;
+
+    // ===== 사라짐 애니메이션 =====
+    if (_isDisappearing) {
+      _disappearTime += dt;
+      final t = (_disappearTime / _disappearDuration).clamp(0.0, 1.0);
+
+      // 1) 회전 가속 (후반으로 갈수록 더 빨라짐)
+      // t^2로 가속감 주기
+      final accel = 1.0 + (t * t) * 2.2; // 마지막엔 약 3.2배
+      angle += (_baseRotationSpeed * accel * _rotDir) * dt;
+
+      // 2) scale → hold → fade 구조
+      if (t <= _shrinkEndT) {
+        // SHRINK: 0 ~ 0.60
+        final localT = (t / _shrinkEndT).clamp(0.0, 1.0);
+
+        // 초반에 "확실히 줄어드는" 느낌: easeIn + 살짝 빠르게
+        final eased = Curves.easeInCubic.transform(localT);
+
+        final s = 1.0 - (1.0 - _minScale) * eased; // 1.0 -> _minScale
+        scale = _startScale * s;
+
+        // 이 구간은 절대 페이드 금지
+        svg.opacity = 1.0;
+      } else if (t <= _holdEndT) {
+        // HOLD: 0.60 ~ 0.80
+        scale = _startScale * _minScale;
+        svg.opacity = 1.0;
+      } else {
+        // FADE: 0.80 ~ 1.00
+        scale = _startScale * _minScale;
+
+        final localT = ((t - _holdEndT) / (1.0 - _holdEndT)).clamp(0.0, 1.0);
+        // 마지막에만 빠르게 사라지게
+        final eased = Curves.easeOutCubic.transform(localT);
+        svg.opacity = 1.0 - eased;
+      }
+
+      if (t >= 1.0) {
+        removeFromParent();
+      }
+      return;
+    }
+
+    // ===== 기존 공격 타이머 로직 =====
     if ((attackTime ?? 0) <= 0) return;
 
     _attackElapsed += dt;
 
-    // 타이머 종료
     if (!_attackDone && _attackElapsed >= attackTime!) {
       _attackDone = true;
-
-      // PNG → SVG 복귀
       _png.opacity = 0;
       svg.opacity = 1;
-
       onExplode?.call();
     }
 
-    // 절반 이하일 때 PNG 빨간 tint
     if (!_attackDone && _attackTimeHalfLeft) {
       _png.paint = Paint()
         ..colorFilter = ColorFilter.mode(
@@ -153,59 +200,74 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   }
 
   @override
-  void onTapDown(TapDownEvent event) {
-    onForbiddenTouch?.call();
-  }
-
-  @override
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // 외곽 타이머 렌더
-    if ((attackTime ?? 0) > 0 && !_attackDone) {
+    if ((attackTime ?? 0) > 0 && !_attackDone && !_isDisappearing) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-
       final drawLen = _outlineLength * ratio;
       _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
-
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
     }
   }
 
+  Path _buildTrianglePath(Size s) {
+    final inset = _attackPaint.strokeWidth / 2;
+    final cx = s.width / 2;
+    final cy = s.height / 2;
+    final r = (s.width / 2) - inset;
+
+    return Path()
+      ..moveTo(cx, cy - r)
+      ..lineTo(cx - r, cy + r)
+      ..lineTo(cx + r, cy + r)
+      ..close();
+  }
+
+  Path _extractPartialPath(Path path, double length) {
+    final result = Path();
+    double remaining = length;
+
+    for (final metric in path.computeMetrics()) {
+      if (remaining <= 0) break;
+      final len = remaining.clamp(0.0, metric.length);
+      result.addPath(metric.extractPath(0, len), Offset.zero);
+      remaining -= len;
+    }
+    return result;
+  }
+
   List<Vector2> getTriangleVertices() {
-    final center = svg.absoluteCenter;
-    final halfWidth = svg.size.x / 2;
-    final halfHeight = svg.size.y / 2;
-
-    final top = center + Vector2(0, -halfHeight);
-    final bottomLeft = center + Vector2(-halfWidth, halfHeight);
-    final bottomRight = center + Vector2(halfWidth, halfHeight);
-
-    return [top, bottomLeft, bottomRight];
+    final c = absoluteCenter;
+    final hw = size.x / 2;
+    final hh = size.y / 2;
+    return [
+      c + Vector2(0, -hh),
+      c + Vector2(-hw, hh),
+      c + Vector2(hw, hh),
+    ];
   }
 
   bool isFullyEnclosedByUserPath(List<Vector2> userPath) {
-    // 사용자가 그린 경로가 삼각형 꼭짓점을 모두 포함하는지 검사
     for (final v in getTriangleVertices()) {
       if (!isPointInPolygon(v, userPath)) return false;
     }
     return true;
   }
 
-  bool isPointInPolygon(Vector2 point, List<Vector2> polygon) {
-    int intersectCount = 0;
-    for (int i = 0; i < polygon.length; i++) {
-      Vector2 a = polygon[i];
-      Vector2 b = polygon[(i + 1) % polygon.length];
-
-      if (((a.y > point.y) != (b.y > point.y)) &&
-          (point.x <
-              (b.x - a.x) * (point.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
-        intersectCount++;
+  bool isPointInPolygon(Vector2 p, List<Vector2> poly) {
+    int count = 0;
+    for (int i = 0; i < poly.length; i++) {
+      final a = poly[i];
+      final b = poly[(i + 1) % poly.length];
+      if (((a.y > p.y) != (b.y > p.y)) &&
+          (p.x <
+              (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
+        count++;
       }
     }
-    return intersectCount % 2 == 1;
+    return count.isOdd;
   }
 }
