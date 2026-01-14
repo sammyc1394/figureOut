@@ -5,33 +5,32 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
-
 import '../functions/OrderableShape.dart';
 
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef
     implements OrderableShape {
+
   int count;
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
   final bool Function(OrderableShape shape)? onInteracted;
   final void Function()? onRemoved;
-  late PositionComponent _orderBadge;
-
 
   final double? attackTime;
   final VoidCallback? onExplode;
   final int? order;
+
+  late PositionComponent _orderBadge;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
   bool _penaltyFired = false;
   bool isPaused = false;
 
-  late SvgComponent _svg;         // 기본 도형(테두리 O)
-  late SpriteComponent _png;      // 공격 타이머 도형(테두리 X)
+  late SvgComponent _svg;
+  late SpriteComponent _png;
 
-  // arc paint
   final Paint _attackPaint = Paint()
     ..color = Colors.orangeAccent
     ..style = PaintingStyle.stroke
@@ -49,15 +48,16 @@ class CircleShape extends PositionComponent
     this.order,
     this.onInteracted,
     this.onRemoved,
-  }) : super(position: position, size: Vector2.all(80), anchor: Anchor.center);
+  }) : super(
+          position: position,
+          size: Vector2.all(80),
+          anchor: Anchor.center,
+        );
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // ------------------------------------------------------------
-    // 1) 기본 SVG 로드
-    // ------------------------------------------------------------
     late final String svgAsset;
 
     if (isDark) {
@@ -68,8 +68,6 @@ class CircleShape extends PositionComponent
       svgAsset = 'Circle (tap).svg';
     }
 
-    print('---- circle svg = $svgAsset -----------------------');
-
     _svg = SvgComponent(
       svg: await Svg.load(svgAsset),
       size: size,
@@ -77,9 +75,6 @@ class CircleShape extends PositionComponent
       position: size / 2,
     );
 
-    // ------------------------------------------------------------
-    // 2) PNG (타이머용) 로드
-    // ------------------------------------------------------------
     final images = Images(prefix: 'assets/');
     final img = await images.load('shapes/Circle.png');
 
@@ -90,7 +85,6 @@ class CircleShape extends PositionComponent
       position: size / 2,
     );
 
-    // 기본 = PNG 숨김
     _png.opacity = 0;
 
     add(_svg);
@@ -100,10 +94,6 @@ class CircleShape extends PositionComponent
       _addOrderBadge(order!);
     }
 
-
-    // ------------------------------------------------------------
-    // 3) attackTime 있으면 PNG 표시 / SVG 숨김
-    // ------------------------------------------------------------
     if ((attackTime ?? 0) > 0) {
       _svg.opacity = 0;
       _png.opacity = 1;
@@ -115,32 +105,33 @@ class CircleShape extends PositionComponent
     super.update(dt);
 
     if (isPaused) return;
-
     if ((attackTime ?? 0) <= 0) return;
 
     _attackElapsed += dt;
 
     // ------------------------------------------------------------
-    // 타이머 종료
+    // 타이머 종료 시 자폭 처리 (추가된 핵심 로직)
     // ------------------------------------------------------------
     if (!_attackDone && _attackElapsed >= attackTime!) {
       _attackDone = true;
 
-      // PNG 숨기고 SVG 복귀
-      _png.opacity = 0;
-      _png.paint = Paint(); // tint 제거
-      _svg.opacity = 1;
-
       if (!_penaltyFired) {
         _penaltyFired = true;
-        onExplode?.call();
+        onExplode?.call(); // 시간 패널티 유지
       }
+
+      // 타이머 자폭으로 제거됨을 명확히
+      wasRemovedByUser = false;
+
+      // 즉시 제거
+      removeFromParent();
+      return;
     }
 
     // ------------------------------------------------------------
-    // 절반 이하 → 빨간색 tint 적용
+    // 절반 이하 → 빨간 tint
     // ------------------------------------------------------------
-    if (!_attackDone && _attackTimeHalfLeft) {
+    if (!_attackDone && _attackTimeCritical) {
       _png.paint = Paint()
         ..colorFilter = ColorFilter.mode(
           dangerColor,
@@ -153,16 +144,13 @@ class CircleShape extends PositionComponent
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // ------------------------------------------------------------
-    // Arc 타이머
-    // ------------------------------------------------------------
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final sweep = 2 * pi * ratio;
 
       _attackPaint.color =
-          _attackTimeHalfLeft ? dangerColor : Colors.orangeAccent;
+          _attackTimeCritical ? dangerColor : Colors.orangeAccent;
 
       final center = Offset(size.x / 2, size.y / 2);
       final radius = size.x * 0.48;
@@ -176,16 +164,13 @@ class CircleShape extends PositionComponent
       );
     }
 
-    // ------------------------------------------------------------
-    // 숫자 렌더링
-    // ------------------------------------------------------------
     if (!isDark && count > 0) {
       final tp = TextPainter(
         text: TextSpan(
           text: count.toString(),
           style: TextStyle(
             color:
-                _attackTimeHalfLeft ? dangerColor : const Color(0xFFFF9D33),
+                _attackTimeCritical ? dangerColor : const Color(0xFFFF9D33),
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -193,12 +178,17 @@ class CircleShape extends PositionComponent
         textDirection: TextDirection.ltr,
       )..layout();
 
-      tp.paint(canvas,
-          Offset((size.x - tp.width) / 2, (size.y - tp.height) / 2));
+      tp.paint(
+        canvas,
+        Offset(
+          (size.x - tp.width) / 2,
+          (size.y - tp.height) / 2,
+        ),
+      );
     }
   }
 
-  bool get _attackTimeHalfLeft {
+  bool get _attackTimeCritical {
     if ((attackTime ?? 0) <= 0) return false;
     final ratio =
         ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
@@ -213,26 +203,12 @@ class CircleShape extends PositionComponent
     }
 
     final isValid = onInteracted?.call(this) ?? false;
-
     if (isValid) {
-      print('[SHAPE] valid check pass');
-
       applyValidInteraction();
     }
-    // if (isDark) {
-    //   onForbiddenTouch?.call();
-    //   return;
-    // }
-    //
-    // count--;
-    // if (count <= 0) {
-    //   wasRemovedByUser = true;
-    //   removeFromParent();
-    // }
   }
 
   void applyValidInteraction() {
-    print('run Valid interactionv');
     count--;
 
     if (count <= 0) {
@@ -243,19 +219,18 @@ class CircleShape extends PositionComponent
   }
 
   void _addOrderBadge(int order) {
-    const badgeSizeRatio = 0.32; // 메인 원 대비 크기
+    const badgeSizeRatio = 0.32;
     final badgeSize = size.x * badgeSizeRatio;
 
     _orderBadge = PositionComponent(
       size: Vector2.all(badgeSize),
       anchor: Anchor.center,
       position: Vector2(
-        badgeSize * 0.6,        // 왼쪽
-        badgeSize * 0.6,        // 위쪽
+        badgeSize * 0.6,
+        badgeSize * 0.6,
       ),
     );
 
-    // 배경 원
     final bg = CircleComponent(
       radius: badgeSize / 2,
       paint: Paint()..color = const Color(0xFFFFA94D),
@@ -263,7 +238,6 @@ class CircleShape extends PositionComponent
       position: _orderBadge.size / 2,
     );
 
-    // 숫자
     final text = TextComponent(
       text: order.toString(),
       anchor: Anchor.center,
@@ -272,7 +246,6 @@ class CircleShape extends PositionComponent
         style: const TextStyle(
           fontSize: 16,
           fontFamily: 'Moulpali',
-          fontFamilyFallback: ['Moulpali'],
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
@@ -283,6 +256,4 @@ class CircleShape extends PositionComponent
     _orderBadge.add(text);
     add(_orderBadge);
   }
-
 }
-

@@ -894,7 +894,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
           }
         }
 
-        if (c is UserRemovable && !(c as UserRemovable).wasRemovedByUser) {
+        if (c is UserRemovable && !(c as UserRemovable).wasRemovedByUser &&
+    c.isMounted) {
           return true;
         }
 
