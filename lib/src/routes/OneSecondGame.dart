@@ -1535,22 +1535,133 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     }
   }
 
+  
+  void _drawDashedPath(
+    Canvas canvas,
+    Path source, {
+    required Paint paint,
+    double dashLength = 10,
+    double gapLength = 6,
+  }) {
+    for (final metric in source.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final len = math.min(dashLength, metric.length - distance);
+        final segment = metric.extractPath(distance, distance + len);
+        canvas.drawPath(segment, paint);
+        distance += dashLength + gapLength;
+      }
+    }
+  }
+  
+  // ===== path smoothing helper =====
+  Path _buildSmoothedPath(List<Vector2> points) {
+    if (points.length < 3) {
+      final p = Path();
+      if (points.isNotEmpty) {
+        p.moveTo(points.first.x, points.first.y);
+        for (final pt in points.skip(1)) {
+          p.lineTo(pt.x, pt.y);
+        }
+      }
+      return p;
+    }
+
+    final path = Path();
+    path.moveTo(points.first.x, points.first.y);
+
+    for (int i = 1; i < points.length - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+
+      final mid = Offset(
+        (p0.x + p1.x) / 2,
+        (p0.y + p1.y) / 2,
+      );
+
+      path.quadraticBezierTo(
+        p0.x,
+        p0.y,
+        mid.dx,
+        mid.dy,
+      );
+    }
+
+    path.lineTo(points.last.x, points.last.y);
+    return path;
+  }
+
+  List<Vector2> _filterDensePoints(
+    List<Vector2> points, {
+    double minDistance = 6,
+  }) {
+    if (points.isEmpty) return [];
+
+    final result = <Vector2>[points.first];
+    for (final p in points.skip(1)) {
+      if (p.distanceTo(result.last) >= minDistance) {
+        result.add(p);
+      }
+    }
+    return result;
+  }
+
+  List<Vector2> _smoothPoints(
+    List<Vector2> pts, {
+    int window = 3,
+  }) {
+    final smoothed = <Vector2>[];
+
+    for (int i = 0; i < pts.length; i++) {
+      Vector2 sum = Vector2.zero();
+      int count = 0;
+
+      for (int j = i - window; j <= i + window; j++) {
+        if (j >= 0 && j < pts.length) {
+          sum += pts[j];
+          count++;
+        }
+      }
+      smoothed.add(sum / count.toDouble());
+    }
+    return smoothed;
+  }
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
 
     // 디버그용 원 보기
     if (userPath.length > 1) {
-      final pathPaint = Paint()
+      final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..color = Colors.lightGreenAccent
-        ..strokeWidth = 2;
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0xFF9E9E9E).withOpacity(0.75);
 
-      final path = Path()..moveTo(userPath.first.x, userPath.first.y);
-      for (final point in userPath.skip(1)) {
-        path.lineTo(point.x, point.y);
-      }
-      canvas.drawPath(path, pathPaint);
+      // 1) 손떨림 제거용 1차 필터 (너무 촘촘한 포인트 제거)
+      final filteredPoints = _filterDensePoints(
+        userPath,
+        minDistance: 6,
+      );
+
+      // 2) 저주파 스무딩 (낙서 느낌 유지)
+      final smoothedPoints = _smoothPoints(
+        filteredPoints,
+        window: 2,
+      );
+
+      // 3) 시각용 Path 생성 (판정에는 userPath 그대로 사용)
+      final renderPath = _buildSmoothedPath(smoothedPoints);
+
+      // 4) 점선 렌더
+      _drawDashedPath(
+        canvas,
+        renderPath,
+        paint: paint,
+        dashLength: 14,
+        gapLength: 10,
+      );
     }
   }
 }
