@@ -20,25 +20,23 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
+  bool _penaltyFired = false; 
   bool isPaused = false;
 
-  // ===== 사라짐 애니메이션 상태 =====
+  // ===== 사라짐 애니메이션 상태 (유저 제거용) =====
   bool _isDisappearing = false;
   double _disappearTime = 0.0;
 
-  // 단계형 연출을 위해 duration 유지 + 구간 분할
   final double _disappearDuration = 0.8;
 
-  // shrink/hold/fade 타이밍 (0~1)
   static const double _shrinkEndT = 0.85;
   static const double _holdEndT = 0.97;
-  static const double _minScale = 0.06; // 끝까지 0으로 안 보내고 "작게 남겨두기"
+  static const double _minScale = 0.06;
 
   late double _startAngle;
   late Vector2 _startScale;
 
-  // 회전 가속용
-  double _baseRotationSpeed = 0.0; // rad/sec
+  double _baseRotationSpeed = 0.0;
   double _rotDir = 1.0;
 
   late Path _outlinePath;
@@ -100,13 +98,12 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     }
 
     _outlinePath = _buildTrianglePath(size.toSize());
-    _outlineLength = _outlinePath
-        .computeMetrics()
-        .fold(0.0, (sum, m) => sum + m.length);
+    _outlineLength =
+        _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
   }
 
   // ==========================================================
-  // 사라짐 트리거
+  // 유저 제거 트리거
   // ==========================================================
   void triggerDisappear() {
     if (_isDisappearing) return;
@@ -118,9 +115,8 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     _startScale = scale.clone();
     _startAngle = angle;
 
-    // 회전 방향 + 기본 속도 설정 (후반 가속은 update에서)
     _rotDir = math.Random().nextBool() ? 1.0 : -1.0;
-    _baseRotationSpeed = math.pi * 2.2; // 초반엔 과하지 않게 (약 1.1회전/초)
+    _baseRotationSpeed = math.pi * 2.2;
   }
 
   @override
@@ -128,39 +124,29 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     super.update(dt);
     if (isPaused) return;
 
-    // ===== 사라짐 애니메이션 =====
+    // ======================================================
+    // 유저 제거 애니메이션
+    // ======================================================
     if (_isDisappearing) {
       _disappearTime += dt;
       final t = (_disappearTime / _disappearDuration).clamp(0.0, 1.0);
 
-      // 1) 회전 가속 (후반으로 갈수록 더 빨라짐)
-      // t^2로 가속감 주기
-      final accel = 1.0 + (t * t) * 2.2; // 마지막엔 약 3.2배
+      final accel = 1.0 + (t * t) * 2.2;
       angle += (_baseRotationSpeed * accel * _rotDir) * dt;
 
-      // 2) scale → hold → fade 구조
       if (t <= _shrinkEndT) {
-        // SHRINK: 0 ~ 0.60
         final localT = (t / _shrinkEndT).clamp(0.0, 1.0);
-
-        // 초반에 "확실히 줄어드는" 느낌: easeIn + 살짝 빠르게
         final eased = Curves.easeInCubic.transform(localT);
-
-        final s = 1.0 - (1.0 - _minScale) * eased; // 1.0 -> _minScale
+        final s = 1.0 - (1.0 - _minScale) * eased;
         scale = _startScale * s;
-
-        // 이 구간은 절대 페이드 금지
         svg.opacity = 1.0;
       } else if (t <= _holdEndT) {
-        // HOLD: 0.60 ~ 0.80
         scale = _startScale * _minScale;
         svg.opacity = 1.0;
       } else {
-        // FADE: 0.80 ~ 1.00
         scale = _startScale * _minScale;
-
-        final localT = ((t - _holdEndT) / (1.0 - _holdEndT)).clamp(0.0, 1.0);
-        // 마지막에만 빠르게 사라지게
+        final localT =
+            ((t - _holdEndT) / (1.0 - _holdEndT)).clamp(0.0, 1.0);
         final eased = Curves.easeOutCubic.transform(localT);
         svg.opacity = 1.0 - eased;
       }
@@ -171,16 +157,26 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
       return;
     }
 
-    // ===== 기존 공격 타이머 로직 =====
+    // ======================================================
+    // 공격 타이머 → 즉시 자폭
+    // ======================================================
     if ((attackTime ?? 0) <= 0) return;
 
     _attackElapsed += dt;
 
     if (!_attackDone && _attackElapsed >= attackTime!) {
       _attackDone = true;
-      _png.opacity = 0;
-      svg.opacity = 1;
-      onExplode?.call();
+
+      if (!_penaltyFired) {
+        _penaltyFired = true;
+        onExplode?.call(); // 시간 패널티
+      }
+
+      // 타이머 자폭은 유저 제거 아님
+      wasRemovedByUser = false;
+
+      removeFromParent();
+      return;
     }
 
     if (!_attackDone && _attackTimeHalfLeft) {
@@ -239,6 +235,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     return result;
   }
 
+  // ===== 기존 삼각형 판정 로직 유지 =====
   List<Vector2> getTriangleVertices() {
     final c = absoluteCenter;
     final hw = size.x / 2;

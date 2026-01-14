@@ -26,6 +26,7 @@ class PentagonShape extends PositionComponent
   bool isPaused = false;
   double _attackElapsed = 0;
   bool _attackDone = false;
+  bool _penaltyFired = false; 
 
   // ===============================
   // LONG PRESS TICK
@@ -35,24 +36,15 @@ class PentagonShape extends PositionComponent
 
   // ===============================
   // PULSE (3 LAYERS)
-  // - Thickness ramps up once and stays (no breathing)
-  // - 3 bands alternate brightness (feels like layers rotating)
-  // - On release: thickness shrinks to 0 and disappears
   // ===============================
   static const Color _pulseColor = Color(0xFFFF6AD5);
-
-  // total thickness target (adjust this)
   static const double _pulseMaxThickness = 18.0;
-
-  // how fast thickness appears/disappears
-  static const double _pulseAppearTime = 0.10; // seconds to reach full
+  static const double _pulseAppearTime = 0.10;
   static const double _pulseDisappearTime = 0.12;
+  static const double _pulseCycleSeconds = 0.36;
 
-  // animation speed of alternation
-  static const double _pulseCycleSeconds = 0.36; // smaller = faster
-
-  double _pulseThicknessT = 0.0; // 0..1
-  double _pulsePhase = 0.0; // keeps running while pressing
+  double _pulseThicknessT = 0.0;
+  double _pulsePhase = 0.0;
 
   // ===============================
   // PENTAGON GEOMETRY
@@ -131,7 +123,6 @@ class PentagonShape extends PositionComponent
     }
 
     _center = _visualPentagonCenter;
-
     _baseRadius = size.x * 0.392;
 
     _pentagonPath = _buildPentagonPath(_center, _baseRadius);
@@ -146,18 +137,18 @@ class PentagonShape extends PositionComponent
     super.update(dt);
     if (isPaused) return;
 
+    // -------------------------------
+    // LONG PRESS (유저 제거)
+    // -------------------------------
     if (_isLongPressing && !isDark) {
-      // thickness ramps to 1 and stays (no breathing)
       if (_pulseThicknessT < 1.0) {
         _pulseThicknessT += dt / _pulseAppearTime;
         if (_pulseThicknessT > 1.0) _pulseThicknessT = 1.0;
       }
 
-      // phase runs only while pressing
       _pulsePhase += dt / _pulseCycleSeconds;
       _pulsePhase -= _pulsePhase.floorToDouble();
 
-      // energy tick
       _pressElapsed += dt;
       if (_pressElapsed >= _pressTick) {
         _pressElapsed -= _pressTick;
@@ -169,7 +160,6 @@ class PentagonShape extends PositionComponent
         }
       }
     } else {
-      // on release: thickness shrinks to 0 (disappears by shrinking)
       if (_pulseThicknessT > 0.0) {
         _pulseThicknessT -= dt / _pulseDisappearTime;
         if (_pulseThicknessT < 0.0) _pulseThicknessT = 0.0;
@@ -177,14 +167,23 @@ class PentagonShape extends PositionComponent
       _pressElapsed = 0.0;
     }
 
-    // attack timer
+    // -------------------------------
+    // ATTACK TIMER → 즉시 자폭
+    // -------------------------------
     if ((attackTime ?? 0) > 0) {
       _attackElapsed += dt;
+
       if (!_attackDone && _attackElapsed >= attackTime!) {
         _attackDone = true;
-        _png.opacity = 0;
-        svg.opacity = 1;
-        onExplode?.call();
+
+        if (!_penaltyFired) {
+          _penaltyFired = true;
+          onExplode?.call(); // 시간 패널티
+        }
+
+        wasRemovedByUser = false; // 타이머 자폭
+        removeFromParent();
+        return;
       }
     }
   }
@@ -196,7 +195,7 @@ class PentagonShape extends PositionComponent
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // PULSE (3 bands, thickness fixed once fully appeared)
+    // PULSE
     if (!isDark && _pulseThicknessT > 0.0) {
       final totalThickness = _pulseMaxThickness * _pulseThicknessT;
       final bandW = totalThickness / 2.5;
@@ -207,15 +206,10 @@ class PentagonShape extends PositionComponent
 
         final ring = _buildRingEvenOdd(_center, innerR, outerR);
 
-        // Alternation wave: each band has a phase offset.
-        // This makes "layer switching" without changing geometry.
         final phase = (_pulsePhase + i / 3.0) % 1.0;
-
-        // triangle wave 0..1..0 (smoothened)
         final tri = phase < 0.5 ? (phase * 2.0) : (2.0 - phase * 2.0);
-        final smooth = tri * tri * (3 - 2 * tri); // smoothstep
+        final smooth = tri * tri * (3 - 2 * tri);
 
-        // base opacity + boosted band
         final opacity = lerpDouble(0.10, 0.34, smooth)!.clamp(0.0, 1.0);
 
         final paint = Paint()
@@ -226,7 +220,7 @@ class PentagonShape extends PositionComponent
       }
     }
 
-    // top circle
+    // TOP CIRCLE
     if (_isLongPressing && !isDark && energy > 0) {
       final c = _visualPentagonCenter.translate(-size.x * 0.035, -size.y * 0.7);
       canvas.drawPath(
@@ -236,7 +230,7 @@ class PentagonShape extends PositionComponent
       _drawText(canvas, energy.toString(), c, 14, Colors.white);
     }
 
-    // attack
+    // ATTACK PATH
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
@@ -259,7 +253,7 @@ class PentagonShape extends PositionComponent
   }
 
   // ===============================
-  // GEOMETRY
+  // GEOMETRY / UTIL
   // ===============================
   Path _buildPentagonPath(Offset c, double r) {
     final path = Path();
@@ -349,7 +343,6 @@ class PentagonShape extends PositionComponent
     _isLongPressing = true;
     _myBlinking()?.isPaused = true;
 
-    // reset pulse so it ramps up cleanly
     _pulseThicknessT = 0.0;
     _pulsePhase = 0.0;
     _pressElapsed = 0.0;

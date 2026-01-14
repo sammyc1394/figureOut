@@ -28,6 +28,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
+  bool _penaltyFired = false; 
   bool isPaused = false;
 
   late Path _outlinePath;
@@ -93,9 +94,8 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     }
 
     _outlinePath = _buildRectPath(size.toSize());
-    _outlineLength = _outlinePath
-        .computeMetrics()
-        .fold(0.0, (sum, m) => sum + m.length);
+    _outlineLength =
+        _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
   }
 
   Path _buildRectPath(Size s) {
@@ -129,13 +129,23 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
     _attackElapsed += dt;
 
+    // ------------------------------------------------------------
+    // 타이머 종료 시 자폭
+    // ------------------------------------------------------------
     if (!_attackDone && _attackElapsed >= attackTime!) {
       _attackDone = true;
 
-      _png.opacity = 0;
-      svg.opacity = 1;
+      if (!_penaltyFired) {
+        _penaltyFired = true;
+        onExplode?.call(); // 시간 패널티 유지
+      }
 
-      onExplode?.call();
+      // 타이머 자폭으로 제거됨을 명확히
+      wasRemovedByUser = false;
+
+      // 즉시 제거
+      removeFromParent();
+      return;
     }
 
     if (!_attackDone && _attackTimeHalfLeft) {
@@ -280,7 +290,10 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
       // 조각은 "원본 SVG를 clipPath로 잘라서" 떨어지게
       final piece1 = FallingClippedPiece(
         position: worldCenter +
-            Vector2(bounds1.center.dx - size.x / 2, bounds1.center.dy - size.y / 2),
+            Vector2(
+              bounds1.center.dx - size.x / 2,
+              bounds1.center.dy - size.y / 2,
+            ),
         sizePx: Vector2(bounds1.width, bounds1.height),
         sourceSvg: _sourceSvg,
         sourceSize: size.clone(), // 원본 SVG 렌더 사이즈
@@ -293,7 +306,10 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
       final piece2 = FallingClippedPiece(
         position: worldCenter +
-            Vector2(bounds2.center.dx - size.x / 2, bounds2.center.dy - size.y / 2),
+            Vector2(
+              bounds2.center.dx - size.x / 2,
+              bounds2.center.dy - size.y / 2,
+            ),
         sizePx: Vector2(bounds2.width, bounds2.height),
         sourceSvg: _sourceSvg,
         sourceSize: size.clone(),
@@ -301,7 +317,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
         clipOffset: Vector2(bounds2.left, bounds2.top),
         velocity: Vector2(-baseVel.x, baseVel.y),
         angularVelocity: rand.nextDouble() * 6 * (rand.nextBool() ? 1 : -1),
-        fillColor:baseColor,
+        fillColor: baseColor,
       );
 
       parent?.add(piece1);
