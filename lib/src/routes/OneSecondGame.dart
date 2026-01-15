@@ -36,17 +36,19 @@ import '../functions/OrderableShape.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
 
-class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, TapCallbacks { // ← 이것 추가 {
+class OneSecondGame extends FlameGame
+    with DragCallbacks, CollisionCallbacks, TapCallbacks {
+  // ← 이것 추가 {
   final BuildContext navigatorContext;
   final List<StageData> stages;
   final int stageIndex;
   final int missionIndex;
 
   OneSecondGame({
-  required this.navigatorContext,
-  required this.stages,
-  required this.stageIndex,
-  required this.missionIndex,
+    required this.navigatorContext,
+    required this.stages,
+    required this.stageIndex,
+    required this.missionIndex,
   });
 
   final math.Random _random = math.Random();
@@ -54,14 +56,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   // temporary function
   late RefreshButton refreshButton;
   // bool debugYN = true;
-  
+
   //pause
   late PauseButton pauseButton;
   PausedScreen? pausedScreen;
 
   //stage data
   late StageData initialStage;
-
 
   late int _currentStageIndex;
   late int _currentMissionIndex;
@@ -113,7 +114,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   List<Vector2> userPath = [];
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
-  
+
   //toggle debug
   int _debugTapCount = 0;
   double _lastTapTime = 0;
@@ -156,6 +157,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       size: size,
       anchor: Anchor.center,
       paint: Paint()..color = Colors.transparent,
+      priority: 0,
     );
     add(screenArea);
 
@@ -196,6 +198,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       size: Vector2(playWidth, playHeight),
       anchor: Anchor.center,
       paint: Paint()..color = Colors.transparent,
+      priority: 0,
     );
     add(playArea);
 
@@ -213,19 +216,22 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     refreshButton = RefreshButton(
       position: Vector2(size.x - 60, 40),
       onPressed: onRefresh,
-    );
+    )
+      ..priority = 3000;
     add(refreshButton);
 
     pauseButton = PauseButton(
       position: Vector2(size.x * 0.11, 40),
       onPressed: pauseGame,
-    );
+    )
+      ..priority = 3000;
     add(pauseButton);
 
     timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
       position: Vector2((size.x / 2) + 16, 80),
-    );
+    )
+      ..priority = 3000;
     add(timerBar);
 
     try {
@@ -246,7 +252,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     // TODO : make this as button
     debugMode = false;
-    
+
     Future.delayed(Duration.zero, () {
       debugMode = false;
       _applyDebugToTree(this, false);
@@ -332,6 +338,23 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     if (_isTimeOver) return;
     _isTimeOver = true;
     _timerPaused = true; // 타이머 틱 중단
+
+    // 모든 도형 일시 정지 (타이머 자폭 방지)
+    final circles = children.whereType<CircleShape>();
+    final rects = children.whereType<RectangleShape>();
+    final pentagons = children.whereType<PentagonShape>();
+    final triangles = children.whereType<TriangleShape>();
+    final hexagons = children.whereType<HexagonShape>();
+
+    final totalShapes = circles.length + rects.length + pentagons.length + triangles.length + hexagons.length;
+    print('[DEBUG] Pausing $totalShapes shapes in _onTimeOver');
+
+    circles.forEach((c) => c.isPaused = true);
+    rects.forEach((c) => c.isPaused = true);
+    pentagons.forEach((c) => c.isPaused = true);
+    triangles.forEach((c) => c.isPaused = true);
+    hexagons.forEach((c) => c.isPaused = true);
+
     for (final b in blinkingMap.values) {
       b.isPaused = true;
     }
@@ -340,7 +363,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     Future.microtask(() {
       final starRating = _calculateStarRating(StageResult.fail);
-      showAftermathScreen(StageResult.fail, starRating, _currentStageIndex, _currentMissionIndex);
+      showAftermathScreen(
+        StageResult.fail,
+        starRating,
+        _currentStageIndex,
+        _currentMissionIndex,
+      );
     });
   }
 
@@ -365,10 +393,13 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     showAftermathScreen(result, starRating, stageIndex, missionIndex);
   }
 
-  Future<StageResult> runSingleMissions(StageData stage, int missionIndex) async {
+  Future<StageResult> runSingleMissions(
+    StageData stage,
+    int missionIndex,
+  ) async {
     final centerOffset = playArea.size / 2;
     int runId = missionIndex;
-    
+
     _stopEnemyBehaviors();
     _clearAllShapes();
 
@@ -453,10 +484,14 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         final halfSizeX = shape.size.x / 2;
         final halfSizeY = shape.size.y / 2;
 
-        Vector2 actPosition = toPlayArea(flipY(Vector2(x, y)), halfSizeX, clampInside: true);
+        Vector2 actPosition = toPlayArea(
+          flipY(Vector2(x, y)),
+          halfSizeX,
+          clampInside: true,
+        );
 
         shape.position = actPosition;
-        
+
         final localPos = worldToVirtualPlay(actPosition);
         print('playLocal = (${localPos.x}, ${localPos.y})');
 
@@ -493,8 +528,16 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
             // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
             // 도형 화면 밖으로 안나가도록
-            final p1 = toPlayArea(flipY(Vector2(dx1, dy1)), halfSizeX, clampInside: true);
-            final p2 = toPlayArea(flipY(Vector2(dx2, dy2)), halfSizeX, clampInside: true);
+            final p1 = toPlayArea(
+              flipY(Vector2(dx1, dy1)),
+              halfSizeX,
+              clampInside: true,
+            );
+            final p2 = toPlayArea(
+              flipY(Vector2(dx2, dy2)),
+              halfSizeX,
+              clampInside: true,
+            );
 
             // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
             final comp = shape!;
@@ -558,7 +601,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             final s = double.parse(cMatch.group(4)!); // degree per second
 
             final halfSizeX = shape.size.x / 2;
-            
+
             // 중심 월드 좌표 (스폰과 동일한 변환 사용)
             final centerWorld = toPlayArea(
               flipY(Vector2(cx, cy)),
@@ -580,7 +623,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             );
 
             // X/Y 방향 각각의 실제 반지름(픽셀)
-            final radiusWorldX = (eastWorld.x  - centerWorld.x).abs();
+            final radiusWorldX = (eastWorld.x - centerWorld.x).abs();
             final radiusWorldY = (northWorld.y - centerWorld.y).abs();
 
             final angularSpeed = s * math.pi / 180;
@@ -726,7 +769,11 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             }
 
             // 목표 지점 (에디터 좌표 → 실제 플레이좌표)
-            final target = toPlayArea(flipY(Vector2(position.x, yCoord)), halfSizeX, clampInside: false);
+            final target = toPlayArea(
+              flipY(Vector2(position.x, yCoord)),
+              halfSizeX,
+              clampInside: false,
+            );
 
             print("target = (${target.x}, ${target.y})");
 
@@ -793,7 +840,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
   PositionComponent? spawnShape(EnemyData enemy, Vector2 position) {
     PositionComponent? shape;
-    
+
     // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
     final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
     // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
@@ -802,71 +849,122 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       return m != null ? int.parse(m.group(1)!) : def;
     }
 
-    double tp = enemy.attackDamage ?? 5;
+    // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
+    //    1~8: 0.25배씩 증가 (1=0.25, 4=1.0, 8=2.0)
+    //    9~ : 0.5배씩 증가 (9=2.5, 10=3.0 ...)
+    double _parseScale(String s) {
+      // "Circle2", "Circle4_02", "Pentagon12" 등에서 숫자 추출
+      // 도형 이름(알파벳) 뒤에 오는 숫자
+      final m = RegExp(r'[a-zA-Z]+(\d+)').firstMatch(s);
+      if (m != null) {
+        final val = int.parse(m.group(1)!);
+        if (val <= 8) {
+          return val * 0.25;
+        } else {
+          // 8번이 2.0이므로, 거기서부터 0.5씩 증가
+          return 2.0 + (val - 8) * 0.5;
+        }
+      }
+      return 1.0; // 기본값 (Circle == Circle4)
+    }
 
+    // 2) Rectangle 직접 크기 파싱 (Rectangle40:200)
+    Vector2? _parseRectSize(String s) {
+      final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
+      if (m != null) {
+        final w = double.parse(m.group(1)!);
+        final h = double.parse(m.group(2)!);
+        return Vector2(w, h);
+      }
+      return null;
+    }
+
+    double tp = enemy.attackDamage ?? 5;
     void Function()? penalty = () => applyTimePenalty(tp);
     final damage = enemy.attackDamage;
 
     if (enemy.shape.startsWith('Circle')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      final scale = _parseScale(enemy.shape);
+      final size = Vector2.all(80 * scale);
+      
       shape = CircleShape(
         position,
-        energy, 
-        isDark: isDark, 
+        energy,
+        isDark: isDark,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
-        onExplode: damage != null
-      ? () => applyTimePenalty(damage.abs())
-      : null,
+        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
+        customSize: size,
         order: enemy.order,
         onInteracted: _onOrderInteracted,
         onRemoved: _onOrderedShapeRemoved,
       );
-
     } else if (enemy.shape.startsWith('Rectangle')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      
+      // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
+      Vector2 size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
+      
+      // 만약 Rectangle2 처럼 스케일만 적혀있다면 기본(40,80)에 스케일 적용
+      if (_parseRectSize(enemy.shape) == null) {
+         final scale = _parseScale(enemy.shape);
+         // 기본값이 Rectangle4라고 가정하면 scale 1.0 -> 40,80
+         // Rectangle2 -> scale 0.5 -> 20,40
+         size = Vector2(40 * scale, 80 * scale);
+      }
+
       shape = RectangleShape(
-        position, 
-        energy, 
-        isDark: isDark, 
-        onForbiddenTouch: penalty, 
-        attackTime: enemy.attackSeconds, 
+        position,
+        energy,
+        isDark: isDark,
+        onForbiddenTouch: penalty,
+        attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
+        customSize: size,
       );
     } else if (enemy.shape.startsWith('Pentagon')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
+      final scale = _parseScale(enemy.shape);
+      final size = Vector2.all(100 * scale);
+
       shape = PentagonShape(
         position,
-        energy, 
-        isDark: isDark, 
+        energy,
+        isDark: isDark,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
-        onExplode: damage != null
-          ? () => applyTimePenalty(damage.abs()) 
-          : null,);
+        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
+        customSize: size,
+      );
     } else if (enemy.shape.startsWith('Triangle')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      final scale = _parseScale(enemy.shape);
+      final size = Vector2.all(70 * scale);
+
       shape = TriangleShape(
-        position, 
-        energy, 
-        isDark: isDark, 
+        position,
+        energy,
+        isDark: isDark,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
-        onExplode: damage != null
-          ? () => applyTimePenalty(damage.abs()) 
-          : null,);
+        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
+        customSize: size,
+      );
     } else if (enemy.shape.startsWith('Hexagon')) {
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      final scale = _parseScale(enemy.shape);
+      final size = Vector2.all(100 * scale);
+
       shape = HexagonShape(
-        position, 
-        energy, 
-        isDark: isDark, 
+        position,
+        energy,
+        isDark: isDark,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
-        onExplode: damage != null
-          ? () => applyTimePenalty(damage.abs()) 
-          : null,
-        );
+        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
+        customSize: size,
+      );
     }
 
     return shape;
@@ -969,9 +1067,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
   // Convert from your coordinate system to play area coordinates
   Vector2 toPlayArea(
     Vector2 yourCoordinates,
-    double actShapePadding,
-    {bool clampInside = true}
-  ) {
+    double actShapePadding, {
+    bool clampInside = true,
+  }) {
     // 1) playArea 전역 영역 계산
     final double playMinX = playArea.position.x - playArea.size.x / 2;
     final double playMinY = playArea.position.y - playArea.size.y / 2;
@@ -984,7 +1082,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     final double minCenterY = playMinY + actShapePadding;
     final double maxCenterY = playMaxY - actShapePadding;
 
-    print("my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding");
+    print(
+      "my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding",
+    );
 
     // 3) 에디터 좌표 정상화
     final double normalizedX = (yourCoordinates.x - minX) / rangeX;
@@ -996,12 +1096,25 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
     // 5) 도형이 playArea 밖으로 나가지 않게 중심 위치 clamp
     if (clampInside) {
-      playX = playX.clamp(minCenterX, maxCenterX);
-      playY = playY.clamp(minCenterY, maxCenterY);
+      if (minCenterX > maxCenterX) {
+        // 도형이 화면보다 가로로 더 큰 경우: 화면 중앙 X
+        playX = playArea.position.x;
+      } else {
+        playX = playX.clamp(minCenterX, maxCenterX);
+      }
+
+      if (minCenterY > maxCenterY) {
+        // 도형이 화면보다 세로로 더 큰 경우: 화면 중앙 Y
+        playY = playArea.position.y;
+      } else {
+        playY = playY.clamp(minCenterY, maxCenterY);
+      }
     }
 
     final virtual = worldToVirtualPlay(Vector2(playX, playY));
-    print("Max (x,y) = (${virtual.x.toStringAsFixed(1)}, ${virtual.y.toStringAsFixed(1)})");
+    print(
+      "Max (x,y) = (${virtual.x.toStringAsFixed(1)}, ${virtual.y.toStringAsFixed(1)})",
+    );
 
     return Vector2(playX, playY);
   }
@@ -1011,10 +1124,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     final double playMinY = playArea.position.y - playArea.size.y / 2;
 
     // playArea 왼쪽 위를 (0,0)으로 보는 로컬 좌표
-    return Vector2(
-      worldPos.x - playMinX,
-      worldPos.y - playMinY,
-    );
+    return Vector2(worldPos.x - playMinX, worldPos.y - playMinY);
   }
 
   Vector2 worldToVirtualPlay(Vector2 worldPos) {
@@ -1106,9 +1216,9 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       shape.removeFromParent();
     });
 
-    try{
+    try {
       final newStages = await sheetService.fetchData();
-      if(newStages.isEmpty) {
+      if (newStages.isEmpty) {
         print("새로 불러온 데이터가 비어있음");
         return;
       }
@@ -1121,8 +1231,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
 
       // 동일 스테이지 / 미션으로 재시작
       runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
-
-    } catch(e) {
+    } catch (e) {
       print("데이터 새로고침 실패: $e");
     }
   }
@@ -1182,9 +1291,14 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     }
   }
 
-  void showAftermathScreen(StageResult result, int starCount, int stgIndex, int msnIndex) {
+  void showAftermathScreen(
+    StageResult result,
+    int starCount,
+    int stgIndex,
+    int msnIndex,
+  ) {
     _timerPaused = true;
-    
+
     if (result == StageResult.success) {
       _stopEnemyBehaviors();
       _clearAllShapes();
@@ -1206,7 +1320,8 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         removeAll(children.where((c) => c is AftermathScreen).toList());
         runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
       },
-      onPlay: () { // play next stage
+      onPlay: () {
+        // play next stage
         removeAll(children.where((c) => c is AftermathScreen).toList());
         // Could start from stage 0 or a chosen stage
         // move to next stage
@@ -1219,11 +1334,12 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
             _currentMissionIndex = 0;
           }
 
-          print("stage index = $_currentStageIndex, mission index = $_currentMissionIndex");
+          print(
+            "stage index = $_currentStageIndex, mission index = $_currentMissionIndex",
+          );
           print("playing next stage/mission");
           removeAll(children.where((c) => c is AftermathScreen).toList());
           runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
-
         } else {
           print("No more stages left!");
         }
@@ -1232,10 +1348,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
         print("Go to menu screen");
         removeAll(children.where((c) => c is AftermathScreen).toList());
 
-        rootNavigatorKey.currentContext!.push('/missions', extra: {
-          "stages": stages,
-          "index": _currentStageIndex,
-        });
+        rootNavigatorKey.currentContext!.push(
+          '/missions',
+          extra: {"stages": stages, "index": _currentStageIndex},
+        );
       },
     );
     print("aftermath Screen defined");
@@ -1249,9 +1365,26 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     _timerEndedNotified = false;
     isTimeCritical = false;
 
-    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
-    remainingTime = 10;
+    // 남은 시간 리셋: 전체 시간의 50% 부여
+    final bonusTime = missionTimeLimit > 0 ? missionTimeLimit * 0.5 : 10.0;
+    remainingTime = bonusTime;
     timerBar.updateTime(remainingTime);
+
+    // 도형들 일시 정지 해제
+    final circles = children.whereType<CircleShape>();
+    final rects = children.whereType<RectangleShape>();
+    final pentagons = children.whereType<PentagonShape>();
+    final triangles = children.whereType<TriangleShape>();
+    final hexagons = children.whereType<HexagonShape>();
+
+    final totalShapes = circles.length + rects.length + pentagons.length + triangles.length + hexagons.length;
+    print('[DEBUG] Resuming $totalShapes shapes in _resumeFromFailure');
+
+    circles.forEach((c) => c.isPaused = false);
+    rects.forEach((c) => c.isPaused = false);
+    pentagons.forEach((c) => c.isPaused = false);
+    triangles.forEach((c) => c.isPaused = false);
+    hexagons.forEach((c) => c.isPaused = false);
 
     // 깜빡임 도형 재개
     for (final b in blinkingMap.values) {
@@ -1259,7 +1392,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     }
 
     // 타이머 재시작
-    print('[RESUME] Timer restarted at 10 seconds.');
+    print('[RESUME] Timer restarted at $remainingTime seconds (50% bonus).');
   }
 
   // ===========================================================================================================
@@ -1486,7 +1619,7 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
     if (pausedScreen != null && pausedScreen!.isMounted) return;
 
     _timerPaused = true;
-    
+
     for (final c in children.whereType<CircleShape>()) {
       c.isPaused = true;
     }
@@ -1507,10 +1640,10 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       },
       onMenu: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
-        rootNavigatorKey.currentContext!.push('/missions', extra: {
-          "stages": stages,
-          "index": _currentStageIndex,
-        });
+        rootNavigatorKey.currentContext!.push(
+          '/missions',
+          extra: {"stages": stages, "index": _currentStageIndex},
+        );
       },
     );
 
@@ -1664,4 +1797,5 @@ class OneSecondGame extends FlameGame with DragCallbacks, CollisionCallbacks, Ta
       );
     }
   }
+
 }

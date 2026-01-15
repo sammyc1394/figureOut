@@ -41,7 +41,9 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
     required Vector2 screenSize,
     required this.stgIndex,
     required this.msnIndex,
-  }) : super(position: Vector2.zero(), size: screenSize);
+  }) : super(position: Vector2.zero(), size: screenSize) {
+    priority = 5000;
+  }
 
   @override
   Future<void> onLoad() async {
@@ -339,4 +341,3 @@ class SvgButtonComponent extends PositionComponent with TapCallbacks {
     onTap();
   }
 }
-

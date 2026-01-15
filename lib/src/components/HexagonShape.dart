@@ -27,10 +27,12 @@ class HexagonShape extends PositionComponent
 
   final double? attackTime;
   final VoidCallback? onExplode;
+  final int? order;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
-  bool _penaltyFired = false; 
+  bool _penaltyFired = false;
+  bool isPaused = false;
 
   late Path _outlinePath;
   late double _outlineLength;
@@ -67,14 +69,17 @@ class HexagonShape extends PositionComponent
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
+    Vector2? customSize,
+    this.order,
   }) : super(
           position: position,
-          size: Vector2.all(100),
+          size: customSize ?? Vector2.all(100),
           anchor: Anchor.center,
         );
 
   @override
   Future<void> onLoad() async {
+    priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
     final asset = isDark ? 'DarkHexagon.svg' : 'hexagon.svg';
@@ -169,6 +174,7 @@ class HexagonShape extends PositionComponent
   @override
   void update(double dt) {
     super.update(dt);
+    if (isPaused) return;
 
     // ============================
     // ATTACK TIMER → 즉시 자폭

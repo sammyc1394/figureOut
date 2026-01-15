@@ -22,6 +22,7 @@ class PentagonShape extends PositionComponent
   final VoidCallback? onForbiddenTouch;
   final double? attackTime;
   final VoidCallback? onExplode;
+  final int? order;
 
   bool isPaused = false;
   double _attackElapsed = 0;
@@ -84,9 +85,11 @@ class PentagonShape extends PositionComponent
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
+    Vector2? customSize,
+    this.order,
   }) : super(
           position: position,
-          size: Vector2.all(100),
+          size: customSize ?? Vector2.all(100),
           anchor: Anchor.center,
         );
 
@@ -97,6 +100,7 @@ class PentagonShape extends PositionComponent
 
   @override
   Future<void> onLoad() async {
+    priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
     final svgData = await Svg.load(isDark ? 'DarkPentagon.svg' : 'pentagon.svg');
