@@ -339,22 +339,6 @@ class OneSecondGame extends FlameGame
     _isTimeOver = true;
     _timerPaused = true; // 타이머 틱 중단
 
-    // 모든 도형 일시 정지 (타이머 자폭 방지)
-    final circles = children.whereType<CircleShape>();
-    final rects = children.whereType<RectangleShape>();
-    final pentagons = children.whereType<PentagonShape>();
-    final triangles = children.whereType<TriangleShape>();
-    final hexagons = children.whereType<HexagonShape>();
-
-    final totalShapes = circles.length + rects.length + pentagons.length + triangles.length + hexagons.length;
-    print('[DEBUG] Pausing $totalShapes shapes in _onTimeOver');
-
-    circles.forEach((c) => c.isPaused = true);
-    rects.forEach((c) => c.isPaused = true);
-    pentagons.forEach((c) => c.isPaused = true);
-    triangles.forEach((c) => c.isPaused = true);
-    hexagons.forEach((c) => c.isPaused = true);
-
     for (final b in blinkingMap.values) {
       b.isPaused = true;
     }
@@ -1365,26 +1349,9 @@ class OneSecondGame extends FlameGame
     _timerEndedNotified = false;
     isTimeCritical = false;
 
-    // 남은 시간 리셋: 전체 시간의 50% 부여
-    final bonusTime = missionTimeLimit > 0 ? missionTimeLimit * 0.5 : 10.0;
-    remainingTime = bonusTime;
+    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
+    remainingTime = 10;
     timerBar.updateTime(remainingTime);
-
-    // 도형들 일시 정지 해제
-    final circles = children.whereType<CircleShape>();
-    final rects = children.whereType<RectangleShape>();
-    final pentagons = children.whereType<PentagonShape>();
-    final triangles = children.whereType<TriangleShape>();
-    final hexagons = children.whereType<HexagonShape>();
-
-    final totalShapes = circles.length + rects.length + pentagons.length + triangles.length + hexagons.length;
-    print('[DEBUG] Resuming $totalShapes shapes in _resumeFromFailure');
-
-    circles.forEach((c) => c.isPaused = false);
-    rects.forEach((c) => c.isPaused = false);
-    pentagons.forEach((c) => c.isPaused = false);
-    triangles.forEach((c) => c.isPaused = false);
-    hexagons.forEach((c) => c.isPaused = false);
 
     // 깜빡임 도형 재개
     for (final b in blinkingMap.values) {
@@ -1392,7 +1359,7 @@ class OneSecondGame extends FlameGame
     }
 
     // 타이머 재시작
-    print('[RESUME] Timer restarted at $remainingTime seconds (50% bonus).');
+    print('[RESUME] Timer restarted at 10 seconds.');
   }
 
   // ===========================================================================================================
