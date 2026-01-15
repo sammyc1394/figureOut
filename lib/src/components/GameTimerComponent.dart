@@ -12,7 +12,7 @@ class GameTimerComponent extends PositionComponent {
   double totalTime;
   double currentTime;
 
-  String _currentFillAsset = 'Timer Bar-2.svg';
+  String _currentFillAsset = 'TimerBar_green.svg';
   bool _ready = false;
 
   static const double _epsilon = 1e-3;
@@ -38,9 +38,9 @@ class GameTimerComponent extends PositionComponent {
   String _frameOf(String fill) {
     if (fill.endsWith('.svg')) {
       final base = fill.substring(0, fill.length - 4);
-      return '$base - Empty.svg';
+      return '${base}_empty.svg';
     }
-    return '${fill} - Empty.svg';
+    return '${fill}_empty.svg';
   }
 
   @override
@@ -59,6 +59,7 @@ class GameTimerComponent extends PositionComponent {
     clip!.add(stateIndicator!);
 
     frame = SvgComponent(
+      // svg: await Svg.load('TimerBar_green_empty.svg'),
       svg: await Svg.load(_frameOf(_currentFillAsset)),
       size: size,
       anchor: Anchor.topLeft,
@@ -96,11 +97,11 @@ class GameTimerComponent extends PositionComponent {
         : 0.0;
 
     if (ratio <= 0.2) {
-      _changeState('Timer Bar-1.svg');
+      _changeState('TimerBar_red.svg');
     } else if (ratio <= 0.5) {
-      _changeState('Timer Bar.svg');
+      _changeState('TimerBar_yellow.svg');
     } else {
-      _changeState('Timer Bar-2.svg');
+      _changeState('TimerBar_green.svg');
     }
 
     const double minWidth = 0.0001;

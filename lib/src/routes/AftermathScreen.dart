@@ -66,7 +66,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       );
       add(background);
 
-      final statusSvg = await Svg.load('Type=Level complete.svg');
+      final statusSvg = await Svg.load('Banner_levelComplete.svg');
       levelStatus = SvgComponent(
         svg: statusSvg,
         size: size / 2,
@@ -120,7 +120,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final buttonSpacing = size.x * 0.25;
 
       final menuButton = SvgButton(
-        assetPath: 'State=Default, Type=Menu.svg',
+        assetPath: 'Menu_basic.svg',
         size: size / 8,
         position: Vector2(buttonX, buttonY),
         onTap: onMenu,
@@ -128,7 +128,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(menuButton);
 
       final playNextButton = SvgButton(
-        assetPath: 'State=Default, Type=Play.svg',
+        assetPath: 'Play_basic.svg',
         size: size / 8,
         position: Vector2(buttonX + buttonSpacing, buttonY),
         onTap: onPlay,
@@ -136,7 +136,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(playNextButton);
 
       final retryButton = SvgButton(
-        assetPath: 'State=Default, Type=Retry.svg',
+        assetPath: 'Retry_default.svg',
         size: size / 8,
         position: Vector2(buttonX + buttonSpacing * 2, buttonY),
         onTap: onRetry,
@@ -160,7 +160,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(background);
 
 
-      final statusSvg = await Svg.load('Type=level failed.svg');
+      final statusSvg = await Svg.load('Banner_levelFailed.svg');
       levelStatus = SvgComponent(
         svg: statusSvg,
         size: size / 2,
@@ -185,7 +185,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(levelLabel);
 
       // Stars based on rating (centered)
-      final levelIconSvg = await Svg.load('Heart.svg');
+      final levelIconSvg = await Svg.load('Heart_failed.svg');
       levelIcon = SvgComponent(
         svg: levelIconSvg,
         size: size / 4,
@@ -230,7 +230,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final buttonSpacing = size.x * 0.25;
 
       final menuButton = SvgButton(
-        assetPath: 'State=Default, Type=Menu.svg',
+        assetPath: 'Menu_basic.svg',
         size: size / 8,
         position: Vector2(buttonX, buttonY),
         onTap: onMenu,
@@ -238,7 +238,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(menuButton);
 
       final continueButton = SvgButton(
-        assetPath: 'State=Default, Type=Continue.svg',
+        assetPath: 'Continue_basic.svg',
         size: size / 8,
         position: Vector2(buttonX + buttonSpacing, buttonY),
         onTap: onContinue,
@@ -246,7 +246,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(continueButton);
 
       final retryButton = SvgButton(
-        assetPath: 'State=Default, Type=Retry.svg',
+        assetPath: 'Retry_default.svg',
         size: size / 8,
         position: Vector2(buttonX + buttonSpacing * 2, buttonY),
         onTap: onRetry,

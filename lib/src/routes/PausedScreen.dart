@@ -29,7 +29,7 @@ class PausedScreen extends PositionComponent {
     add(overlayBg);
 
     // Pause 창 패널
-    final panelSvg = await Svg.load('Paused window.svg');
+    final panelSvg = await Svg.load('Paused_window.svg');
     final panelSize = Vector2(size.x * 0.8, size.y * 0.30);
     final panel = SvgComponent(
       svg: panelSvg,
@@ -63,7 +63,7 @@ class PausedScreen extends PositionComponent {
     final spacing = panelSize.x * 0.3;
 
     final menuButton = SvgButton(
-      assetPath: 'State=Default, Type=Menu.svg',
+      assetPath: 'Menu_basic.svg',
       size: buttonSize ,
       position: Vector2(panelSize.x / 2 - spacing, buttonY),
       onTap: onMenu,
@@ -71,7 +71,7 @@ class PausedScreen extends PositionComponent {
     panel.add(menuButton);
 
     final resumeButton = SvgButton(
-      assetPath: 'State=Default, Type=Resume.svg',
+      assetPath: 'Resume_default.svg',
       size: buttonSize,
       position: Vector2(panelSize.x / 2, buttonY),
       onTap: onResume,
@@ -79,7 +79,7 @@ class PausedScreen extends PositionComponent {
     panel.add(resumeButton);
 
     final retryButton = SvgButton(
-      assetPath: 'State=Default, Type=Retry.svg',
+      assetPath: 'Retry_default.svg',
       size: buttonSize,
       position: Vector2(panelSize.x / 2+spacing, buttonY),
       onTap: onRetry,

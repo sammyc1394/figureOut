@@ -24,11 +24,11 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   List<StageData> _stages = [];
 
   final List<String> shapes = [
-    "assets/Circle (tap).svg",
-    "assets/triangle.svg",
-    "assets/hexagon.svg",
-    "assets/Rectangle 3.svg",
-    "assets/pentagon.svg",
+    "assets/Circle_basic.svg",
+    "assets/Triangle_basic.svg",
+    "assets/Hexagon_basic.svg",
+    "assets/Rectangle_basic.svg",
+    "assets/Pentagon_basic.svg",
   ];
 
   @override

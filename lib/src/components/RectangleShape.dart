@@ -67,7 +67,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    final String asset = isDark ? 'DarkRectangle.svg' : 'Rectangle 3.svg';
+    final String asset = isDark ? 'Rectangle_dark.svg' : 'Rectangle_basic.svg';
 
     _sourceSvg = await Svg.load(asset);
 

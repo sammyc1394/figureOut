@@ -81,7 +81,7 @@ class HexagonShape extends PositionComponent
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    final asset = isDark ? 'DarkHexagon.svg' : 'hexagon.svg';
+    final asset = isDark ? 'Hexagon_dark.svg' : 'Hexagon_basic.svg';
     final svgData = await Svg.load(asset);
 
     svg = SvgComponent(

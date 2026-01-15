@@ -73,7 +73,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    final asset = isDark ? 'DarkPolygon.svg' : 'triangle.svg';
+    final asset = isDark ? 'Triangle_dark.svg' : 'Triangle_basic.svg';
     final svgData = await Svg.load(asset);
 
     svg = SvgComponent(
