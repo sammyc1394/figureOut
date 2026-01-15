@@ -48,14 +48,16 @@ class CircleShape extends PositionComponent
     this.order,
     this.onInteracted,
     this.onRemoved,
+    Vector2? customSize,
   }) : super(
           position: position,
-          size: Vector2.all(80),
+          size: customSize ?? Vector2.all(80),
           anchor: Anchor.center,
         );
 
   @override
   Future<void> onLoad() async {
+    priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
     late final String svgAsset;

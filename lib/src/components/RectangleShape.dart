@@ -25,6 +25,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
   final double? attackTime;
   final VoidCallback? onExplode;
+  final int? order;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -53,14 +54,17 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
+    Vector2? customSize,
+    this.order,
   }) : super(
           position: position,
-          size: Vector2(40, 80),
+          size: customSize ?? Vector2(40, 80),
           anchor: Anchor.center,
         );
 
   @override
   Future<void> onLoad() async {
+    priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
     final String asset = isDark ? 'DarkRectangle.svg' : 'Rectangle 3.svg';

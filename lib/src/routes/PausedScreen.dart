@@ -15,7 +15,9 @@ class PausedScreen extends PositionComponent {
     required this.onResume,
     required this.onRetry,
     required this.onMenu,
-  }) : super(size: screenSize, position: Vector2.zero());
+  }) : super(size: screenSize, position: Vector2.zero()) {
+    priority = 5000;
+  }
 
   @override
   Future<void> onLoad() async {
