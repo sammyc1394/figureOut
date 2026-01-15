@@ -17,7 +17,7 @@ class PauseButton extends PositionComponent with TapCallbacks {
 
   @override
   Future<void> onLoad() async {
-    final svg = await Svg.load('pause.svg'); // 준비해둔 pause.svg 경로
+    final svg = await Svg.load('Pause_basic.svg'); // 준비해둔 Pause_basic.svg 경로
     final svgComponent = SvgComponent(
       svg: svg,
       size: size,

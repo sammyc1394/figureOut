@@ -25,8 +25,8 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     };
   });
 
-  final String defaultMsn = "assets/menu/mission/Type 1_default_Empty.svg";
-  final String selectedMsn = "assets/menu/mission/Type 1_selected_Empty.svg";
+  final String defaultMsn = "assets/menu/mission/Mission_default_empty.svg";
+  final String selectedMsn = "assets/menu/mission/Mission_selected_empty.svg";
 
   String _difficultyStars(int level) {
     switch (level) {
@@ -143,7 +143,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                   child: GestureDetector(
                     onTap: () => context.push('/stages', extra: stages),
                     child: SvgPicture.asset(
-                      "assets/menu/common/Arrow back.svg",
+                      "assets/menu/common/Arrow_prev.svg",
                       width: 40,
                       height: 40,
                     ),
@@ -152,12 +152,12 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
                 if (selectedIndex != null)
                   GestureDetector(
-                    onTap: () => context.pop(),
-                    child: SvgPicture.asset(
-                      "assets/menu/mission/Play_default.svg",
-                      width: 120,
-                      height: 40,
-                    ),
+                    // onTap: () => context.pop(),
+                    // child: SvgPicture.asset(
+                    //   "assets/menu/mission/Play_default.svg",
+                    //   width: 120,
+                    //   height: 40,
+                    // ),
                   ),
                 ],
             ),

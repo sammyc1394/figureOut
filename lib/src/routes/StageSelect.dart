@@ -110,7 +110,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                   child: GestureDetector(
                     onTap: () => context.push('/'),
                     child: SvgPicture.asset(
-                      "assets/menu/common/Arrow back.svg",
+                      "assets/menu/common/Arrow_prev.svg",
                       width: 40,
                       height: 40,
                     ),
@@ -126,8 +126,8 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 4.0),
                           child: SvgPicture.asset(
                             _currentIndex == index
-                                ? "assets/menu/stage/Selected dot.svg"
-                                : "assets/menu/stage/Not selected dot.svg",
+                                ? "assets/menu/stage/carousel_selected.svg"
+                                : "assets/menu/stage/carousel_notSelected.svg",
                             width: 12,
                             height: 12,
                           ),

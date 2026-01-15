@@ -63,11 +63,11 @@ class CircleShape extends PositionComponent
     late final String svgAsset;
 
     if (isDark) {
-      svgAsset = 'DarkCircle.svg';
+      svgAsset = 'Circle_dark.svg';
     } else if (order != null) {
-      svgAsset = 'Circle (sequence).svg';
+      svgAsset = 'Circle_sequence.svg';
     } else {
-      svgAsset = 'Circle (tap).svg';
+      svgAsset = 'Circle_basic.svg';
     }
 
     _svg = SvgComponent(

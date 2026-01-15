@@ -103,7 +103,7 @@ class PentagonShape extends PositionComponent
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    final svgData = await Svg.load(isDark ? 'DarkPentagon.svg' : 'pentagon.svg');
+    final svgData = await Svg.load(isDark ? 'Pentagon_dark.svg' : 'Pentagon_basic.svg');
     svg = SvgComponent(
       svg: svgData,
       size: size,
