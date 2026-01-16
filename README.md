@@ -57,12 +57,18 @@ Leveraging Flame's `Component` system, I designed the project with highly reusab
 
 ---
 
-## 👥 Contributors
+## 👥 Contributors & Team Roles
 
-* Sam Chang ([@sammyc1394](https://github.com/sammyc1394)))
-* Hyewon Ham ([@hyewon6588](https://github.com/hyewon6588))
-* **Minsik Kim** ([@minsikpaul92](https://github.com/minsikpaul92)) <-- Me
+| Name | Role | Core Contributions |
+| :--- | :--- | :--- |
+| **Robert Song** | **Project Manager / Planner** | Game design, level balancing, and project roadmap management. |
+| **Sam Chang** | **Lead Developer** | Core engine architecture, game loop implementation, and system stability. |
+| **Hyewon Ham** | **Lead Developer** | State management, UI framework, and core gameplay logic. |
+| **Minsik Kim (Paul)** | **Gameplay & UX Developer** | Developed core interaction algorithms (Encircle/Scaling) and optimized gameplay continuity (UX) systems. |
+| **Shin Park** | **Art & Design** | UI/UX Design (Figma), SVG Assets, Visual Effects, and Animation assets. |
+
+---
 
 ## 📄 Copyright
-Copyright © 2024 Minsik Kim. All rights reserved.  
+Copyright © 2025 - 2026 Figure Team (Robert Song, Sam Chang, Hyewon Ham, Minsik Kim, Shin Park). All rights reserved.  
 Unauthorized use, reproduction, or distribution of this source code is strictly prohibited.
