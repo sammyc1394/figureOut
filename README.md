@@ -4,6 +4,10 @@
 [![Flame](https://img.shields.io/badge/Flame-Engine-orange?style=for-the-badge)](https://flame-engine.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
+**Minsik Kim**
+
+![Figure-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/2d418059-1216-44bb-9b4c-b951900fac0f)
+
 **Figure** is a high-performance casual action game developed using **Flutter** and the **Flame Engine**. The game focuses on intuitive yet diverse user interactions, where players pop various geometric shapes using specific gestures tailored to each shape's characteristics.
 
 ---
