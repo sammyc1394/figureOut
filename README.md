@@ -61,11 +61,11 @@ Leveraging Flame's `Component` system, I designed the project with highly reusab
 
 | Name | Role | Core Contributions |
 | :--- | :--- | :--- |
-| Robert Song | **Project Manager / Planner** | Game design, level balancing, and project roadmap management. |
-| [Sam Chang](https://github.com/sammyc1394) | **Lead Developer** | Core engine architecture, game loop implementation, and system stability. |
-| [Hyewon Ham](https://github.com/hyewon6588) | **Lead Developer** | State management, UI framework, and core gameplay logic. |
-| **[Minsik Kim (Paul)](https://github.com/minsikpaul92)** | **Gameplay & UX Developer** | Developed core interaction algorithms (Encircle/Scaling) and optimized gameplay continuity (UX) systems. |
-| Shin Park | **Art & Design** | UI/UX Design (Figma), SVG Assets, Visual Effects, and Animation assets. |
+| **Robert Song** | **Project Manager / Planner** | Game design, level balancing, and project roadmap management. |
+| **[Sam Chang](https://github.com/sammyc1394)** | **Lead Developer** | Core engine architecture, game loop implementation, and system stability. |
+| **[Hyewon Ham](https://github.com/hyewon6588)** | **Lead Developer** | State management, UI framework, and core gameplay logic. |
+| **[Minsik Kim (Me)](https://github.com/minsikpaul92)** | **Gameplay & UX Developer** | Developed core interaction algorithms (Encircle/Scaling) and optimized gameplay continuity (UX) systems. |
+| **Shin Park** | **Art & Design** | UI/UX Design (Figma), SVG Assets, Visual Effects, and Animation assets. |
 
 ---
 
