@@ -1,1 +1,63 @@
-# figureOut
+# 🔷 Figure
+
+[![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
+[![Flame](https://img.shields.io/badge/Flame-Engine-orange?style=for-the-badge)](https://flame-engine.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+**Figure** is a high-performance casual action game developed using **Flutter** and the **Flame Engine**. The game focuses on intuitive yet diverse user interactions, where players pop various geometric shapes using specific gestures tailored to each shape's characteristics.
+
+---
+
+## 🎮 Key Gameplay Mechanics
+
+Unlike typical tapping games, **Figure** requires strategic interaction based on the shape's properties:
+
+* **Circle**: Quick tap to pop.
+* **Triangle**: Draw a circle around the shape (Encircle gesture) to remove it.
+* **Pentagon**: Long-press to charge the gauge before removal.
+* **Rectangle**: Precision-based slice gesture to cut through the shape.
+* **Hexagon**: Dynamic scaling interaction via drag.
+* **Behaviors**: Implemented complex movement patterns like `Blinking` and `Orbiting` for enhanced difficulty and visual engagement.
+
+## 🚀 Technical Highlights
+
+### 1. Dynamic Stage Management (Google Sheets API)
+To ensure scalability and rapid balancing, I integrated the **Google Sheets API**. This allows me to update stage configurations, mission goals, and difficulty parameters in real-time without modifying the source code.
+
+### 2. Mathematics-based Collision & Slicing
+Implemented custom mathematical logic for:
+* **Slice Detection**: Calculating intersections and splitting polygon components dynamically.
+* **Shape-specific Physics**: Custom collision boxes and gesture triggers for non-standard polygons.
+
+### 3. Component-Based Architecture
+Leveraging Flame's `Component` system, I designed the project with highly reusable Mixins:
+* `UserRemovable`: Standardizes how user input interacts with game objects.
+* `OrderableShape`: Manages sequential mission logic.
+
+## 🛠 Tech Stack
+
+- **Framework**: Flutter
+- **Game Engine**: Flame
+- **Language**: Dart
+- **State Management**: Flame Component Lifecycle & Flutter StatefulWidgets
+- **Data Handling**: Google Sheets API (REST), JSON Parsing
+- **Graphics**: SVG Rendering via `flame_svg`
+
+---
+
+## 📂 Project Structure (Key Modules)
+
+* `lib/src/components/`: Core game objects (Shapes, Timer, PlayArea).
+* `lib/src/functions/`: Business logic including `SliceMath`, `BlinkingBehavior`, and `SheetService`.
+* `lib/src/routes/`: Game screens and navigation flow using `GoRouter`.
+
+---
+
+## 👥 Contributors
+
+* Sam Chang ([@sammyc1394](https://github.com/sammyc1394)))
+* Hyewon Ham ([@hyewon6588](https://github.com/hyewon6588))
+* **Minsik Kim** ([@minsikpaul92](https://github.com/minsikpaul92)) <-- Me
+
+## 📄 License
+This project is licensed under the MIT License.# figureOut
