@@ -2,7 +2,6 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
 [![Flame](https://img.shields.io/badge/Flame-Engine-orange?style=for-the-badge)](https://flame-engine.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 
 **Figure** is a high-performance casual action game developed using **Flutter** and the **Flame Engine**. The game focuses on intuitive yet diverse user interactions, where players pop various geometric shapes using specific gestures tailored to each shape's characteristics.
@@ -23,7 +22,8 @@ Unlike typical tapping games, **Figure** requires strategic interaction based on
 
 ![Figure-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/2d418059-1216-44bb-9b4c-b951900fac0f)
 
-## 🚀 Technical Highlights
+## 🚀 Technical Achievements for Production
+> *These features were implemented focusing on scalability and user experience for the actual app release.*
 
 ### 1. Dynamic Stage Management (Google Sheets API)
 To ensure scalability and rapid balancing, I integrated the **Google Sheets API**. This allows me to update stage configurations, mission goals, and difficulty parameters in real-time without modifying the source code.
@@ -63,5 +63,6 @@ Leveraging Flame's `Component` system, I designed the project with highly reusab
 * Hyewon Ham ([@hyewon6588](https://github.com/hyewon6588))
 * **Minsik Kim** ([@minsikpaul92](https://github.com/minsikpaul92)) <-- Me
 
-## 📄 License
-This project is licensed under the MIT License.# figureOut
+## 📄 Copyright
+Copyright © 2024 Minsik Kim. All rights reserved.  
+Unauthorized use, reproduction, or distribution of this source code is strictly prohibited.
