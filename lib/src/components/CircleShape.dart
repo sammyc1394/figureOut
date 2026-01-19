@@ -6,6 +6,7 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import '../functions/OrderableShape.dart';
+import 'CircleDisappearEffect.dart';
 
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef
@@ -85,9 +86,7 @@ class CircleShape extends PositionComponent
       size: size,
       anchor: Anchor.center,
       position: size / 2,
-    );
-
-    _png.opacity = 0;
+    )..opacity = 0;
 
     add(_svg);
     add(_png);
@@ -112,22 +111,20 @@ class CircleShape extends PositionComponent
     _attackElapsed += dt;
 
     // ------------------------------------------------------------
-    // 타이머 종료 시 자폭 처리 (추가된 핵심 로직)
+    // 타이머 종료 시 자폭 처리
     // ------------------------------------------------------------
     if (!_attackDone && _attackElapsed >= attackTime!) {
       _attackDone = true;
 
       if (!_penaltyFired) {
         _penaltyFired = true;
-        onExplode?.call(); // 시간 패널티 유지
+        onExplode?.call(); // 시간 패널티
       }
 
-      // 타이머 자폭으로 제거됨을 명확히
+      // 타이머 자폭
       wasRemovedByUser = false;
 
-      // 즉시 제거
       removeFromParent();
-      return;
     }
 
     // ------------------------------------------------------------
@@ -215,6 +212,17 @@ class CircleShape extends PositionComponent
 
     if (count <= 0) {
       wasRemovedByUser = true;
+
+      
+      // 원 사라질 때 이펙트
+      parent?.add(
+        CircleDisappearEffect(
+          position: position.clone(),
+          radius: size.x * 0.48,
+          color: const Color(0xFFFF9D33),
+        ),
+      );
+
       onRemoved?.call();
       removeFromParent();
     }
