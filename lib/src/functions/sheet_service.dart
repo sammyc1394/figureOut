@@ -117,6 +117,8 @@ class SheetService {
 
       if (command.isEmpty) continue;
 
+      if(row[1]?.toString().trim() == "1") continue;
+
       final String shape = row.length > 3
           ? row[3]?.toString().trim() ?? ''
           : '';
@@ -172,12 +174,12 @@ class SheetService {
   }
 
   int? parseOrder(String shape) {
-    print("shape = $shape");
+    // print("shape = $shape");
     if (!shape.contains('_')) return null;
 
     final parts = shape.split('_');
     if (parts.length != 2) {
-      print('parts length = ${parts.length}');
+      // print('parts length = ${parts.length}');
       throw FormatException('Invalid order format-parts: $shape');
     }
 
@@ -191,7 +193,6 @@ class SheetService {
       throw FormatException('Invalid order value in-order: $shape');
     }
 
-    print('order = $order');
     return order;
   }
 }
