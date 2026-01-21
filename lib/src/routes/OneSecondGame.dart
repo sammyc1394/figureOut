@@ -439,6 +439,8 @@ class OneSecondGame extends FlameGame
 
         if (duration == 0) {
           // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
+          await Future<void>.delayed(Duration.zero);
+
           if (currentWave.isNotEmpty) {
             _initOrder();
             await waitUntilMissionCleared(currentWave);
@@ -497,15 +499,61 @@ class OneSecondGame extends FlameGame
         print("is within bounds? = $isWithinBounds");
 
         if (isWithinBounds) {
-          await add(shape);
-          await shape.loaded;
-          print('shape spawned: ${shape.position.toString()}');
+          
           spawnedThisMission.add(shape);
           if (!_isDarkShape(shape)) {
             currentWave.add(shape);
           }
 
+          await add(shape);
+          await shape.loaded;
+          print('shape spawned: ${shape.position.toString()}');
+          print('[DEBUG] currentWave size after spawn = ${currentWave.length}');
+          print('[DEBUG] spawnedThisMission size after spawn = ${spawnedThisMission.length}');
+
+
           // Movement
+          final zMatch = RegExp(
+            r'Z\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)',
+          ).firstMatch(enemy.movement);
+
+          if (zMatch != null && shape != null) {
+            final zx = double.parse(zMatch.group(1)!);
+            final zy = double.parse(zMatch.group(2)!);
+            final speed = double.parse(zMatch.group(3)!); // px/sec
+
+            final comp = shape!;
+
+            // 목표 좌표 (에디터 좌표 → 플레이 영역)
+            final target = toPlayArea(
+              flipY(Vector2(zx, zy)),
+              comp.size.x / 2,
+              clampInside: true,
+            );
+
+            // 기존 이동 이펙트 제거
+            for (final e in List.of(comp.children.whereType<Effect>())) {
+              e.removeFromParent();
+            }
+
+            final fromV = worldToVirtualPlay(comp.position);
+            final toV   = worldToVirtualPlay(target);
+            final virtualDistance = fromV.distanceTo(toV);
+            final duration = virtualDistance / speed;
+
+            comp.add(
+              MoveEffect.to(
+                target,
+                EffectController(
+                  duration: duration,
+                  curve: Curves.linear,
+                ),
+              ),
+            );
+
+            continue;
+          }
+
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
@@ -968,32 +1016,28 @@ class OneSecondGame extends FlameGame
 
   // 그냥 도형 다 죽였는지 여부
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
-    while (true) {
-      if (_isTimeOver) {
-        // _stopEnemyBehaviors();
-        // _clearAllShapes();
-        return StageResult.fail;
-      }
-      final remaining = targets.where((c) {
-        if (_isDarkShape(c)) return false;
-        final blinking = blinkingMap[c];
+    // add 직후 같은 프레임 race 방지 (mount 될 시간 한 프레임 양보)
+    await Future<void>.delayed(Duration.zero);
 
-        if (c.isMounted) {
-          return true;
-        }
-        if (blinking != null) {
-          if (!blinking.isRemoving && blinking.willReappear) {
-            // blinkingMap.remove(c);
-            return true;
+    while (true) {
+      if (_isTimeOver) return StageResult.fail;
+
+      final remaining = targets.where((c) {
+        // 1) 다크 도형 제외
+        if (_isDarkShape(c)) return false;
+
+        // 2) mount 되어있으면 남아있음
+        if (c.isMounted) return true;
+
+        // 3) mount 해제(=removeFromParent 완료 등)면 기본적으로 cleared
+        //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
+        if (c is PositionComponent) {
+          final blinking = blinkingMap[c];
+          if (blinking != null) {
+            if (!blinking.isRemoving && blinking.willReappear) return true;
           }
         }
 
-        if (c is UserRemovable && !(c as UserRemovable).wasRemovedByUser &&
-    c.isMounted) {
-          return true;
-        }
-
-        // 3. 그 외는 제거됨
         return false;
       }).toList();
 
@@ -1002,7 +1046,7 @@ class OneSecondGame extends FlameGame
         break;
       }
 
-      await Future.delayed(Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 120));
     }
 
     return StageResult.success;
