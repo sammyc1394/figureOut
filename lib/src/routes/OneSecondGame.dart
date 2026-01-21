@@ -835,6 +835,9 @@ class OneSecondGame extends FlameGame
 
     // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
     final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
+    final bool isAttackable = (enemy.attackSeconds != null);
+
+
     // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
     int _parseEnergy(String s, int def) {
       final m = RegExp(r'\(\s*(\d+)\s*\)').firstMatch(s);
@@ -879,11 +882,12 @@ class OneSecondGame extends FlameGame
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       final scale = _parseScale(enemy.shape);
       final size = Vector2.all(80 * scale);
-      
+
       shape = CircleShape(
         position,
         energy,
         isDark: isDark,
+        isAttackable: isAttackable,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
