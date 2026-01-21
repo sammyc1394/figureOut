@@ -359,6 +359,73 @@ class OneSecondGame extends FlameGame
     });
   }
 
+  Future<void> _runSequentialZMovement({
+  required PositionComponent shape,
+  required String movementRaw,
+}) async {
+  // 1) movement 문자열을 줄 단위로 분해
+  final zLines = movementRaw
+      .split('\n')
+      .map((e) => e.trim())
+      .where((e) => e.startsWith('Z'));
+
+  for (final z in zLines) {
+    final match = RegExp(
+      r'Z\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)',
+    ).firstMatch(z);
+
+    if (match == null) continue;
+
+    final zx = double.parse(match.group(1)!);
+    final zy = double.parse(match.group(2)!);
+    final speed = double.parse(match.group(3)!);
+
+    // 목표 좌표 계산 (에디터 좌표 → 실제 플레이 영역)
+    final target = toPlayArea(
+      flipY(Vector2(zx, zy)),
+      shape.size.x / 2,
+      clampInside: true,
+    );
+
+    // 이전 Effect 제거 (중복 방지)
+    for (final e in List.of(shape.children.whereType<Effect>())) {
+      e.removeFromParent();
+    }
+
+    // virtual 기준 거리 → duration 계산
+    final fromV = worldToVirtualPlay(shape.position);
+    final toV = worldToVirtualPlay(target);
+    final virtualDistance = fromV.distanceTo(toV);
+
+    if (speed <= 0 || virtualDistance <= 0) {
+      shape.position = target;
+      continue;
+    }
+
+    final duration = virtualDistance / speed;
+
+    // 2) 이동 완료될 때까지 대기
+    final completer = Completer<void>();
+
+    shape.add(
+      MoveEffect.to(
+        target,
+        EffectController(
+          duration: duration,
+          curve: Curves.linear,
+        ),
+        onComplete: () {
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
+        },
+      ),
+    );
+
+    await completer.future;
+  }
+}
+
   // ==== running missions ======================================================================================
 
   // runStageWithAftermath -> runSingleMissions
@@ -513,44 +580,11 @@ class OneSecondGame extends FlameGame
 
 
           // Movement
-          final zMatch = RegExp(
-            r'Z\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)',
-          ).firstMatch(enemy.movement);
-
-          if (zMatch != null && shape != null) {
-            final zx = double.parse(zMatch.group(1)!);
-            final zy = double.parse(zMatch.group(2)!);
-            final speed = double.parse(zMatch.group(3)!); // px/sec
-
-            final comp = shape!;
-
-            // 목표 좌표 (에디터 좌표 → 플레이 영역)
-            final target = toPlayArea(
-              flipY(Vector2(zx, zy)),
-              comp.size.x / 2,
-              clampInside: true,
+          if (enemy.movement.contains('Z(') && shape != null) {
+            await _runSequentialZMovement(
+              shape: shape,
+              movementRaw: enemy.movement,
             );
-
-            // 기존 이동 이펙트 제거
-            for (final e in List.of(comp.children.whereType<Effect>())) {
-              e.removeFromParent();
-            }
-
-            final fromV = worldToVirtualPlay(comp.position);
-            final toV   = worldToVirtualPlay(target);
-            final virtualDistance = fromV.distanceTo(toV);
-            final duration = virtualDistance / speed;
-
-            comp.add(
-              MoveEffect.to(
-                target,
-                EffectController(
-                  duration: duration,
-                  curve: Curves.linear,
-                ),
-              ),
-            );
-
             continue;
           }
 
