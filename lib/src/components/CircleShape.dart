@@ -14,6 +14,7 @@ class CircleShape extends PositionComponent
 
   int count;
   final bool isDark;
+  final bool isAttackable;
   final VoidCallback? onForbiddenTouch;
   final bool Function(OrderableShape shape)? onInteracted;
   final void Function()? onRemoved;
@@ -43,6 +44,7 @@ class CircleShape extends PositionComponent
     Vector2 position,
     this.count, {
     this.isDark = false,
+    this.isAttackable = false,
     this.onForbiddenTouch,
     this.attackTime,
     this.onExplode,
@@ -106,26 +108,45 @@ class CircleShape extends PositionComponent
     super.update(dt);
 
     if (isPaused) return;
-    if ((attackTime ?? 0) <= 0) return;
+    if (!isAttackable) return;
 
     _attackElapsed += dt;
 
     // ------------------------------------------------------------
+    // 즉시 공격 및 공격도형 제거 이펙트 적용
+    //
+    // 공격도형 제거 이펙트 현재 없음
+    // ------------------------------------------------------------
+    if(attackTime == 0 && !_penaltyFired) {
+      _penaltyFired = true;
+      onExplode?.call(); // 시간 패널티
+      wasRemovedByUser = false;
+      removeFromParent();
+      return;
+    }
+
+    // ------------------------------------------------------------
     // 타이머 종료 시 자폭 처리
     // ------------------------------------------------------------
-    if (!_attackDone && _attackElapsed >= attackTime!) {
-      _attackDone = true;
+    if((attackTime?? 0) > 0 && isAttackable) {
+      _attackElapsed += dt;
 
-      if (!_penaltyFired) {
-        _penaltyFired = true;
-        onExplode?.call(); // 시간 패널티
+      if (!_attackDone && _attackElapsed >= attackTime!) {
+        _attackDone = true;
+
+        if (!_penaltyFired) {
+          _penaltyFired = true;
+          onExplode?.call(); // 시간 패널티
+        }
+
+        // 타이머 자폭
+        wasRemovedByUser = false;
+
+        removeFromParent();
       }
-
-      // 타이머 자폭
-      wasRemovedByUser = false;
-
-      removeFromParent();
     }
+
+
 
     // ------------------------------------------------------------
     // 절반 이하 → 빨간 tint
