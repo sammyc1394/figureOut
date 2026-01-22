@@ -581,12 +581,18 @@ class OneSecondGame extends FlameGame
 
           // Movement
           if (enemy.movement.contains('Z(') && shape != null) {
-            await _runSequentialZMovement(
-              shape: shape,
-              movementRaw: enemy.movement,
+            unawaited(
+              _runSequentialZMovement(
+                shape: shape,
+                movementRaw: enemy.movement,
+              ),
             );
+
+            await waitUntilMissionCleared({shape});
+
             continue;
           }
+
 
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
