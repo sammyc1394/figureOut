@@ -150,15 +150,15 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                   ),
                 ),
 
-                if (selectedIndex != null)
-                  GestureDetector(
-                    // onTap: () => context.pop(),
-                    // child: SvgPicture.asset(
-                    //   "assets/menu/mission/Play_default.svg",
-                    //   width: 120,
-                    //   height: 40,
-                    // ),
-                  ),
+                // if (selectedIndex != null)
+                //   GestureDetector(
+                //     onTap: () => context.pop(),
+                //     child: SvgPicture.asset(
+                //       "assets/menu/mission/Play_default.svg",
+                //       width: 120,
+                //       height: 40,
+                //     ),
+                //   ),
                 ],
             ),
           ),

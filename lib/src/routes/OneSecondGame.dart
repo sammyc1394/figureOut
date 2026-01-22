@@ -64,13 +64,15 @@ class OneSecondGame extends FlameGame
   //stage data
   late StageData initialStage;
 
-  late int _currentStageIndex;
-  late int _currentMissionIndex;
+  late int _selectedStageIndex;
+  late int _selectedMissionIndex;
+
+  int _runToken = 0;
 
   List<StageData> _allStages = [];
 
   // temp data
-  int maxMissionIndex = 8;
+  int maxMissionIndex = 8 ;
   int maxStageIndex = 10;
 
   final SheetService sheetService = SheetService();
@@ -238,13 +240,14 @@ class OneSecondGame extends FlameGame
       // _allStages = await sheetService.fetchData();
       _allStages = stages;
 
-      _currentStageIndex = stageIndex;
-      _currentMissionIndex = missionIndex + 1;
+      _selectedStageIndex = stageIndex;
+      _selectedMissionIndex = missionIndex + 1;
 
       if (_allStages.isNotEmpty) {
         print('Fetched stages: ${_allStages.toString()}');
 
-        runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+        _runToken++;
+        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       }
     } catch (e) {
       print('Sheet fetch error: $e');
@@ -350,18 +353,85 @@ class OneSecondGame extends FlameGame
       showAftermathScreen(
         StageResult.fail,
         starRating,
-        _currentStageIndex,
-        _currentMissionIndex,
+        _selectedStageIndex,
+        _selectedMissionIndex,
       );
     });
   }
+
+  Future<void> _runSequentialZMovement({
+  required PositionComponent shape,
+  required String movementRaw,
+}) async {
+  // 1) movement 문자열을 줄 단위로 분해
+  final zLines = movementRaw
+      .split('\n')
+      .map((e) => e.trim())
+      .where((e) => e.startsWith('Z'));
+
+  for (final z in zLines) {
+    final match = RegExp(
+      r'Z\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)',
+    ).firstMatch(z);
+
+    if (match == null) continue;
+
+    final zx = double.parse(match.group(1)!);
+    final zy = double.parse(match.group(2)!);
+    final speed = double.parse(match.group(3)!);
+
+    // 목표 좌표 계산 (에디터 좌표 → 실제 플레이 영역)
+    final target = toPlayArea(
+      flipY(Vector2(zx, zy)),
+      shape.size.x / 2,
+      clampInside: true,
+    );
+
+    // 이전 Effect 제거 (중복 방지)
+    for (final e in List.of(shape.children.whereType<Effect>())) {
+      e.removeFromParent();
+    }
+
+    // virtual 기준 거리 → duration 계산
+    final fromV = worldToVirtualPlay(shape.position);
+    final toV = worldToVirtualPlay(target);
+    final virtualDistance = fromV.distanceTo(toV);
+
+    if (speed <= 0 || virtualDistance <= 0) {
+      shape.position = target;
+      continue;
+    }
+
+    final duration = virtualDistance / speed;
+
+    // 2) 이동 완료될 때까지 대기
+    final completer = Completer<void>();
+
+    shape.add(
+      MoveEffect.to(
+        target,
+        EffectController(
+          duration: duration,
+          curve: Curves.linear,
+        ),
+        onComplete: () {
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
+        },
+      ),
+    );
+
+    await completer.future;
+  }
+}
 
   // ==== running missions ======================================================================================
 
   // runStageWithAftermath -> runSingleMissions
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
   Future<void> runStageWithAftermath(int stageIndex, int missionIndex) async {
-    print("mission index = $missionIndex");
+    print("stage index = $stageIndex, mission index = $missionIndex");
 
     if (stageIndex > _allStages.length) {
       print('all stages completed!');
@@ -374,7 +444,9 @@ class OneSecondGame extends FlameGame
 
     final starRating = _calculateStarRating(result);
     // showAftermathScreen(result);
-    showAftermathScreen(result, starRating, stageIndex, missionIndex);
+    if(result != StageResult.cancelled) {
+      showAftermathScreen(result, starRating, stageIndex, missionIndex);
+    }
   }
 
   Future<StageResult> runSingleMissions(
@@ -382,12 +454,12 @@ class OneSecondGame extends FlameGame
     int missionIndex,
   ) async {
     final centerOffset = playArea.size / 2;
-    int runId = missionIndex;
+    int runId = _runToken;
 
     _stopEnemyBehaviors();
     _clearAllShapes();
 
-    double? missionSeconds = stage.missionTimeLimits[runId];
+    double? missionSeconds = stage.missionTimeLimits[missionIndex];
 
     String tl = stage.timeLimit;
     double? stageSeconds;
@@ -405,16 +477,19 @@ class OneSecondGame extends FlameGame
 
     print('current stage index = $runId');
     int stgLength = _allStages.length;
-    maxMissionIndex = stage.missions.length;
-    print('mission length = $maxMissionIndex');
+    print('mission length = ${stage.missions.length}');
 
-    final enemies = stage.missions[runId]!;
-    print(enemies);
+    final enemies = stage.missions[missionIndex]!;
+    print("enemy data = ${enemies}");
 
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
 
     for (final enemy in enemies) {
+      if(runId != _runToken) {
+        print("run token not matching");
+        return StageResult.cancelled;
+      }
       if (_isTimeOver) return StageResult.fail;
       if (_timerPaused) {
         // 게임이 resume될 때까지 기다림
@@ -431,6 +506,8 @@ class OneSecondGame extends FlameGame
 
         if (duration == 0) {
           // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
+          await Future<void>.delayed(Duration.zero);
+
           if (currentWave.isNotEmpty) {
             _initOrder();
             await waitUntilMissionCleared(currentWave);
@@ -489,15 +566,28 @@ class OneSecondGame extends FlameGame
         print("is within bounds? = $isWithinBounds");
 
         if (isWithinBounds) {
-          await add(shape);
-          await shape.loaded;
-          print('shape spawned: ${shape.position.toString()}');
+          
           spawnedThisMission.add(shape);
           if (!_isDarkShape(shape)) {
             currentWave.add(shape);
           }
 
+          await add(shape);
+          await shape.loaded;
+          print('shape spawned: ${shape.position.toString()}');
+          print('[DEBUG] currentWave size after spawn = ${currentWave.length}');
+          print('[DEBUG] spawnedThisMission size after spawn = ${spawnedThisMission.length}');
+
+
           // Movement
+          if (enemy.movement.contains('Z(') && shape != null) {
+            await _runSequentialZMovement(
+              shape: shape,
+              movementRaw: enemy.movement,
+            );
+            continue;
+          }
+
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
@@ -827,6 +917,9 @@ class OneSecondGame extends FlameGame
 
     // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
     final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
+    final bool isAttackable = (enemy.attackSeconds != null);
+
+
     // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
     int _parseEnergy(String s, int def) {
       final m = RegExp(r'\(\s*(\d+)\s*\)').firstMatch(s);
@@ -871,11 +964,12 @@ class OneSecondGame extends FlameGame
       final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       final scale = _parseScale(enemy.shape);
       final size = Vector2.all(80 * scale);
-      
+
       shape = CircleShape(
         position,
         energy,
         isDark: isDark,
+        isAttackable: isAttackable,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
@@ -956,32 +1050,28 @@ class OneSecondGame extends FlameGame
 
   // 그냥 도형 다 죽였는지 여부
   Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
-    while (true) {
-      if (_isTimeOver) {
-        // _stopEnemyBehaviors();
-        // _clearAllShapes();
-        return StageResult.fail;
-      }
-      final remaining = targets.where((c) {
-        if (_isDarkShape(c)) return false;
-        final blinking = blinkingMap[c];
+    // add 직후 같은 프레임 race 방지 (mount 될 시간 한 프레임 양보)
+    await Future<void>.delayed(Duration.zero);
 
-        if (c.isMounted) {
-          return true;
-        }
-        if (blinking != null) {
-          if (!blinking.isRemoving && blinking.willReappear) {
-            // blinkingMap.remove(c);
-            return true;
+    while (true) {
+      if (_isTimeOver) return StageResult.fail;
+
+      final remaining = targets.where((c) {
+        // 1) 다크 도형 제외
+        if (_isDarkShape(c)) return false;
+
+        // 2) mount 되어있으면 남아있음
+        if (c.isMounted) return true;
+
+        // 3) mount 해제(=removeFromParent 완료 등)면 기본적으로 cleared
+        //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
+        if (c is PositionComponent) {
+          final blinking = blinkingMap[c];
+          if (blinking != null) {
+            if (!blinking.isRemoving && blinking.willReappear) return true;
           }
         }
 
-        if (c is UserRemovable && !(c as UserRemovable).wasRemovedByUser &&
-    c.isMounted) {
-          return true;
-        }
-
-        // 3. 그 외는 제거됨
         return false;
       }).toList();
 
@@ -990,7 +1080,7 @@ class OneSecondGame extends FlameGame
         break;
       }
 
-      await Future.delayed(Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 120));
     }
 
     return StageResult.success;
@@ -1174,11 +1264,16 @@ class OneSecondGame extends FlameGame
 
   Future<void> onRefresh() async {
     print("Refreshing Game...");
+
+    // refresh 이후 기존에 돌고있던 runSingleMission 취소 위함
+    _runToken++;
+
     userPath.clear();
     currentCircleCenter = null;
     currentCircleRadius = null;
     print('${children} before shape removal');
     blinkingMap.clear();
+
     children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
       blinking.removeFromParent();
     });
@@ -1200,6 +1295,7 @@ class OneSecondGame extends FlameGame
       shape.removeFromParent();
     });
 
+    print("run fetch data....");
     try {
       final newStages = await sheetService.fetchData();
       if (newStages.isEmpty) {
@@ -1214,7 +1310,8 @@ class OneSecondGame extends FlameGame
       _clearAllShapes();
 
       // 동일 스테이지 / 미션으로 재시작
-      runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+      // runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
     } catch (e) {
       print("데이터 새로고침 실패: $e");
     }
@@ -1302,28 +1399,28 @@ class OneSecondGame extends FlameGame
       },
       onRetry: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
-        runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       },
       onPlay: () {
         // play next stage
         removeAll(children.where((c) => c is AftermathScreen).toList());
         // Could start from stage 0 or a chosen stage
         // move to next stage
-        if (_currentStageIndex < maxStageIndex) {
-          if (_currentMissionIndex < maxMissionIndex) {
-            _currentMissionIndex = _currentMissionIndex + 1;
+        if (_selectedStageIndex < maxStageIndex) {
+          if (_selectedMissionIndex < maxMissionIndex) {
+            _selectedMissionIndex = _selectedMissionIndex + 1;
           } else {
             print("last mission - move to next stage");
-            _currentStageIndex = _currentStageIndex + 1;
-            _currentMissionIndex = 0;
+            _selectedStageIndex = _selectedStageIndex + 1;
+            _selectedMissionIndex = 0;
           }
 
           print(
-            "stage index = $_currentStageIndex, mission index = $_currentMissionIndex",
+            "stage index = $_selectedStageIndex, mission index = $_selectedMissionIndex",
           );
           print("playing next stage/mission");
           removeAll(children.where((c) => c is AftermathScreen).toList());
-          runStageWithAftermath(_currentStageIndex, _currentMissionIndex);
+          runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
         } else {
           print("No more stages left!");
         }
@@ -1334,7 +1431,7 @@ class OneSecondGame extends FlameGame
 
         rootNavigatorKey.currentContext!.push(
           '/missions',
-          extra: {"stages": stages, "index": _currentStageIndex},
+          extra: {"stages": stages, "index": _selectedStageIndex},
         );
       },
     );
@@ -1607,9 +1704,10 @@ class OneSecondGame extends FlameGame
       },
       onMenu: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
+        //TODO : 다른 화면들처럼 go_router 사용할수는 없나?
         rootNavigatorKey.currentContext!.push(
           '/missions',
-          extra: {"stages": stages, "index": _currentStageIndex},
+          extra: {"stages": stages, "index": _selectedStageIndex},
         );
       },
     );
