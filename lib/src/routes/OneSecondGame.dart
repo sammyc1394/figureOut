@@ -360,71 +360,142 @@ class OneSecondGame extends FlameGame
   }
 
   Future<void> _runSequentialZMovement({
-  required PositionComponent shape,
-  required String movementRaw,
-}) async {
-  // 1) movement 문자열을 줄 단위로 분해
-  final zLines = movementRaw
-      .split('\n')
-      .map((e) => e.trim())
-      .where((e) => e.startsWith('Z'));
+    required PositionComponent shape,
+    required String movementRaw,
+  }) async {
+    // mount 보장
+    while (!shape.isMounted) {
+      await Future<void>.delayed(Duration.zero);
+    }
 
-  for (final z in zLines) {
-    final match = RegExp(
-      r'Z\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)',
-    ).firstMatch(z);
+    // 최초 스폰 위치 (Back 왕복/Repeat 시작점)
+    final Vector2 spawnPosition = shape.position.clone();
 
-    if (match == null) continue;
+    final lines = movementRaw
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
 
-    final zx = double.parse(match.group(1)!);
-    final zy = double.parse(match.group(2)!);
-    final speed = double.parse(match.group(3)!);
+    bool isRepeatLine(String s) {
+      final t = s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+      return t == 'repeat';
+    }
 
-    // 목표 좌표 계산 (에디터 좌표 → 실제 플레이 영역)
-    final target = toPlayArea(
-      flipY(Vector2(zx, zy)),
-      shape.size.x / 2,
-      clampInside: true,
+    bool isBackLine(String s) {
+      final t = s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+      return t == 'back';
+    }
+
+    final bool hasRepeat = lines.any(isRepeatLine);
+    final bool hasBack = lines.any(isBackLine);
+
+    final zLines = lines.where((e) => e.startsWith('Z')).toList();
+    if (zLines.isEmpty) return;
+
+    final zReg = RegExp(
+      r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
     );
 
-    // 이전 Effect 제거 (중복 방지)
-    for (final e in List.of(shape.children.whereType<Effect>())) {
-      e.removeFromParent();
-    }
+    Future<void> _moveLinear(Vector2 target, double speed) async {
+      if (!shape.isMounted) return;
 
-    // virtual 기준 거리 → duration 계산
-    final fromV = worldToVirtualPlay(shape.position);
-    final toV = worldToVirtualPlay(target);
-    final virtualDistance = fromV.distanceTo(toV);
+      // 기존 이펙트 제거
+      for (final e in List.of(shape.children.whereType<Effect>())) {
+        e.removeFromParent();
+      }
 
-    if (speed <= 0 || virtualDistance <= 0) {
-      shape.position = target;
-      continue;
-    }
+      final fromV = worldToVirtualPlay(shape.position);
+      final toV = worldToVirtualPlay(target);
+      final distV = fromV.distanceTo(toV);
 
-    final duration = virtualDistance / speed;
+      if (speed <= 0 || distV <= 0) {
+        shape.position = target;
+        return;
+      }
 
-    // 2) 이동 완료될 때까지 대기
-    final completer = Completer<void>();
+      final duration = distV / speed;
+      final completer = Completer<void>();
 
-    shape.add(
-      MoveEffect.to(
-        target,
-        EffectController(
-          duration: duration,
-          curve: Curves.linear,
+      shape.add(
+        MoveEffect.to(
+          target,
+          EffectController(duration: duration, curve: Curves.linear),
+          onComplete: () {
+            if (!completer.isCompleted) completer.complete();
+          },
         ),
-        onComplete: () {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-        },
-      ),
-    );
+      );
 
-    await completer.future;
+      await completer.future;
+    }
+
+    Future<void> runOnce() async {
+      final List<Vector2> visited = [];
+      final List<double> speeds = [];
+
+      // 1) Z 순차 이동 (Forward)
+      for (final z in zLines) {
+        if (!shape.isMounted) return;
+
+        final m = zReg.firstMatch(z);
+        if (m == null) continue;
+
+        final zx = double.parse(m.group(1)!);
+        final zy = double.parse(m.group(2)!);
+        final speed = double.parse(m.group(3)!);
+
+        final target = toPlayArea(
+          flipY(Vector2(zx, zy)),
+          shape.size.x / 2,
+          clampInside: true,
+        );
+
+        visited.add(target.clone());
+        speeds.add(speed);
+
+        await _moveLinear(target, speed);
+      }
+
+      if (!shape.isMounted) return;
+
+      // 2) Back이 있으면: 역순으로 스폰까지 복귀 (그리고 여기서 끝)
+      //    (Back만 있어도 반복되어야 하므로, 반복 여부는 바깥 while에서 결정)
+      if (hasBack && visited.isNotEmpty) {
+        for (int i = visited.length - 1; i >= 0; i--) {
+          if (!shape.isMounted) return;
+
+          final Vector2 backTarget = (i == 0) ? spawnPosition : visited[i - 1];
+          final double backSpeed = speeds[i] > 0 ? speeds[i] : 1.0;
+
+          await _moveLinear(backTarget, backSpeed);
+        }
+        return;
+      }
+
+      // 3) Back도 Repeat도 없으면: 마지막 Z 위치에서 멈춤 (스폰 복귀 금지)
+      if (!hasRepeat) {
+        return;
+      }
+
+      // 4) Repeat만 있으면: 다음 루프를 위해 스폰으로 복귀 후 반복
+      final double lastSpeed =
+          speeds.isNotEmpty && speeds.last > 0 ? speeds.last : 1.0;
+
+      await _moveLinear(spawnPosition, lastSpeed);
+    }
+
+    // "Back이 있으면 Repeat가 없어도 왕복 반복"이 되어야 함
+    final bool loopForever = hasRepeat || hasBack;
+
+    if (loopForever) {
+      while (shape.isMounted) {
+        await runOnce();
+      }
+    } else {
+      await runOnce();
+    }
   }
-}
 
   // ==== running missions ======================================================================================
 
@@ -510,11 +581,16 @@ class OneSecondGame extends FlameGame
 
           if (currentWave.isNotEmpty) {
             _initOrder();
-            await waitUntilMissionCleared(currentWave);
+            // await waitUntilMissionCleared(currentWave);
+            await waitUntilMissionCleared(Set<Component>.from(currentWave));
           }
 
           // 다크도형까지 제거위함
           for (final comp in List<Component>.from(spawnedThisMission)) {
+            if (comp is PositionComponent &&
+                enemies.any((e) => e.movement.contains('Z('))) {
+              continue;
+            }
             comp.removeFromParent();
           }
 
@@ -566,7 +642,6 @@ class OneSecondGame extends FlameGame
         print("is within bounds? = $isWithinBounds");
 
         if (isWithinBounds) {
-          
           spawnedThisMission.add(shape);
           if (!_isDarkShape(shape)) {
             currentWave.add(shape);
@@ -588,9 +663,9 @@ class OneSecondGame extends FlameGame
               ),
             );
 
-            await waitUntilMissionCleared({shape});
+            // await waitUntilMissionCleared({shape});
 
-            continue;
+            // continue;
           }
 
 
@@ -912,8 +987,8 @@ class OneSecondGame extends FlameGame
       }
     }
 
-    StageResult ret = await waitUntilMissionCleared(spawnedThisMission);
-    await waitUntilMissionCleared(currentWave);
+    StageResult ret = await waitUntilMissionCleared(currentWave);
+    // await waitUntilMissionCleared(currentWave);
     // return StageResult.success;
     return ret;
   }
@@ -1067,7 +1142,27 @@ class OneSecondGame extends FlameGame
         if (_isDarkShape(c)) return false;
 
         // 2) mount 되어있으면 남아있음
-        if (c.isMounted) return true;
+        if (c.isMounted) {
+          if (c is UserRemovable) {
+          // UserRemovable에 getter가 선언돼 있지 않아서 dynamic으로 접근해야 함
+          final dyn = c as dynamic;
+
+          bool removedByUser = false;
+          try {
+            removedByUser = (dyn.isRemovedByUser == true);
+          } catch (_) {
+            // 해당 프로퍼티가 아예 없는 컴포넌트면 "사용자 제거 여부 추적 불가"로 간주
+            removedByUser = false;
+          }
+
+          // 사용자가 제거하지 않았으면 아직 남아있는 걸로 취급
+          if (!removedByUser) return true;
+
+          // 사용자가 제거한 걸로 표기된 경우는 남아있지 않은 걸로 취급
+          return false;
+        }
+          return true;
+        }
 
         // 3) mount 해제(=removeFromParent 완료 등)면 기본적으로 cleared
         //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
