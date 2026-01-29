@@ -264,6 +264,17 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     sliceEnd = slicePoints.end;
     isSliced = true;
 
+    if(energy > 0) {
+      energy--;
+
+      Future.delayed(const Duration(milliseconds: 10), () {
+        isSliced = false;
+        sliceStart = null;
+        sliceEnd = null;
+      });
+      return;
+    }
+
     Future.delayed(const Duration(milliseconds: 50), () {
       if (!isMounted) return;
 
