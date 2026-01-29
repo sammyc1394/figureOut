@@ -108,6 +108,7 @@ class CircleShape extends PositionComponent
     super.update(dt);
 
     if (isPaused) return;
+    if (isDark) return;
     if (!isAttackable) return;
 
     _attackElapsed += dt;

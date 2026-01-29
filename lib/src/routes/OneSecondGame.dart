@@ -747,42 +747,42 @@ class OneSecondGame extends FlameGame
 
           // Movement
           final cMatch = RegExp(
-            r'C\((-?\d+),\s*(-?\d+),\s*(\d+),\s*(\d+)\)',
+            r'C\((-?\d+),\s*(-?\d+)\)',
           ).firstMatch(enemy.movement);
           if (cMatch != null) {
-            final cx = double.parse(cMatch.group(1)!);
-            final cy = double.parse(cMatch.group(2)!);
-            final r = double.parse(cMatch.group(3)!);
-            final s = double.parse(cMatch.group(4)!); // degree per second
+            final r = double.parse(cMatch.group(1)!);
+            final s = double.parse(cMatch.group(2)!); // degree per second
 
             final halfSizeX = shape.size.x / 2;
 
-            // 중심 월드 좌표 (스폰과 동일한 변환 사용)
-            final centerWorld = toPlayArea(
-              flipY(Vector2(cx, cy)),
+            // cMove 중심점
+            final centerWorld = actPosition;
+
+            print("centerworld(${centerWorld.x}, ${centerWorld.y})");
+
+            final originWorld = toPlayArea(
+              flipY(Vector2(0, 0)),
               halfSizeX,
               clampInside: false,
             );
-
-            // 에디터 좌표에서 (cx + r, cy), (cx, cy + r)가
-            // 실제 화면에서는 어디에 오는지 직접 계산
             final eastWorld = toPlayArea(
-              flipY(Vector2(cx + r, cy)),
+              flipY(Vector2(0 + r, 0)),
               halfSizeX,
               clampInside: false,
             );
             final northWorld = toPlayArea(
-              flipY(Vector2(cx, cy + r)),
+              flipY(Vector2(0, 0 + r)),
               halfSizeX,
               clampInside: false,
             );
 
-            // X/Y 방향 각각의 실제 반지름(픽셀)
-            final radiusWorldX = (eastWorld.x - centerWorld.x).abs();
-            final radiusWorldY = (northWorld.y - centerWorld.y).abs();
+            // 실제 변환된 반지름
+            final radiusWorldX = (eastWorld.x - originWorld.x).abs();
+            final radiusWorldY = (northWorld.y - originWorld.y).abs();
 
             final angularSpeed = s * math.pi / 180;
 
+            // angle 이 0, 즉 원의 오른쪽에서 시작해야하기 때문에 원의 오른쪽 좌표 구해줌
             shape.position = Vector2(
               centerWorld.x + radiusWorldX,
               centerWorld.y,
@@ -797,6 +797,7 @@ class OneSecondGame extends FlameGame
                 radiusYParam: radiusWorldY,
                 angularSpeed: angularSpeed,
               ),
+
             );
             continue;
           }
@@ -1038,7 +1039,7 @@ class OneSecondGame extends FlameGame
     }
 
     double tp = enemy.attackDamage ?? 5;
-    void Function()? penalty = () => applyTimePenalty(tp);
+    void Function()? penalty = () => applyTimePenalty(tp.abs());
     final damage = enemy.attackDamage;
 
     if (enemy.shape.startsWith('Circle')) {
