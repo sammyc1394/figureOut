@@ -90,6 +90,12 @@ class OneSecondGame extends FlameGame
   bool _timerPaused = false;
   bool _isTimeOver = false;
 
+  // For Continue feature
+  double _originalMissionTime = 0.0;
+  double _currentContinueTime = 0.0;
+  int _lastRoundStartIndex = 0;
+  bool _isContinuing = false;
+
   double get _minPlayY => (timerBar.position.y + timerBar.size.y + 8.0);
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
@@ -342,6 +348,8 @@ class OneSecondGame extends FlameGame
     _isTimeOver = true;
     _timerPaused = true; // 타이머 틱 중단
 
+    _stopEnemyBehaviors(); // Blink 등 중단
+
     for (final b in blinkingMap.values) {
       b.isPaused = true;
     }
@@ -504,26 +512,32 @@ class OneSecondGame extends FlameGame
   Future<void> runStageWithAftermath(int stageIndex, int missionIndex) async {
     print("stage index = $stageIndex, mission index = $missionIndex");
 
-    if (stageIndex > _allStages.length) {
+    if (stageIndex >= _allStages.length) {
       print('all stages completed!');
       return;
     }
 
+    // Save current indices for Continue feature
+    _selectedStageIndex = stageIndex;
+    _selectedMissionIndex = missionIndex;
+
+    _isContinuing = false; // Fresh start
     final stage = _allStages[stageIndex];
 
     final result = await runSingleMissions(stage, missionIndex);
 
     final starRating = _calculateStarRating(result);
     // showAftermathScreen(result);
-    if(result != StageResult.cancelled) {
+    if (result != StageResult.cancelled) {
       showAftermathScreen(result, starRating, stageIndex, missionIndex);
     }
   }
 
   Future<StageResult> runSingleMissions(
     StageData stage,
-    int missionIndex,
-  ) async {
+    int missionIndex, {
+    int startIndex = 0,
+  }) async {
     final centerOffset = playArea.size / 2;
     int runId = _runToken;
 
@@ -538,8 +552,19 @@ class OneSecondGame extends FlameGame
       stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
     }
     final chosen = missionSeconds ?? stageSeconds;
-    if (chosen != null && chosen > 0) {
-      startMissionTimer(chosen);
+
+    if (!_isContinuing) {
+      _originalMissionTime = chosen ?? 0.0;
+      _currentContinueTime = _originalMissionTime;
+      _lastRoundStartIndex = 0;
+    } else {
+      _currentContinueTime = math.max(10.0, _currentContinueTime / 2.0);
+    }
+
+    final timeToStart = _currentContinueTime;
+
+    if (timeToStart > 0) {
+      startMissionTimer(timeToStart);
     } else {
       print(
         '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
@@ -556,7 +581,8 @@ class OneSecondGame extends FlameGame
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
 
-    for (final enemy in enemies) {
+    for (int i = startIndex; i < enemies.length; i++) {
+      final enemy = enemies[i];
       if(runId != _runToken) {
         print("run token not matching");
         return StageResult.cancelled;
@@ -602,6 +628,13 @@ class OneSecondGame extends FlameGame
             Duration(milliseconds: (duration * 1000).toInt()),
           );
         }
+
+        // Check if failed during wait/clear
+        if (_isTimeOver) return StageResult.fail;
+
+        // Update round start for continue feature
+        _lastRoundStartIndex = i + 1;
+        print('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
         continue;
       }
 
@@ -1553,23 +1586,36 @@ class OneSecondGame extends FlameGame
   }
 
   void _resumeFromFailure() {
-    print('[RESUME] Resuming failed mission...');
+    print('[RESUME] Resuming failed mission from last round...');
+
+    // Remove aftermath screen
+    removeAll(children.where((c) => c is AftermathScreen).toList());
+
     _isTimeOver = false;
     _timerPaused = false;
     _timerEndedNotified = false;
     isTimeCritical = false;
 
-    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
-    remainingTime = 10;
-    timerBar.updateTime(remainingTime);
+    // Set continuing flag
+    _isContinuing = true;
 
-    // 깜빡임 도형 재개
-    for (final b in blinkingMap.values) {
-      b.isPaused = false;
-    }
+    // Reset run token to stop previous mission loop if it's still running
+    _runToken++;
 
-    // 타이머 재시작
-    print('[RESUME] Timer restarted at 10 seconds.');
+    // Restart mission from the last saved round index
+    final stage = _allStages[_selectedStageIndex];
+    print('[RESUME] Restarting Stage $_selectedStageIndex, Mission $_selectedMissionIndex from index $_lastRoundStartIndex');
+    
+    runSingleMissions(
+      stage,
+      _selectedMissionIndex,
+      startIndex: _lastRoundStartIndex,
+    ).then((result) {
+      final starRating = _calculateStarRating(result);
+      if (result != StageResult.cancelled) {
+        showAftermathScreen(result, starRating, _selectedStageIndex, _selectedMissionIndex);
+      }
+    });
   }
 
   // ===========================================================================================================
