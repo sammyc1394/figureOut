@@ -110,6 +110,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                               fontSize: 24,
                               fontWeight: FontWeight.w600,
                               color: Colors.black,
+                              fontFamily: 'Gaegu',
                             ),
                           ),
                         ),
@@ -149,16 +150,6 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                     ),
                   ),
                 ),
-
-                // if (selectedIndex != null)
-                //   GestureDetector(
-                //     onTap: () => context.pop(),
-                //     child: SvgPicture.asset(
-                //       "assets/menu/mission/Play_default.svg",
-                //       width: 120,
-                //       height: 40,
-                //     ),
-                //   ),
                 ],
             ),
           ),

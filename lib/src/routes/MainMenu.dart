@@ -154,7 +154,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 const Text(
                   'Figure',
                   style: TextStyle(
-                    fontFamily: 'Moulpali',
+                    fontFamily: 'Gaegu',
                     fontSize: 48,
                     fontWeight: FontWeight.w300,
                     color: Colors.black,
