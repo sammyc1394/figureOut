@@ -1643,6 +1643,39 @@ class OneSecondGame extends FlameGame
     return area.abs() / 2.0;
   }
 
+  bool _isPointInPolygon(Vector2 p, List<Vector2> poly) {
+    int count = 0;
+    for (int i = 0; i < poly.length; i++) {
+      final a = poly[i];
+      final b = poly[(i + 1) % poly.length];
+      if (((a.y > p.y) != (b.y > p.y)) &&
+          (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
+        count++;
+      }
+    }
+    return count.isOdd;
+  }
+
+  bool _isComponentEnclosed(PositionComponent comp, List<Vector2> path) {
+    // Check key points of the component. For simplicity, we check center and 4 corners.
+    final center = comp.absoluteCenter;
+    final hw = comp.size.x / 2 * comp.scale.x;
+    final hh = comp.size.y / 2 * comp.scale.y;
+
+    final points = [
+      center,
+      center + Vector2(-hw, -hh),
+      center + Vector2(hw, -hh),
+      center + Vector2(-hw, hh),
+      center + Vector2(hw, hh),
+    ];
+
+    for (final p in points) {
+      if (!_isPointInPolygon(p, path)) return false;
+    }
+    return true;
+  }
+
   @override
   void onDragStart(DragStartEvent event) {
     dragStart = event.canvasPosition;
@@ -1707,9 +1740,28 @@ class OneSecondGame extends FlameGame
       return;
     }
 
-    for (final comp in children.whereType<TriangleShape>()) {
-      final enclosed = comp.isFullyEnclosedByUserPath(userPath);
-      if (enclosed) {
+    final enclosedTriangles = <TriangleShape>[];
+    bool otherShapesEnclosed = false;
+
+    for (final comp in children.whereType<PositionComponent>()) {
+      if (comp is TriangleShape) {
+        if (comp.isFullyEnclosedByUserPath(userPath)) {
+          enclosedTriangles.add(comp);
+        }
+      } else if (comp is CircleShape ||
+          comp is RectangleShape ||
+          comp is PentagonShape ||
+          comp is HexagonShape) {
+        if (_isComponentEnclosed(comp, userPath)) {
+          otherShapesEnclosed = true;
+          print('[ISOLATION] Other shape ${comp.runtimeType} detected inside loop. Removal cancelled.');
+          break;
+        }
+      }
+    }
+
+    if (!otherShapesEnclosed && enclosedTriangles.isNotEmpty) {
+      for (final comp in enclosedTriangles) {
         if (comp.isDark) {
           // 다크 삼각형: 제거 금지 + 패널티
           applyTimePenalty(5);
