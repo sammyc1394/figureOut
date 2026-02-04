@@ -1,3 +1,5 @@
+import 'package:figureout/src/functions/localization_service.dart';
+
 const gameWidth = 1179.0; //117.90;
 const gameHeight = 2556.0; //255.60;
 const elementCount = 10;
@@ -26,3 +28,4 @@ const UIsidePadding = 10.0;
 enum shapes { Circle, Rectangel, Pentagon, Triangle, Hexagon }
 enum StageResult { success, fail, cancelled }
 
+late LocalizationService i18n;
