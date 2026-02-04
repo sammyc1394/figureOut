@@ -90,7 +90,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(levelTitle);
 
       final label = TextComponent(
-        text: "Level completed!",
+        text: i18n.t('level_completed'),
         textRenderer: TextPaint(
           style: const TextStyle(
             fontFamily: 'Moulpali',
@@ -195,7 +195,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(levelIcon);
 
       final label = TextComponent(
-        text: "Almost there!",
+        text: i18n.t('almost_there'),
         textRenderer: TextPaint(
           style: const TextStyle(
             fontFamily: 'Moulpali',
@@ -210,7 +210,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(label);
 
       final label2 = TextComponent(
-        text: "Continue from where you left off.",
+        text: i18n.t('resume_description'),
         textRenderer: TextPaint(
           style: const TextStyle(
             fontFamily: 'Moulpali',

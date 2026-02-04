@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:figureout/src/config.dart';
 import 'package:flame/components.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
@@ -40,7 +41,7 @@ class PausedScreen extends PositionComponent {
     add(panel);
 
     final pausedText = TextComponent(
-      text: 'Paused',
+      text: i18n.t('pause_title'),
       textRenderer: TextPaint(
         style: const TextStyle(
           fontSize: 28,
