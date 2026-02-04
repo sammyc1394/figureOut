@@ -79,7 +79,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         text: "S ${stgIndex + 1} - M ${msnIndex}",
         textRenderer: TextPaint(
           style: const TextStyle(
-            fontFamily: 'Moulpali',
+            fontFamily: 'Gaegu',
             fontSize: 22,
             color: Colors.black,
           ),
@@ -93,7 +93,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         text: i18n.t('level_completed'),
         textRenderer: TextPaint(
           style: const TextStyle(
-            fontFamily: 'Moulpali',
+            fontFamily: 'Gaegu',
             fontSize: 22,
             color: Colors.black,
           ),
@@ -120,7 +120,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final buttonSpacing = size.x * 0.25;
 
       final menuButton = SvgButton(
-        assetPath: 'Menu_basic.svg',
+        assetPath: 'Exit_basic.svg',
         size: size / 8,
         position: Vector2(buttonX, buttonY),
         onTap: onMenu,
@@ -128,7 +128,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       add(menuButton);
 
       final playNextButton = SvgButton(
-        assetPath: 'Play_basic.svg',
+        assetPath: 'Next_basic.svg',
         size: size / 8,
         position: Vector2(buttonX + buttonSpacing, buttonY),
         onTap: onPlay,
@@ -173,8 +173,8 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         text: "S ${stgIndex + 1} - M ${msnIndex}",
         textRenderer: TextPaint(
           style: const TextStyle(
-            fontFamily: 'Moulpali',
-            fontFamilyFallback: ['Moulpali'],
+            fontFamily: 'Gaegu',
+            fontFamilyFallback: ['Gaegu'],
             fontSize: 22.0,
             color: Colors.black,
           ),
@@ -198,8 +198,8 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         text: i18n.t('almost_there'),
         textRenderer: TextPaint(
           style: const TextStyle(
-            fontFamily: 'Moulpali',
-            fontFamilyFallback: ['Moulpali'],
+            fontFamily: 'Gaegu',
+            fontFamilyFallback: ['Gaegu'],
             fontSize: 22.0,
             color: Colors.black,
           ),
@@ -213,8 +213,8 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         text: i18n.t('resume_description'),
         textRenderer: TextPaint(
           style: const TextStyle(
-            fontFamily: 'Moulpali',
-            fontFamilyFallback: ['Moulpali'],
+            fontFamily: 'Gaegu',
+            fontFamilyFallback: ['Gaegu'],
             fontSize: 22.0,
             color: Colors.black,
           ),
@@ -230,7 +230,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final buttonSpacing = size.x * 0.25;
 
       final menuButton = SvgButton(
-        assetPath: 'Menu_basic.svg',
+        assetPath: 'Exit_basic.svg',
         size: size / 8,
         position: Vector2(buttonX, buttonY),
         onTap: onMenu,

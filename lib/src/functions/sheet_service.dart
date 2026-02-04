@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SheetService {
   final String sheetId;
   final String apiKey;
+  final math.Random _random = math.Random();
 
   SheetService()
     : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
@@ -137,13 +139,18 @@ class SheetService {
       ).firstMatch(row[0]?.toString() ?? '');
 
       final int mission = currentMission ?? 1;
+
+      // RD parsing
+      final resolvedAttackRaw = resolveRD(attackRaw);
+      final resolvedMovement = resolveRD(movement);
+      final resolvedPosition = resolveRD(position);
       
       double? attackSeconds;
       double? attackDamage;
 
       final attackMatch =
         RegExp(r'\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)')
-            .firstMatch(attackRaw);
+            .firstMatch(resolvedAttackRaw);
 
       if (attackMatch != null) {
         attackSeconds = double.tryParse(attackMatch.group(1)!);
@@ -153,8 +160,8 @@ class SheetService {
       final enemy = EnemyData(
         command: command,
         shape: shape,
-        movement: movement,
-        position: position,
+        movement: resolvedMovement,
+        position: resolvedPosition,
         mission: currentMission ??= 1,
         attackSeconds: attackSeconds,
         attackDamage: attackDamage,
@@ -194,6 +201,19 @@ class SheetService {
     }
 
     return order;
+  }
+
+  String resolveRD(String str) {
+    return str.replaceAllMapped(
+      RegExp(r'RD\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)'),
+          (match) {
+        final min = double.parse(match.group(1)!);
+        final max = double.parse(match.group(2)!);
+        final random = _random.nextDouble() * (max - min) + min;
+        final truncated = random.truncate();
+        return truncated.toStringAsFixed(0);
+      },
+    );
   }
 }
 
@@ -241,6 +261,6 @@ class EnemyData {
 
   @override
   String toString() {
-    return '[$command, $shape, $movement, $position, $mission, attack=($attackSeconds, $attackDamage), order=($order)]';
+    return '[$command, $shape, $movement, $position, attack=($attackSeconds, $attackDamage), order=($order)]';
   }
 }

@@ -605,6 +605,7 @@ class OneSecondGame extends FlameGame
         continue;
       }
 
+      // Position parse s
       final posMatch = RegExp(
         r'\((-?\d+),\s*(-?\d+)\)',
       ).firstMatch(enemy.position);
@@ -615,7 +616,7 @@ class OneSecondGame extends FlameGame
 
       print('Spawning enemy at $position: ${enemy.shape}');
 
-      PositionComponent? shape = spawnShape(enemy, position);
+      PositionComponent? shape = checkShape(enemy, position);
 
       if (shape != null) {
         final halfSizeX = shape.size.x / 2;
@@ -653,8 +654,9 @@ class OneSecondGame extends FlameGame
           print('[DEBUG] currentWave size after spawn = ${currentWave.length}');
           print('[DEBUG] spawnedThisMission size after spawn = ${spawnedThisMission.length}');
 
+          // Position parse e
 
-          // Movement
+          // Z command s
           if (enemy.movement.contains('Z(') && shape != null) {
             unawaited(
               _runSequentialZMovement(
@@ -667,8 +669,9 @@ class OneSecondGame extends FlameGame
 
             // continue;
           }
+          // Z command e
 
-
+          // L Movement s
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
@@ -744,8 +747,9 @@ class OneSecondGame extends FlameGame
 
             continue;
           }
+          // L Movement e
 
-          // Movement
+          // C command s
           final cMatch = RegExp(
             r'C\((-?\d+),\s*(-?\d+)\)',
           ).firstMatch(enemy.movement);
@@ -804,7 +808,9 @@ class OneSecondGame extends FlameGame
 
           Rect _timerRectWorld() => timerBar.toRect();
 
-          // Movement
+          // C command e
+
+          // D command s
           final dMatch = RegExp(
             r'D\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
           ).firstMatch(enemy.movement);
@@ -852,8 +858,9 @@ class OneSecondGame extends FlameGame
             add(blinking);
             continue;
           }
+          // D command e
 
-          // Movement
+          // DR command s
           // DR(a,b): 깜빡이며 랜덤 위치로 재등장
           final drMatch = RegExp(
             r'DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
@@ -904,6 +911,9 @@ class OneSecondGame extends FlameGame
             continue;
           }
 
+          // DR Command e
+
+          // M Command s
           // Movement: M(angle, speed, stopX, stopY)
           final MMatch = RegExp(
             r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
@@ -982,6 +992,7 @@ class OneSecondGame extends FlameGame
 
             continue;
           }
+          // M Command e
 
           await Future.delayed(Duration(milliseconds: 100));
         }
@@ -994,7 +1005,7 @@ class OneSecondGame extends FlameGame
     return ret;
   }
 
-  PositionComponent? spawnShape(EnemyData enemy, Vector2 position) {
+  PositionComponent? checkShape(EnemyData enemy, Vector2 position) {
     PositionComponent? shape;
 
     // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)

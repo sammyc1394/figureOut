@@ -47,13 +47,13 @@ class _MenuappbarState extends State<Menuappbar> {
       leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
           child: Stack(
-            alignment: Alignment.center,
+            alignment: Alignment.centerRight,
             children: [
               SvgPicture.asset(
                   'assets/menu/common/Heart.svg'),
               Positioned(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -61,7 +61,7 @@ class _MenuappbarState extends State<Menuappbar> {
                       '$_hearts',
                       style: const TextStyle(
                         color: Colors.black,
-                        fontFamily: 'moulpali',
+                        fontFamily: 'Gaegu',
                         letterSpacing: 0,
                         fontSize: 16
                       ),

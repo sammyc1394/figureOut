@@ -47,7 +47,7 @@ class PausedScreen extends PositionComponent {
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: Colors.black,
-          fontFamily: 'Moulpali', 
+          fontFamily: 'Gaegu',
         ),
       ),
       anchor: Anchor.topCenter,
@@ -64,7 +64,7 @@ class PausedScreen extends PositionComponent {
     final spacing = panelSize.x * 0.3;
 
     final menuButton = SvgButton(
-      assetPath: 'Menu_basic.svg',
+      assetPath: 'Exit_basic.svg',
       size: buttonSize ,
       position: Vector2(panelSize.x / 2 - spacing, buttonY),
       onTap: onMenu,

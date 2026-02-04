@@ -42,7 +42,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                 fontWeight: FontWeight.w300,
                 letterSpacing: 0,
                 color: Colors.black,
-                fontFamily: "Moulpali",
+                fontFamily: "Gaegu",
               )
           ),
           const SizedBox(height: 8),
@@ -87,7 +87,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
-                            fontFamily: 'Moulpali',
+                            fontFamily: 'Gaegu',
                           ),
                         ),
                       ],
