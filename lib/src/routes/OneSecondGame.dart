@@ -517,6 +517,10 @@ class OneSecondGame extends FlameGame
       return;
     }
 
+    // Save current indices for Continue feature
+    _selectedStageIndex = stageIndex;
+    _selectedMissionIndex = missionIndex;
+
     _isContinuing = false; // Fresh start
     final stage = _allStages[stageIndex];
 
@@ -619,7 +623,7 @@ class OneSecondGame extends FlameGame
           currentWave.clear();
           spawnedThisMission.clear();
 
-          // Update round start for continue feature
+          // Update round start for continue feature (after round is cleared)
           _lastRoundStartIndex = i + 1;
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
@@ -1585,6 +1589,8 @@ class OneSecondGame extends FlameGame
 
     // Restart mission from the last saved round index
     final stage = _allStages[_selectedStageIndex];
+    print('[RESUME] Restarting Stage $_selectedStageIndex, Mission $_selectedMissionIndex from index $_lastRoundStartIndex');
+    
     runSingleMissions(
       stage,
       _selectedMissionIndex,
