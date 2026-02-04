@@ -622,15 +622,19 @@ class OneSecondGame extends FlameGame
 
           currentWave.clear();
           spawnedThisMission.clear();
-
-          // Update round start for continue feature (after round is cleared)
-          _lastRoundStartIndex = i + 1;
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
           await Future.delayed(
             Duration(milliseconds: (duration * 1000).toInt()),
           );
         }
+
+        // Check if failed during wait/clear
+        if (_isTimeOver) return StageResult.fail;
+
+        // Update round start for continue feature
+        _lastRoundStartIndex = i + 1;
+        print('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
         continue;
       }
 
