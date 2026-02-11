@@ -43,11 +43,11 @@ class PausedScreen extends PositionComponent {
     final pausedText = TextComponent(
       text: i18n.t('pause_title'),
       textRenderer: TextPaint(
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: Colors.black,
-          fontFamily: 'Moulpali', 
+          fontFamily: appFontFamily,
         ),
       ),
       anchor: Anchor.topCenter,
@@ -64,7 +64,7 @@ class PausedScreen extends PositionComponent {
     final spacing = panelSize.x * 0.3;
 
     final menuButton = SvgButton(
-      assetPath: 'Menu_basic.svg',
+      assetPath: 'Exit_basic.svg',
       size: buttonSize ,
       position: Vector2(panelSize.x / 2 - spacing, buttonY),
       onTap: onMenu,

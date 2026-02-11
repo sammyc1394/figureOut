@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:go_router/go_router.dart';
 
+import '../config.dart';
+
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
 
@@ -68,7 +70,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   Alignment _baseAlignment(int index) {
     final alignments = [
       const Alignment(-0.8, -0.5),
-      const Alignment(0.7, -0.3),
+      const Alignment(0.7, -0.45),
       const Alignment(-0.6, 0.7),
       const Alignment(0.8, 0.5),
       const Alignment(0.0, -0.7),
@@ -151,11 +153,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Figure',
+                const SizedBox(height: 120),
+                Text(
+                  'Figure Out the Shapes!',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'Moulpali',
-                    fontSize: 48,
+                    fontFamily: appFontFamily,
+                    fontSize: 42,
                     fontWeight: FontWeight.w300,
                     color: Colors.black,
                     letterSpacing: 0,
