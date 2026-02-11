@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -124,6 +125,8 @@ class SheetService {
       final String shape = row.length > 3
           ? row[3]?.toString().trim() ?? ''
           : '';
+      final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1,);
+      final bool darkYN = (energy == -1);
       final String attackRaw= row.length > 4
           ? row[4]?.toString().trim() ?? ''
           : '';
@@ -166,6 +169,8 @@ class SheetService {
         attackSeconds: attackSeconds,
         attackDamage: attackDamage,
         order: order,
+        energy: energy,
+        darkYN: darkYN,
       );
 
       currentMissionMap!.putIfAbsent(currentMission!, () => []).add(enemy);
@@ -215,6 +220,25 @@ class SheetService {
       },
     );
   }
+
+  // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
+  int _parseEnergy(String s, int def) {
+    final start = s.indexOf('(');
+    final end = s.lastIndexOf(')');
+
+    if (start == -1 || end == -1 || end <= start) {
+      return def;
+    }
+
+    final rawValue = s.substring(start + 1, end).trim();
+
+    if (rawValue.startsWith('RD')) {
+      final resolved = resolveRD(rawValue);
+      return int.tryParse(resolved) ?? def;
+    }
+
+    return int.tryParse(rawValue) ?? def;
+  }
 }
 
 class StageData {
@@ -247,6 +271,8 @@ class EnemyData {
   final double? attackSeconds;
   final double? attackDamage;
   final int? order;
+  final int energy;
+  final bool darkYN;
 
   EnemyData({
     required this.command,
@@ -254,6 +280,8 @@ class EnemyData {
     required this.movement,
     required this.position,
     required this.mission,
+    required this.energy,
+    required this.darkYN,
     this.attackSeconds,
     this.attackDamage,
     this.order,
@@ -261,6 +289,6 @@ class EnemyData {
 
   @override
   String toString() {
-    return '[$command, $shape, $movement, $position, attack=($attackSeconds, $attackDamage), order=($order)]';
+    return '[$command, $shape, $energy, $darkYN, $movement, $position, attack=($attackSeconds, $attackDamage), order=($order)]';
   }
 }

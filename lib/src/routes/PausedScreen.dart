@@ -43,11 +43,11 @@ class PausedScreen extends PositionComponent {
     final pausedText = TextComponent(
       text: i18n.t('pause_title'),
       textRenderer: TextPaint(
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: Colors.black,
-          fontFamily: 'Gaegu',
+          fontFamily: appFontFamily,
         ),
       ),
       anchor: Anchor.topCenter,

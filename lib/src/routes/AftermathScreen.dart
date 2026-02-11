@@ -78,8 +78,8 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final levelTitle = TextComponent(
         text: "S ${stgIndex + 1} - M ${msnIndex}",
         textRenderer: TextPaint(
-          style: const TextStyle(
-            fontFamily: 'Gaegu',
+          style: TextStyle(
+            fontFamily: appFontFamily,
             fontSize: 22,
             color: Colors.black,
           ),
@@ -92,8 +92,8 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final label = TextComponent(
         text: i18n.t('level_completed'),
         textRenderer: TextPaint(
-          style: const TextStyle(
-            fontFamily: 'Gaegu',
+          style: TextStyle(
+            fontFamily: appFontFamily,
             fontSize: 22,
             color: Colors.black,
           ),
@@ -172,9 +172,9 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final levelLabel = TextComponent(
         text: "S ${stgIndex + 1} - M ${msnIndex}",
         textRenderer: TextPaint(
-          style: const TextStyle(
-            fontFamily: 'Gaegu',
-            fontFamilyFallback: ['Gaegu'],
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontFamilyFallback: fallbackFontFamily,
             fontSize: 22.0,
             color: Colors.black,
           ),
@@ -197,9 +197,9 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final label = TextComponent(
         text: i18n.t('almost_there'),
         textRenderer: TextPaint(
-          style: const TextStyle(
-            fontFamily: 'Gaegu',
-            fontFamilyFallback: ['Gaegu'],
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontFamilyFallback: fallbackFontFamily,
             fontSize: 22.0,
             color: Colors.black,
           ),
@@ -212,9 +212,9 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final label2 = TextComponent(
         text: i18n.t('resume_description'),
         textRenderer: TextPaint(
-          style: const TextStyle(
-            fontFamily: 'Gaegu',
-            fontFamilyFallback: ['Gaegu'],
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontFamilyFallback: fallbackFontFamily,
             fontSize: 22.0,
             color: Colors.black,
           ),

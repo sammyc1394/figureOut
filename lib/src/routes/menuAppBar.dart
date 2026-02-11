@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config.dart';
+
 class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   const Menuappbar({super.key});
 
@@ -59,9 +61,9 @@ class _MenuappbarState extends State<Menuappbar> {
                     ),
                     child: Text(
                       '$_hearts',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontFamily: 'Gaegu',
+                        fontFamily: appFontFamily,
                         letterSpacing: 0,
                         fontSize: 16
                       ),
