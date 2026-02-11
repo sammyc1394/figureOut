@@ -1468,6 +1468,8 @@ class OneSecondGame extends FlameGame
   }
 
   Future<void> onRefresh() async {
+    _isContinuing = false;
+    _lastRoundStartIndex = 0;
     if (_isPausedGlobally) return;
     print("Refreshing Game...");
 
@@ -1619,6 +1621,9 @@ class OneSecondGame extends FlameGame
       onRetry: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
         
+        _isContinuing = false;              
+        _lastRoundStartIndex = 0;
+
         _isMissionRunning = false;
         _runToken++;
 
@@ -1675,9 +1680,11 @@ class OneSecondGame extends FlameGame
 
     // Set continuing flag
     _isContinuing = true;
+    
+    final int localToken = ++_runToken;
 
     // Reset run token to stop previous mission loop if it's still running
-    _runToken++;
+    // _runToken++;
 
     // Restart mission from the last saved round index
     final stage = _allStages[_selectedStageIndex];
@@ -1688,7 +1695,13 @@ class OneSecondGame extends FlameGame
       _selectedMissionIndex,
       startIndex: _lastRoundStartIndex,
     ).then((result) {
+      if (localToken != _runToken) {
+        print('[RESUME] outdated mission ignored');
+        return;
+      }
+
       final starRating = _calculateStarRating(result);
+      
       if (result != StageResult.cancelled) {
         showAftermathScreen(result, starRating, _selectedStageIndex, _selectedMissionIndex);
       }

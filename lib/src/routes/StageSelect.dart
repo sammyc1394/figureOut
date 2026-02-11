@@ -37,7 +37,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 16),
-          Text('Figure',
+          Text('Figures',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w300,
