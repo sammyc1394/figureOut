@@ -96,7 +96,8 @@ class GameTimerComponent extends PositionComponent {
         ? (remaining / totalTime).clamp(0.0, 1.0)
         : 0.0;
 
-    if (ratio <= 0.2) {
+    // 색상 결정: 비율이 아니라 절대 시간(10초) 기준으로 빨간색 결정
+    if (currentTime <= 10.0 + _epsilon) {
       _changeState('TimerBar_red.svg');
     } else if (ratio <= 0.5) {
       _changeState('TimerBar_yellow.svg');

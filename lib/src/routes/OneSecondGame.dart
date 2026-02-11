@@ -96,8 +96,10 @@ class OneSecondGame extends FlameGame
   bool _isTimeOver = false;
 
   // For Continue feature
-  double _originalMissionTime = 0.0;
-  double _currentContinueTime = 0.0;
+  static const double minTimeLimit = 10.0;
+  double initialMaxTime = 0.0;
+  double currentMissionTime = 0.0;
+  double _lastRoundStartTime = 0.0;
   int _lastRoundStartIndex = 0;
   bool _isContinuing = false;
 
@@ -314,10 +316,15 @@ class OneSecondGame extends FlameGame
   //시간 패널티
   void applyTimePenalty(double seconds) {
     if (_isTimeOver) return;
-    remainingTime = math.max(0, remainingTime - seconds);
-    timerBar.updateTime(remainingTime);
+    
+    // Sync both legacy and new timer variables
+    currentMissionTime = math.max(0, currentMissionTime - seconds);
+    remainingTime = currentMissionTime; 
+
+    updateTimerUI();
     timerBar.flashPenalty();
-    if (remainingTime <= 0 && !_timerEndedNotified) {
+
+    if (currentMissionTime <= 0 && !_timerEndedNotified) {
       _timerEndedNotified = true;
       // _isTimeOver = true;
       timerBar.updateTime(0);
@@ -566,7 +573,7 @@ class OneSecondGame extends FlameGame
       _selectedStageIndex = stageIndex;
       _selectedMissionIndex = missionIndex;
 
-    // _isContinuing = false; // Fresh start
+    _isContinuing = false; // Fresh start
     final stage = _allStages[stageIndex];
 
     final result = await runSingleMissions(stage, missionIndex);
@@ -615,14 +622,20 @@ class OneSecondGame extends FlameGame
     final chosen = missionSeconds ?? stageSeconds;
 
     if (!_isContinuing) {
-      _originalMissionTime = chosen ?? 0.0;
-      _currentContinueTime = _originalMissionTime;
+      initialMaxTime = chosen ?? 0.0;
+      _lastRoundStartTime = initialMaxTime;
+      currentMissionTime = initialMaxTime;
       _lastRoundStartIndex = 0;
     } else {
-      _currentContinueTime = math.max(10.0, _currentContinueTime / 2.0);
+      // Use the previous starting time to halve, not the current 0 seconds
+      _lastRoundStartTime = math.max(minTimeLimit, _lastRoundStartTime / 2.0);
+      currentMissionTime = _lastRoundStartTime;
     }
 
-    final timeToStart = _currentContinueTime;
+    final timeToStart = currentMissionTime;
+
+    // UI Gauge basis: Fix totalTime to the initial mission time
+    timerBar.totalTime = initialMaxTime;
 
     if (timeToStart > 0) {
       startMissionTimer(timeToStart);
@@ -1529,8 +1542,7 @@ class OneSecondGame extends FlameGame
   }
 
   void startMissionTimer(double seconds) {
-    missionTimeLimit = seconds;
-    remainingTime = seconds;
+    currentMissionTime = seconds;
     isTimeCritical = false;
 
     _timerPaused = false;
@@ -1539,9 +1551,14 @@ class OneSecondGame extends FlameGame
     _lastShownTime = -1;
     _isTimeOver = false;
 
-    timerBar.totalTime = seconds;
-    timerBar.updateTime(remainingTime); // 초기 상태 반영
-    print('[TIMER] startMissionTimer -> $seconds sec');
+    // NOTE: timerBar.totalTime is already set in runSingleMissions
+    updateTimerUI();
+    print('[TIMER] startMissionTimer -> $seconds sec (Basis: ${timerBar.totalTime})');
+  }
+
+  void updateTimerUI() {
+    timerBar.updateTime(currentMissionTime);
+    remainingTime = currentMissionTime; // Sync with legacy if needed
   }
 
   // timer update
@@ -1557,25 +1574,26 @@ class OneSecondGame extends FlameGame
       return;
     }
 
-    if (remainingTime > 0) {
+    if (currentMissionTime > 0) {
       _accumulator += dt;
       if (_accumulator >= 1.0) {
         _accumulator -= 1.0;
-        remainingTime -= 1;
+        currentMissionTime -= 1;
 
-        if (remainingTime != _lastShownTime) {
-          _lastShownTime = remainingTime;
+        if (currentMissionTime != _lastShownTime) {
+          _lastShownTime = currentMissionTime;
           // 필요할 때만 로그
-          print('remainingTime: $remainingTime');
-          timerBar.updateTime(remainingTime);
+          print('currentMissionTime: $currentMissionTime');
+          updateTimerUI();
         }
 
-        if (remainingTime <= 10) isTimeCritical = true;
+        if (currentMissionTime <= 10) isTimeCritical = true;
 
-        if (remainingTime <= 0 && !_timerPaused) {
+        if (currentMissionTime <= 0 && !_timerPaused) {
           _timerEndedNotified = true;
           // 마지막으로 0초 반영 후 더 이상 건드리지 않음
-          timerBar.updateTime(0);
+          currentMissionTime = 0;
+          updateTimerUI();
           // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
           // print("Time's up!");
           if (!_isTimeOver) {
