@@ -53,6 +53,9 @@ class OneSecondGame extends FlameGame
 
   final math.Random _random = math.Random();
 
+  //Mission execution lock
+  bool _isMissionRunning=false;
+
   // temporary function
   late RefreshButton refreshButton;
   // bool debugYN = true;
@@ -88,6 +91,8 @@ class OneSecondGame extends FlameGame
   bool _timerEndedNotified = false;
 
   bool _timerPaused = false;
+  bool _isPausedGlobally = false;
+
   bool _isTimeOver = false;
 
   // For Continue feature
@@ -136,6 +141,9 @@ class OneSecondGame extends FlameGame
   static const double _cornerRatio = 0.18; // 화면의 18% 정사각형 영역을 코너로 간주
   static const int _debugWindowMs = 1500; // 디버그 5연타 유효 시간
   static const int _debugNeedTaps = 5;
+  
+  StageResult? _pendingResult;
+  bool _missionResolved = false;
 
   void _applyDebugToTree(Component root, bool value) {
     root.debugMode = value;
@@ -311,8 +319,9 @@ class OneSecondGame extends FlameGame
     timerBar.flashPenalty();
     if (remainingTime <= 0 && !_timerEndedNotified) {
       _timerEndedNotified = true;
-      _isTimeOver = true;
+      // _isTimeOver = true;
       timerBar.updateTime(0);
+      _onTimeOver();
     }
   }
 
@@ -351,6 +360,11 @@ class OneSecondGame extends FlameGame
 
     for (final b in blinkingMap.values) {
       b.isPaused = true;
+    }
+    
+    if (_isPausedGlobally) {
+      _pendingResult = StageResult.fail;
+      return;
     }
 
     removeAll(children.where((c) => c is AftermathScreen).toList());
@@ -503,6 +517,29 @@ class OneSecondGame extends FlameGame
       await runOnce();
     }
   }
+  
+  void _hardResetMissionState() {
+    _missionResolved = false;
+    _timerPaused = false;
+    _isTimeOver = false;
+    _timerEndedNotified = false;
+
+    for (final b in blinkingMap.values) {
+      b.removeFromParent();
+    }
+    blinkingMap.clear();
+
+    for (final c in children.toList()) {
+      if (c is CircleShape ||
+          c is RectangleShape ||
+          c is PentagonShape ||
+          c is TriangleShape ||
+          c is HexagonShape ||
+          c is Effect) {
+        c.removeFromParent();
+      }
+    }
+  }
 
   // ==== running missions ======================================================================================
 
@@ -516,22 +553,43 @@ class OneSecondGame extends FlameGame
       return;
     }
 
-    print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
+    if (_isMissionRunning) {
+      print('[BLOCK] runStageWithAftermath ignored: mission already running');
+      return;
+    }
+    _isMissionRunning = true;
+    _runToken++;
+    final localToken = _runToken;
 
+    try {
+      if (stageIndex >= _allStages.length) return;
+      _selectedStageIndex = stageIndex;
+      _selectedMissionIndex = missionIndex;
 
-    // Save current indices for Continue feature
-    _selectedStageIndex = stageIndex;
-    _selectedMissionIndex = missionIndex;
-
-    _isContinuing = false; // Fresh start
+    // _isContinuing = false; // Fresh start
     final stage = _allStages[stageIndex];
 
     final result = await runSingleMissions(stage, missionIndex);
+    
+      // 다른 실행이 시작됐으면 결과 무시
+      if (localToken != _runToken) return;
+      if (_isPausedGlobally) {
+        _pendingResult = result;
+        return;
+      }
 
-    final starRating = _calculateStarRating(result);
+      if (result != StageResult.cancelled) {
+
     // showAftermathScreen(result);
-    if (result != StageResult.cancelled) {
-      showAftermathScreen(result, starRating, stageIndex, missionIndex);
+      if (result != StageResult.cancelled) {
+        final starRating = _calculateStarRating(result);
+        showAftermathScreen(result, starRating, stageIndex, missionIndex);
+      }
+    }
+  }finally{
+      if (localToken == _runToken) {
+          _isMissionRunning = false;
+        }
     }
   }
 
@@ -541,6 +599,8 @@ class OneSecondGame extends FlameGame
     int startIndex = 0,
   }) async {
     int runId = _runToken;
+    
+    _hardResetMissionState();
 
     _stopEnemyBehaviors();
     _clearAllShapes();
@@ -593,9 +653,10 @@ class OneSecondGame extends FlameGame
       }
 
       if (_isTimeOver) return StageResult.fail;
-      if (_timerPaused) {
+      if (_isPausedGlobally) {
         // 게임이 resume될 때까지 기다림
-        while (_timerPaused) {
+        while (_isPausedGlobally) {
+          if (_isTimeOver) return StageResult.fail;
           await Future.delayed(Duration(milliseconds: 100));
         }
       }
@@ -1407,10 +1468,11 @@ class OneSecondGame extends FlameGame
   }
 
   Future<void> onRefresh() async {
-    print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
+    if (_isPausedGlobally) return;
     print("Refreshing Game...");
 
     // refresh 이후 기존에 돌고있던 runSingleMission 취소 위함
+    _isMissionRunning = false; // 이전 미션 강제 종료 허용
     _runToken++;
 
     userPath.clear();
@@ -1485,7 +1547,11 @@ class OneSecondGame extends FlameGame
   void update(double dt) {
     super.update(dt);
 
-    if (_timerPaused) {
+    if (_isPausedGlobally) {
+      return;
+    }
+
+    if (_timerPaused && !_isTimeOver) {
       return;
     }
 
@@ -1504,7 +1570,7 @@ class OneSecondGame extends FlameGame
 
         if (remainingTime <= 10) isTimeCritical = true;
 
-        if (remainingTime <= 0) {
+        if (remainingTime <= 0 && !_timerPaused) {
           _timerEndedNotified = true;
           // 마지막으로 0초 반영 후 더 이상 건드리지 않음
           timerBar.updateTime(0);
@@ -1525,6 +1591,12 @@ class OneSecondGame extends FlameGame
     int stgIndex,
     int msnIndex,
   ) {
+    if (_isPausedGlobally){
+      _pendingResult=result;
+      return;
+    }
+    if (_missionResolved) return;
+    _missionResolved = true;
     _timerPaused = true;
 
     if (result == StageResult.success) {
@@ -1546,6 +1618,10 @@ class OneSecondGame extends FlameGame
       },
       onRetry: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
+        
+        _isMissionRunning = false;
+        _runToken++;
+
         runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       },
       onPlay: () {
@@ -1894,6 +1970,14 @@ class OneSecondGame extends FlameGame
     print("blinkingMap:${blinkingMap.values}");
     if (pausedScreen != null && pausedScreen!.isMounted) return;
 
+    if (!_missionResolved && remainingTime <= 0) {
+      _timerEndedNotified = true;
+      _isTimeOver = true;                 // "이미 끝난 상태"로 마킹
+      _pendingResult = StageResult.fail;  // resume 시 결과창 띄우기용
+      _timerPaused = true;
+    }
+
+    _isPausedGlobally = true;
     _timerPaused = true;
 
     for (final c in children.whereType<CircleShape>()) {
@@ -1929,6 +2013,41 @@ class OneSecondGame extends FlameGame
 
   void resumeGame() {
     print("resumed");
+    
+    // 1️. pause 상태 먼저 해제
+    _isPausedGlobally = false;
+    _timerPaused = true; // 결과창 뜰 동안 타이머는 멈춤 유지
+
+    // 2️. pause UI 제거
+    if (pausedScreen != null) {
+      pausedScreen!.removeFromParent();
+      pausedScreen = null;
+    }
+
+    if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
+      _pendingResult = StageResult.fail;
+    }
+
+    // 3️. pending 결과 있으면 → 결과창 띄우고 return
+    if (_pendingResult != null) {
+      final result = _pendingResult!;
+      _pendingResult = null;
+
+      _missionResolved = false;
+
+      final starRating = _calculateStarRating(result);
+      Future.microtask(() {
+      showAftermathScreen(
+        result,
+        starRating,
+        _selectedStageIndex,
+        _selectedMissionIndex,
+      );
+      });
+      return;
+    }
+
+    // 4️. 진짜 resume인 경우만 타이머/도형 재개
     _timerPaused = false;
 
     for (final c in children.whereType<CircleShape>()) {
@@ -1937,11 +2056,6 @@ class OneSecondGame extends FlameGame
 
     for (final b in blinkingMap.values) {
       b.isPaused = false;
-    }
-
-    if (pausedScreen != null) {
-      pausedScreen!.removeFromParent();
-      pausedScreen = null;
     }
   }
 
