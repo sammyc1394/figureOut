@@ -70,7 +70,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   Alignment _baseAlignment(int index) {
     final alignments = [
       const Alignment(-0.8, -0.5),
-      const Alignment(0.7, -0.3),
+      const Alignment(0.7, -0.45),
       const Alignment(-0.6, 0.7),
       const Alignment(0.8, 0.5),
       const Alignment(0.0, -0.7),
@@ -153,11 +153,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const SizedBox(height: 120),
                 Text(
-                  'Figures',
+                  'Figure Out the Shapes!',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: appFontFamily,
-                    fontSize: 48,
+                    fontSize: 42,
                     fontWeight: FontWeight.w300,
                     color: Colors.black,
                     letterSpacing: 0,
