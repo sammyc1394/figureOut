@@ -24,7 +24,11 @@ final aspectRatio = targetPlayWidth / targetPlayHeight;
 const UItopPadding = 120.0;
 const UIsidePadding = 10.0;
 
+// Game Font
+String appFontFamily = 'Gaegu';
+const fallbackFontFamily = ['Gaegu'];
 
+// Enums
 enum shapes { Circle, Rectangel, Pentagon, Triangle, Hexagon }
 enum StageResult { success, fail, cancelled }
 

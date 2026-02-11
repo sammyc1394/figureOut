@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:go_router/go_router.dart';
 
+import '../config.dart';
+
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
 
@@ -151,10 +153,10 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Figure',
+                Text(
+                  'Figures',
                   style: TextStyle(
-                    fontFamily: 'Gaegu',
+                    fontFamily: appFontFamily,
                     fontSize: 48,
                     fontWeight: FontWeight.w300,
                     color: Colors.black,

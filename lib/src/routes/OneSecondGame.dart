@@ -267,7 +267,6 @@ class OneSecondGame extends FlameGame
       print('Sheet fetch error: $e');
     }
 
-    // TODO : make this as button
     debugMode = false;
 
     Future.delayed(Duration.zero, () {
@@ -599,7 +598,6 @@ class OneSecondGame extends FlameGame
     int missionIndex, {
     int startIndex = 0,
   }) async {
-    final centerOffset = playArea.size / 2;
     int runId = _runToken;
     
     _hardResetMissionState();
@@ -646,10 +644,14 @@ class OneSecondGame extends FlameGame
 
     for (int i = startIndex; i < enemies.length; i++) {
       final enemy = enemies[i];
+
+      print("runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
+
       if(runId != _runToken) {
-        print("run token not matching");
+        print("run token not matching, stage cancelled");
         return StageResult.cancelled;
       }
+
       if (_isTimeOver) return StageResult.fail;
       if (_isPausedGlobally) {
         // 게임이 resume될 때까지 기다림
@@ -677,10 +679,10 @@ class OneSecondGame extends FlameGame
 
           // 다크도형까지 제거위함
           for (final comp in List<Component>.from(spawnedThisMission)) {
-            if (comp is PositionComponent &&
-                enemies.any((e) => e.movement.contains('Z('))) {
-              continue;
-            }
+            // if (comp is PositionComponent &&
+            //     enemies.any((e) => e.movement.contains('Z('))) {
+            //   continue;
+            // }
             comp.removeFromParent();
           }
 
@@ -1109,13 +1111,6 @@ class OneSecondGame extends FlameGame
     final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
     final bool isAttackable = (enemy.attackSeconds != null);
 
-
-    // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
-    int _parseEnergy(String s, int def) {
-      final m = RegExp(r'\(\s*(\d+)\s*\)').firstMatch(s);
-      return m != null ? int.parse(m.group(1)!) : def;
-    }
-
     // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
     //    1~8: 0.25배씩 증가 (1=0.25, 4=1.0, 8=2.0)
     //    9~ : 0.5배씩 증가 (9=2.5, 10=3.0 ...)
@@ -1151,14 +1146,14 @@ class OneSecondGame extends FlameGame
     final damage = enemy.attackDamage;
 
     if (enemy.shape.startsWith('Circle')) {
-      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       final scale = _parseScale(enemy.shape);
       final size = Vector2.all(80 * scale);
 
       shape = CircleShape(
         position,
-        energy,
-        isDark: isDark,
+        enemy.energy,
+        isDark: enemy.darkYN,
         isAttackable: isAttackable,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
@@ -1169,7 +1164,7 @@ class OneSecondGame extends FlameGame
         onRemoved: _onOrderedShapeRemoved,
       );
     } else if (enemy.shape.startsWith('Rectangle')) {
-      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       
       // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
       Vector2 size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
@@ -1184,50 +1179,50 @@ class OneSecondGame extends FlameGame
 
       shape = RectangleShape(
         position,
-        energy,
-        isDark: isDark,
+        enemy.energy,
+        isDark: enemy.darkYN,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
         customSize: size,
       );
     } else if (enemy.shape.startsWith('Pentagon')) {
-      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
+      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
       final scale = _parseScale(enemy.shape);
       final size = Vector2.all(100 * scale);
 
       shape = PentagonShape(
         position,
-        energy,
-        isDark: isDark,
+        enemy.energy,
+        isDark: enemy.darkYN,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
         customSize: size,
       );
     } else if (enemy.shape.startsWith('Triangle')) {
-      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       final scale = _parseScale(enemy.shape);
       final size = Vector2.all(70 * scale);
 
       shape = TriangleShape(
         position,
-        energy,
-        isDark: isDark,
+        enemy.energy,
+        isDark: enemy.darkYN,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
         customSize: size,
       );
     } else if (enemy.shape.startsWith('Hexagon')) {
-      final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
+      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       final scale = _parseScale(enemy.shape);
       final size = Vector2.all(100 * scale);
 
       shape = HexagonShape(
         position,
-        energy,
-        isDark: isDark,
+        enemy.energy,
+        isDark: enemy.darkYN,
         onForbiddenTouch: penalty,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
@@ -1520,6 +1515,8 @@ class OneSecondGame extends FlameGame
       // 기존 오브젝트, 타이머, 이펙트 다 정리
       _stopEnemyBehaviors();
       _clearAllShapes();
+
+      print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
 
       // 동일 스테이지 / 미션으로 재시작
       runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);

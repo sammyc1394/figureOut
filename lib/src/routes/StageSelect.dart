@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../config.dart';
 import '../functions/sheet_service.dart';
 
 class StageSelectScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                 fontWeight: FontWeight.w300,
                 letterSpacing: 0,
                 color: Colors.black,
-                fontFamily: "Gaegu",
+                fontFamily: appFontFamily,
               )
           ),
           const SizedBox(height: 8),
@@ -84,10 +85,10 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                         Text(
                           stage.name.isNotEmpty ?
                           stage.name : 'Stage ${index + 1}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
-                            fontFamily: 'Gaegu',
+                            fontFamily: appFontFamily,
                           ),
                         ),
                       ],
