@@ -5,6 +5,7 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
+import '../config.dart';
 import '../functions/OrderableShape.dart';
 import 'CircleDisappearEffect.dart';
 
@@ -113,18 +114,19 @@ class CircleShape extends PositionComponent
 
     _attackElapsed += dt;
 
-    // ------------------------------------------------------------
-    // 즉시 공격 및 공격도형 제거 이펙트 적용
-    //
-    // 공격도형 제거 이펙트 현재 없음
-    // ------------------------------------------------------------
-    if(attackTime == 0 && !_penaltyFired) {
-      _penaltyFired = true;
-      onExplode?.call(); // 시간 패널티
-      wasRemovedByUser = false;
-      removeFromParent();
-      return;
-    }
+    // // ------------------------------------------------------------
+    // // 즉시 공격 및 공격도형 제거 이펙트 적용
+    // //
+    // // 공격도형 제거 이펙트 현재 없음
+    // // 공격시간 0의 경우 순서가 잘못입력되었거나, 금지도형 선택시에만 작동?
+    // // ------------------------------------------------------------
+    // if(attackTime == 0 && !_penaltyFired) {
+    //   _penaltyFired = true;
+    //   onExplode?.call(); // 시간 패널티
+    //   wasRemovedByUser = false;
+    //   removeFromParent();
+    //   return;
+    // }
 
     // ------------------------------------------------------------
     // 타이머 종료 시 자폭 처리
@@ -146,8 +148,6 @@ class CircleShape extends PositionComponent
         removeFromParent();
       }
     }
-
-
 
     // ------------------------------------------------------------
     // 절반 이하 → 빨간 tint
@@ -226,6 +226,9 @@ class CircleShape extends PositionComponent
     final isValid = onInteracted?.call(this) ?? false;
     if (isValid) {
       applyValidInteraction();
+    } else {
+      onForbiddenTouch?.call();
+      return;
     }
   }
 
@@ -235,7 +238,6 @@ class CircleShape extends PositionComponent
     if (count <= 0) {
       wasRemovedByUser = true;
 
-      
       // 원 사라질 때 이펙트
       parent?.add(
         CircleDisappearEffect(
@@ -275,9 +277,9 @@ class CircleShape extends PositionComponent
       anchor: Anchor.center,
       position: _orderBadge.size / 2,
       textRenderer: TextPaint(
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
-          fontFamily: 'Moulpali',
+          fontFamily: appFontFamily,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
