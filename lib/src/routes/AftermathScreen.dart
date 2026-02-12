@@ -56,13 +56,12 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
 
   Future<void> _loadSuccessScreen() async {
     try {
-
       final bgSvg = await Svg.load('menu/common/bg.svg');
       background = SvgComponent(
         svg: bgSvg,
         size: size,
         position: Vector2.zero(),
-        anchor: Anchor.topLeft,
+        anchor:Anchor.topLeft,
       );
       add(background);
 
@@ -138,7 +137,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       final retryButton = SvgButton(
         assetPath: 'Retry_default.svg',
         size: size / 8,
-        position: Vector2(buttonX + buttonSpacing * 2, buttonY),
+        position: Vector2(buttonX + buttonSpacing*2, buttonY),
         onTap: onRetry,
       );
       add(retryButton);
@@ -159,7 +158,6 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       );
       add(background);
 
-
       final statusSvg = await Svg.load('Banner_levelFailed.svg');
       levelStatus = SvgComponent(
         svg: statusSvg,
@@ -168,7 +166,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         anchor: Anchor.center,
       );
       add(levelStatus);
-
+      
       final levelLabel = TextComponent(
         text: "S ${stgIndex + 1} - M ${msnIndex}",
         textRenderer: TextPaint(
@@ -263,19 +261,19 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       starCount = 3;
     }
 
-    String ret;
+    String ret="menu/mission/";
     switch (starCount) {
       case 1:
-        ret = 'Type=1 star.svg';
+        ret += 'Star_1.svg';
         break;
       case 2:
-        ret = 'Type=2 star.svg';
+        ret += 'Star_2.svg';
         break;
       case 3:
-        ret = 'Type=all star.svg';
+        ret += 'Star_full.svg';
         break;
       default:
-        ret = 'Type=all star.svg';
+        ret += 'Star_full.svg';
         break;
     }
 
@@ -296,14 +294,14 @@ class SvgButtonComponent extends PositionComponent with TapCallbacks {
     required Vector2 position,
     required Anchor anchor,
   }) : fallbackText = null,
-        super(position: position, anchor: anchor);
+       super(position: position, anchor: anchor);
 
   SvgButtonComponent.fallback({
     required Vector2 position,
     required this.onTap,
     required this.fallbackText,
   }) : svg = null,
-        super(position: position, anchor: Anchor.center, size: Vector2(120, 50));
+       super(position: position, anchor: Anchor.center, size: Vector2(120, 50));
 
   @override
   Future<void> onLoad() async {
