@@ -43,15 +43,18 @@ class SheetService {
 
     Map<int, List<EnemyData>>? currentMissionMap;
     Map<int, double> timeLimitMap;
-    Map<int, String>? missionTitleMap;
 
     for (var row in values) {
       final cells = row.map((e) => (e ?? '').toString().trim()).toList();
       final String? cell = row.isNotEmpty ? row[0]?.toString().trim() : null;
       if (cell != null && cell.startsWith('s')) {
         firstMissionHeaderSeen = false;
-        final stgTitle = _safeGet(cells, 2);
-        print("stgTitle - ${stgTitle}");
+        // final String reward = row.length > 6
+        //     ? row[6]?.toString().trim() ?? ''
+        //     : '';
+        // final String timeLimit = row.length > 7
+        //     ? row[7]?.toString().trim() ?? ''
+        //     : '';
         final rewardFromS = _safeGet(cells, 7); // I
         final timeFromS = _safeGet(cells, 8); // J
 
@@ -59,14 +62,13 @@ class SheetService {
 
         currentMissionMap = {};
         timeLimitMap = {};
-        missionTitleMap = {};
         currentStage = StageData(
-          name: stgTitle,
+          name: cell,
+          // reward: reward,
           reward: rewardFromS,
           timeLimit: timeFromS,
           missions: currentMissionMap!,
           missionTimeLimits: timeLimitMap!,
-          missionTitle: missionTitleMap!,
         );
         stages.add(currentStage);
         continue;
@@ -78,26 +80,17 @@ class SheetService {
           currentMission = int.parse(missionMatch.group(1)!);
 
           if (currentStage != null) {
-            final msnTitle = _safeGet(cells, 1);
-            print("msnTitle = ${msnTitle}");
-            if(msnTitle != null) {
-              currentStage!.missionTitle[currentMission] = msnTitle;
-            }
             final timeFromJ = _safeGet(cells, 8); // J
             final parsed = double.tryParse(timeFromJ);
             print("timeFromJ = $timeFromJ");
             if (parsed != null) {
               currentStage!.missionTimeLimits[currentMission] = parsed;
             }
-
-            print("mission number - ${currentMission}, mission title = ${msnTitle}, missioin time limit - ${parsed}");
           }
 
           if (currentStage != null && !firstMissionHeaderSeen) {
             firstMissionHeaderSeen = true;
 
-            final msnTitle = _safeGet(cells, 1);
-            print("msnTitle - ${msnTitle}");
             final rewardFromM = _safeGet(cells, 7); // H
             final timeFromM = _safeGet(cells, 8); // I
 
@@ -109,12 +102,9 @@ class SheetService {
             if ((currentStage!.timeLimit.isEmpty) && timeFromM.isNotEmpty) {
               currentStage!.timeLimit = timeFromM;
             }
-            if((currentStage!.missionTitle.isEmpty) && msnTitle.isNotEmpty) {
-              currentStage!.missionTitle[currentMission!] = msnTitle;
-            }
 
             print(
-              '[STAGE "${currentStage!.missionTitle}"] '
+              '[STAGE "${currentStage!.name}"] '
               'reward="${currentStage!.reward}", timeLimit="${currentStage!.timeLimit}"',
             );
           }
@@ -257,7 +247,6 @@ class StageData {
   String timeLimit; //Default time limit
   final Map<int, List<EnemyData>> missions;
   final Map<int, double> missionTimeLimits;
-  final Map<int, String> missionTitle;
 
   StageData({
     required this.name,
@@ -265,12 +254,11 @@ class StageData {
     required this.timeLimit,
     required this.missions,
     required this.missionTimeLimits,
-    required this.missionTitle,
   });
 
   @override
   String toString() {
-    return '[$name, reward: $reward, missions: ${missions.keys}, missionTitle: $missionTitle, missionTimeLimits: $missionTimeLimits]';
+    return '[$name, reward: $reward, missions: ${missions.keys}, missionTimeLimits: $missionTimeLimits]';
   }
 }
 

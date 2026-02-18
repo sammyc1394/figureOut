@@ -69,7 +69,6 @@ class OneSecondGame extends FlameGame
 
   late int _selectedStageIndex;
   late int _selectedMissionIndex;
-  // late String _msnTitle;
 
   int _runToken = 0;
 
@@ -266,10 +265,8 @@ class OneSecondGame extends FlameGame
       if (_allStages.isNotEmpty) {
         print('Fetched stages: ${_allStages.toString()}');
 
-        String msnTitle = _getMsnTitle();
-
         _runToken++;
-        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex, msnTitle);
+        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       }
     } catch (e) {
       print('Sheet fetch error: $e');
@@ -387,9 +384,6 @@ class OneSecondGame extends FlameGame
 
     removeAll(children.where((c) => c is AftermathScreen).toList());
 
-    String msnTitle = _getMsnTitle();
-
-    Future.microtask(() {
     Future.microtask(() async{
       // if (_isPausedGlobally){
       //   _pendingResult=StageResult.fail;
@@ -401,7 +395,6 @@ class OneSecondGame extends FlameGame
         starRating,
         _selectedStageIndex,
         _selectedMissionIndex,
-        msnTitle,
       );
     });
   }
@@ -571,7 +564,7 @@ class OneSecondGame extends FlameGame
 
   // runStageWithAftermath -> runSingleMissions
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
-  Future<void> runStageWithAftermath(int stageIndex, int missionIndex, String msnTitle) async {
+  Future<void> runStageWithAftermath(int stageIndex, int missionIndex) async {
     print("stage index = $stageIndex, mission index = $missionIndex");
     // if (_isPausedGlobally) return;
     if (_isMissionRunning) {
@@ -603,7 +596,12 @@ class OneSecondGame extends FlameGame
       if (result != StageResult.cancelled) {
         
         final starRating = _calculateStarRating(result);
-        showAftermathScreen(result, starRating, stageIndex, missionIndex, msnTitle);
+        showAftermathScreen(
+          result,
+          starRating,
+          stageIndex,
+          missionIndex,
+        );
       }
     } finally {
       if (localToken == _runToken) {
@@ -685,9 +683,6 @@ class OneSecondGame extends FlameGame
           await Future.delayed(Duration(milliseconds: 100));
         }
       }
-
-      // _initOrder();
-
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
 
@@ -700,10 +695,7 @@ class OneSecondGame extends FlameGame
           await Future<void>.delayed(Duration.zero);
 
           if (currentWave.isNotEmpty) {
-            print("before run init order");
-
             _initOrder();
-
             // await waitUntilMissionCleared(currentWave);
             await waitUntilMissionCleared(Set<Component>.from(currentWave));
           }
@@ -1195,7 +1187,6 @@ class OneSecondGame extends FlameGame
         onInteracted: _onOrderInteracted,
         onRemoved: _onOrderedShapeRemoved,
       );
-
     } else if (enemy.shape.startsWith('Rectangle')) {
       // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
       
@@ -1218,9 +1209,6 @@ class OneSecondGame extends FlameGame
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
         customSize: size,
-        order: enemy.order,
-        onInteracted: _onOrderInteracted,
-        onRemoved: _onOrderedShapeRemoved,
       );
     } else if (enemy.shape.startsWith('Pentagon')) {
       // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
@@ -1341,6 +1329,10 @@ class OneSecondGame extends FlameGame
   bool _onOrderInteracted(OrderableShape c) {
     print('[GAME] circle input received. order=${c.order}');
 
+    // // 1) dark 도형 판단
+    // print('[GAME] dark shape YN = ${c.isDark}');
+    // if (c.isDark) return true;
+
     // 2) order 퍼즐인지 아닌지 판단
     print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
 
@@ -1351,12 +1343,14 @@ class OneSecondGame extends FlameGame
     // 3) order 퍼즐이고 순서가 맞는지 판단
     final expected = _orderedShapes[_currentOrderIndex];
 
-    print("order check");
-    print('[GAME] circle input checking for validity. validity = ${c.order}, ${expected.order}, ${identical(c, expected)}');
+    print('[GAME] circle input checking for validity. validity = ${identical(c, expected)}');
     return identical(c.order, expected.order);
   }
 
   void _onOrderedShapeRemoved() {
+    // if (!_hasOrder) return;
+    // if (shape.order == null) return;
+
     _currentOrderIndex++;
 
     print('[ORDER] next index = $_currentOrderIndex');
@@ -1369,9 +1363,6 @@ class OneSecondGame extends FlameGame
         .where((c) => c.order != null)
         .toList()
       ..sort((a, b) => a.order!.compareTo(b.order!));
-
-    print("order shape count = ${_orderedShapes.length}");
-
 
     _currentOrderIndex = 0;
     _hasOrder = _orderedShapes.isNotEmpty;
@@ -1565,10 +1556,8 @@ class OneSecondGame extends FlameGame
       
       print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
 
-      String msnTitle = _getMsnTitle();
-
       // 동일 스테이지 / 미션으로 재시작
-      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex, msnTitle);
+      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       // runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
     } catch (e) {
       print("데이터 새로고침 실패: $e");
@@ -1644,7 +1633,6 @@ class OneSecondGame extends FlameGame
     int starCount,
     int stgIndex,
     int msnIndex,
-    String msnTitle
   ) {
     if (_isPausedGlobally){
       _pendingResult=result;
@@ -1666,7 +1654,6 @@ class OneSecondGame extends FlameGame
       msnIndex: msnIndex,
       stgIndex: stgIndex,
       screenSize: size,
-      msnTitle: msnTitle,
       onContinue: () {
         print('[AFTERMATH] Continue pressed.');
         removeAll(children.where((c) => c is AftermathScreen).toList());
@@ -1681,7 +1668,7 @@ class OneSecondGame extends FlameGame
         _isMissionRunning = false;
         _runToken++;
 
-        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex, msnTitle);
+        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       },
       onPlay: () {
         // play next stage
@@ -1702,7 +1689,7 @@ class OneSecondGame extends FlameGame
           );
           print("playing next stage/mission");
           removeAll(children.where((c) => c is AftermathScreen).toList());
-          runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex, msnTitle);
+          runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
         } else {
           print("No more stages left!");
         }
@@ -1745,9 +1732,7 @@ class OneSecondGame extends FlameGame
     // Restart mission from the last saved round index
     final stage = _allStages[_selectedStageIndex];
     print('[RESUME] Restarting Stage $_selectedStageIndex, Mission $_selectedMissionIndex from index $_lastRoundStartIndex');
-
-    String msnTitle = _getMsnTitle();
-
+    
     runSingleMissions(
       stage,
       _selectedMissionIndex,
@@ -1761,7 +1746,12 @@ class OneSecondGame extends FlameGame
       final starRating = _calculateStarRating(result);
 
       if (result != StageResult.cancelled) {
-        showAftermathScreen(result, starRating, _selectedStageIndex, _selectedMissionIndex, msnTitle);
+        showAftermathScreen(
+          result,
+          starRating,
+          _selectedStageIndex,
+          _selectedMissionIndex,
+        );
       }
     });
   }
@@ -2261,20 +2251,6 @@ class OneSecondGame extends FlameGame
     final result = _pendingResult!;
     _pendingResult = null;
 
-      String msnTitle = _getMsnTitle();
-
-      final starRating = _calculateStarRating(result);
-      Future.microtask(() {
-      showAftermathScreen(
-        result,
-        starRating,
-        _selectedStageIndex,
-        _selectedMissionIndex,
-        msnTitle,
-      );
-      });
-      return;
-    }
     _missionResolved = false;
 
     final starRating = _calculateStarRating(result);
@@ -2300,13 +2276,6 @@ class OneSecondGame extends FlameGame
   }
 }
 
-
-  String _getMsnTitle() {
-    final stage = _allStages[_selectedStageIndex];
-    final int missionNo = _selectedMissionIndex; // 이미 1-based
-    final String msnTitle = stage.missionTitle[missionNo] ?? '';
-    return msnTitle;
-  }
 
   
   void _drawDashedPath(
