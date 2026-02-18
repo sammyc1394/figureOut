@@ -95,7 +95,7 @@ class OneSecondGame extends FlameGame
   bool _isPausedGlobally = false;
 
   bool _isTimeOver = false;
-
+  
   // For Continue feature
   static const double minTimeLimit = 10.0;
   double initialMaxTime = 0.0;
@@ -117,6 +117,9 @@ class OneSecondGame extends FlameGame
 
   late double playAreaScaleX;
   late double playAreaScaleY;
+  double _lastValidRangeX = 1;
+  double _lastValidRangeY = 1;
+
 
   // order
   List<OrderableShape> _orderedShapes = [];
@@ -144,7 +147,7 @@ class OneSecondGame extends FlameGame
   static const double _cornerRatio = 0.18; // 화면의 18% 정사각형 영역을 코너로 간주
   static const int _debugWindowMs = 1500; // 디버그 5연타 유효 시간
   static const int _debugNeedTaps = 5;
-  
+
   StageResult? _pendingResult;
   bool _missionResolved = false;
 
@@ -319,14 +322,14 @@ class OneSecondGame extends FlameGame
   //시간 패널티
   void applyTimePenalty(double seconds) {
     if (_isTimeOver) return;
-    
+        
     // Sync both legacy and new timer variables
     currentMissionTime = math.max(0, currentMissionTime - seconds);
     remainingTime = currentMissionTime; 
 
     updateTimerUI();
     timerBar.flashPenalty();
-
+    
     if (currentMissionTime <= 0 && !_timerEndedNotified) {
       _timerEndedNotified = true;
       // _isTimeOver = true;
@@ -362,16 +365,21 @@ class OneSecondGame extends FlameGame
   }
 
   void _onTimeOver() {
+    // if (_missionResolved) return;
+
+    // if (_isPausedGlobally) return;
     if (_isTimeOver) return;
+    // if (_timerPaused) return;
+    // _missionResolved = true;
     _isTimeOver = true;
     _timerPaused = true; // 타이머 틱 중단
-
+    
     _stopEnemyBehaviors(); // Blink 등 중단
 
     for (final b in blinkingMap.values) {
       b.isPaused = true;
     }
-    
+
     if (_isPausedGlobally) {
       _pendingResult = StageResult.fail;
       return;
@@ -382,6 +390,11 @@ class OneSecondGame extends FlameGame
     String msnTitle = _getMsnTitle();
 
     Future.microtask(() {
+    Future.microtask(() async{
+      // if (_isPausedGlobally){
+      //   _pendingResult=StageResult.fail;
+      //   return;
+      // } 
       final starRating = _calculateStarRating(StageResult.fail);
       showAftermathScreen(
         StageResult.fail,
@@ -530,7 +543,7 @@ class OneSecondGame extends FlameGame
       await runOnce();
     }
   }
-  
+
   void _hardResetMissionState() {
     _missionResolved = false;
     _timerPaused = false;
@@ -560,12 +573,7 @@ class OneSecondGame extends FlameGame
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
   Future<void> runStageWithAftermath(int stageIndex, int missionIndex, String msnTitle) async {
     print("stage index = $stageIndex, mission index = $missionIndex");
-
-    if (stageIndex >= _allStages.length) {
-      print('all stages completed!');
-      return;
-    }
-
+    // if (_isPausedGlobally) return;
     if (_isMissionRunning) {
       print('[BLOCK] runStageWithAftermath ignored: mission already running');
       return;
@@ -576,14 +584,15 @@ class OneSecondGame extends FlameGame
 
     try {
       if (stageIndex >= _allStages.length) return;
+
       _selectedStageIndex = stageIndex;
       _selectedMissionIndex = missionIndex;
 
-    _isContinuing = false; // Fresh start
-    final stage = _allStages[stageIndex];
+      _isContinuing = false; // Fresh start
 
-    final result = await runSingleMissions(stage, missionIndex);
-    
+      final stage = _allStages[stageIndex];
+      final result = await runSingleMissions(stage, missionIndex);
+
       // 다른 실행이 시작됐으면 결과 무시
       if (localToken != _runToken) return;
       if (_isPausedGlobally) {
@@ -592,27 +601,24 @@ class OneSecondGame extends FlameGame
       }
 
       if (result != StageResult.cancelled) {
-
-    // showAftermathScreen(result);
-      if (result != StageResult.cancelled) {
+        
         final starRating = _calculateStarRating(result);
         showAftermathScreen(result, starRating, stageIndex, missionIndex, msnTitle);
       }
-    }
-  }finally{
+    } finally {
       if (localToken == _runToken) {
-          _isMissionRunning = false;
-        }
+        _isMissionRunning = false;
+      }
     }
   }
 
   Future<StageResult> runSingleMissions(
     StageData stage,
-    int missionIndex, {
+    int missionIndex,{
     int startIndex = 0,
   }) async {
     int runId = _runToken;
-    
+
     _hardResetMissionState();
 
     _stopEnemyBehaviors();
@@ -626,7 +632,7 @@ class OneSecondGame extends FlameGame
       stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
     }
     final chosen = missionSeconds ?? stageSeconds;
-
+    
     if (!_isContinuing) {
       initialMaxTime = chosen ?? 0.0;
       _lastRoundStartTime = initialMaxTime;
@@ -663,7 +669,7 @@ class OneSecondGame extends FlameGame
 
     for (int i = startIndex; i < enemies.length; i++) {
       final enemy = enemies[i];
-
+      
       print("runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
 
       if(runId != _runToken) {
@@ -719,7 +725,7 @@ class OneSecondGame extends FlameGame
             Duration(milliseconds: (duration * 1000).toInt()),
           );
         }
-
+        
         // Check if failed during wait/clear
         if (_isTimeOver) return StageResult.fail;
 
@@ -729,7 +735,7 @@ class OneSecondGame extends FlameGame
         continue;
       }
 
-      // Position parse s
+      //Position parse s
       final posMatch = RegExp(
         r'\((-?\d+),\s*(-?\d+)\)',
       ).firstMatch(enemy.position);
@@ -778,7 +784,7 @@ class OneSecondGame extends FlameGame
           print('[DEBUG] currentWave size after spawn = ${currentWave.length}');
           print('[DEBUG] spawnedThisMission size after spawn = ${spawnedThisMission.length}');
 
-          // Position parse e
+          //Position parse e
 
           // Z command s
           if (enemy.movement.contains('Z(') && shape != null) {
@@ -793,9 +799,9 @@ class OneSecondGame extends FlameGame
 
             // continue;
           }
-          // Z command e
+          //Z command e
 
-          // L Movement s
+          //L Movement s
           final moveMatch = RegExp(
             r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
           ).firstMatch(enemy.movement);
@@ -871,7 +877,7 @@ class OneSecondGame extends FlameGame
 
             continue;
           }
-          // L Movement e
+          //L Movement e
 
           // C command s
           final cMatch = RegExp(
@@ -893,6 +899,7 @@ class OneSecondGame extends FlameGame
               halfSizeX,
               clampInside: false,
             );
+
             final eastWorld = toPlayArea(
               flipY(Vector2(0 + r, 0)),
               halfSizeX,
@@ -904,7 +911,7 @@ class OneSecondGame extends FlameGame
               clampInside: false,
             );
 
-            // 실제 변환된 반지름
+           // 실제 변환된 반지름
             final radiusWorldX = (eastWorld.x - originWorld.x).abs();
             final radiusWorldY = (northWorld.y - originWorld.y).abs();
 
@@ -931,8 +938,7 @@ class OneSecondGame extends FlameGame
           }
 
           Rect _timerRectWorld() => timerBar.toRect();
-
-          // C command e
+          //C command e
 
           // D command s
           final dMatch = RegExp(
@@ -982,7 +988,7 @@ class OneSecondGame extends FlameGame
             add(blinking);
             continue;
           }
-          // D command e
+          //D command e
 
           // DR command s
           // DR(a,b): 깜빡이며 랜덤 위치로 재등장
@@ -1034,10 +1040,9 @@ class OneSecondGame extends FlameGame
 
             continue;
           }
+          //DR Command e
 
-          // DR Command e
-
-          // M Command s
+          //M Command s
           // Movement: M(angle, speed, stopX, stopY)
           final MMatch = RegExp(
             r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
@@ -1116,7 +1121,7 @@ class OneSecondGame extends FlameGame
 
             continue;
           }
-          // M Command e
+          //M Command e
 
           await Future.delayed(Duration(milliseconds: 100));
         }
@@ -1126,6 +1131,7 @@ class OneSecondGame extends FlameGame
     StageResult ret = await waitUntilMissionCleared(currentWave);
     // await waitUntilMissionCleared(currentWave);
     // return StageResult.success;
+    // _missionResolved = true;
     return ret;
   }
 
@@ -1135,6 +1141,7 @@ class OneSecondGame extends FlameGame
     // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
     final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
     final bool isAttackable = (enemy.attackSeconds != null);
+
 
     // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
     //    1~8: 0.25배씩 증가 (1=0.25, 4=1.0, 8=2.0)
@@ -1311,6 +1318,7 @@ class OneSecondGame extends FlameGame
 
       if (remaining.isEmpty) {
         print('Mission cleared');
+        // await Future.delayed(const Duration(milliseconds: 1000));
         break;
       }
 
@@ -1375,6 +1383,14 @@ class OneSecondGame extends FlameGame
     double actShapePadding, {
     bool clampInside = true,
   }) {
+    if (rangeX > 0 && rangeY > 0) {
+      _lastValidRangeX = rangeX;
+      _lastValidRangeY = rangeY;
+    }
+
+    final safeRangeX = _lastValidRangeX;
+    final safeRangeY = _lastValidRangeY;
+
     // 1) playArea 전역 영역 계산
     final double playMinX = playArea.position.x - playArea.size.x / 2;
     final double playMinY = playArea.position.y - playArea.size.y / 2;
@@ -1392,8 +1408,11 @@ class OneSecondGame extends FlameGame
     );
 
     // 3) 에디터 좌표 정상화
-    final double normalizedX = (yourCoordinates.x - minX) / rangeX;
-    final double normalizedY = (yourCoordinates.y - minY) / rangeY;
+    final double normalizedX =
+    ((yourCoordinates.x - minX) / safeRangeX).clamp(0.0, 1.0);
+
+    final double normalizedY =
+        ((yourCoordinates.y - minY) / safeRangeY).clamp(0.0, 1.0);
 
     // 4) playArea 내부 상대 좌표 → 절대 좌표 변환
     double playX = playMinX + (normalizedX * playArea.size.x);
@@ -1495,7 +1514,7 @@ class OneSecondGame extends FlameGame
 
   Future<void> onRefresh() async {
     _isContinuing = false;
-    _lastRoundStartIndex = 0;
+    _lastRoundStartIndex = 0;           
     if (_isPausedGlobally) return;
     print("Refreshing Game...");
 
@@ -1543,7 +1562,7 @@ class OneSecondGame extends FlameGame
       // 기존 오브젝트, 타이머, 이펙트 다 정리
       _stopEnemyBehaviors();
       _clearAllShapes();
-
+      
       print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
 
       String msnTitle = _getMsnTitle();
@@ -1655,9 +1674,9 @@ class OneSecondGame extends FlameGame
       },
       onRetry: () {
         removeAll(children.where((c) => c is AftermathScreen).toList());
-        
+
         _isContinuing = false;              
-        _lastRoundStartIndex = 0;
+        _lastRoundStartIndex = 0;           
 
         _isMissionRunning = false;
         _runToken++;
@@ -1713,12 +1732,14 @@ class OneSecondGame extends FlameGame
     _timerEndedNotified = false;
     isTimeCritical = false;
 
+    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
     // Set continuing flag
     _isContinuing = true;
-    
+
     final int localToken = ++_runToken;
 
     // Reset run token to stop previous mission loop if it's still running
+    // _isMissionRunning = false;
     // _runToken++;
 
     // Restart mission from the last saved round index
@@ -1738,7 +1759,7 @@ class OneSecondGame extends FlameGame
       }
 
       final starRating = _calculateStarRating(result);
-      
+
       if (result != StageResult.cancelled) {
         showAftermathScreen(result, starRating, _selectedStageIndex, _selectedMissionIndex, msnTitle);
       }
@@ -1815,7 +1836,7 @@ class OneSecondGame extends FlameGame
     }
     return area.abs() / 2.0;
   }
-
+  
   bool _isPointInPolygon(Vector2 p, List<Vector2> poly) {
     int count = 0;
     for (int i = 0; i < poly.length; i++) {
@@ -1849,6 +1870,48 @@ class OneSecondGame extends FlameGame
     return true;
   }
 
+  double _calculatePathLength(List<Vector2> path) {
+    double len = 0;
+    for (int i = 0; i < path.length - 1; i++) {
+      len += path[i].distanceTo(path[i + 1]);
+    }
+    return len;
+  }
+
+  void _resetPathState() {
+    userPath.clear();
+    currentCircleCenter = null;
+    currentCircleRadius = null;
+  }
+
+  void _applyTouchPenalty(List<PositionComponent> comps) {
+    if (comps.isEmpty) return;
+
+    double totalPenalty = 0;
+
+    for (final comp in comps) {
+
+      if (_isDarkShape(comp)) {
+        applyTimePenalty(5);
+        continue;
+      }
+
+      int energy = 0;
+
+      if (comp is CircleShape) energy = comp.count;
+      if (comp is RectangleShape) energy = comp.energy;
+      if (comp is PentagonShape) energy = comp.energy;
+      if (comp is HexagonShape) energy = comp.energy;
+
+      totalPenalty += energy.abs();
+    }
+
+    if (totalPenalty > 0) {
+      applyTimePenalty(totalPenalty);
+    }
+  }
+
+
   @override
   void onDragStart(DragStartEvent event) {
     dragStart = event.canvasPosition;
@@ -1868,19 +1931,18 @@ class OneSecondGame extends FlameGame
     final startPos = _dragStartPos ?? endPos;
     final moved = startPos.distanceTo(endPos);
 
+    // ─────────────────────────────
+    // 탭 처리
+    // ─────────────────────────────
     if (durMs <= _tapWindowMs && moved <= _tapMoveMax) {
       final corner = size.x * _cornerRatio;
 
-      // 좌상단: Pause
       if (endPos.x <= corner && endPos.y <= corner) {
         pauseGame();
-        userPath.clear();
-        currentCircleCenter = null;
-        currentCircleRadius = null;
+        _resetPathState();
         return;
       }
 
-      // 우상단: Debug 5연타 토글
       if (endPos.x >= size.x - corner && endPos.y <= corner) {
         if (_lastTapTime == 0 || (nowMs - _lastTapTime) <= _debugWindowMs) {
           _debugTapCount += 1;
@@ -1894,27 +1956,77 @@ class OneSecondGame extends FlameGame
           _debugTapCount = 0;
         }
 
-        userPath.clear();
-        currentCircleCenter = null;
-        currentCircleRadius = null;
+        _resetPathState();
         return;
       }
     }
 
     if (userPath.length < 3) {
-      print("Drag too short: ${userPath.length} pts");
-      userPath.clear();
+      _resetPathState();
       return;
     }
 
-    if (!_isPathClosed(userPath)) {
-      print("Not a closed circular path");
-      userPath.clear();
+    final isClosed = _isPathClosed(userPath);
+    final pathLength = _calculatePathLength(userPath);
+    final straightDist =
+        userPath.first.distanceTo(userPath.last);
+    final ratio = straightDist / pathLength;
+
+
+    // ─────────────────────────────
+    // 슬라이스 제스처 판정
+    // ─────────────────────────────
+    final isSliceGesture =
+        !isClosed &&
+        straightDist > 100 &&
+        ratio > 0.55;
+
+    print("straightDist: $straightDist");
+    print("pathLength: $pathLength");
+    print("ratio: ${straightDist / pathLength}");
+
+
+    if (isSliceGesture) {
+      for (final comp in children.whereType<RectangleShape>()) {
+        if (_isRealSlice(comp, userPath)) {
+            comp.touchAtPoint(userPath);
+        }
+      }
+
+      _resetPathState();
       return;
     }
+
+    // ─────────────────────────────
+    // 원 판정 시작
+    // ─────────────────────────────
+
+    if (!isClosed && !isSliceGesture) {
+      print("triangle not enclosed");
+
+      final touchedOtherShapes = <PositionComponent>[];
+
+      for (final comp in children.whereType<PositionComponent>()) {
+
+        // 삼각형은 여기서 제외 (감싸기 전용)
+        if (comp is TriangleShape) continue;
+
+        if (_doesPathTouchComponent(comp, userPath)) {
+          touchedOtherShapes.add(comp);
+        }
+      }
+
+      if (touchedOtherShapes.isNotEmpty) {
+        _applyTouchPenalty(touchedOtherShapes);
+      }
+
+      _resetPathState();
+      return;
+    }
+
 
     final enclosedTriangles = <TriangleShape>[];
-    bool otherShapesEnclosed = false;
+    final touchedOtherShapes = <PositionComponent>[];
 
     for (final comp in children.whereType<PositionComponent>()) {
       if (comp is TriangleShape) {
@@ -1925,31 +2037,41 @@ class OneSecondGame extends FlameGame
           comp is RectangleShape ||
           comp is PentagonShape ||
           comp is HexagonShape) {
-        if (_isComponentEnclosed(comp, userPath)) {
-          otherShapesEnclosed = true;
-          print('[ISOLATION] Other shape ${comp.runtimeType} detected inside loop. Removal cancelled.');
-          break;
+
+        final enclosed = _isComponentEnclosed(comp, userPath);
+        final touched = _doesPathTouchComponent(comp, userPath);
+
+        if (enclosed || touched) {
+          touchedOtherShapes.add(comp);
         }
       }
     }
 
-    if (!otherShapesEnclosed && enclosedTriangles.isNotEmpty) {
+    // ─────────────────────────────
+    // 패널티 처리
+    // ─────────────────────────────
+    if (touchedOtherShapes.isNotEmpty) {
+      _applyTouchPenalty(touchedOtherShapes);
+      _resetPathState();
+      return;
+    }
+
+    // ─────────────────────────────
+    // 삼각형 제거
+    // ─────────────────────────────
+    if (enclosedTriangles.isNotEmpty) {
       for (final comp in enclosedTriangles) {
         if (comp.isDark) {
-          // 다크 삼각형: 제거 금지 + 패널티
           applyTimePenalty(5);
-          print('[PENALTY] Dark Triangle touched');
         } else {
-          print('[REMOVE] Triangle at ${comp.position}');
           comp.triggerDisappear();
         }
       }
     }
 
-    userPath.clear();
-    currentCircleCenter = null;
-    currentCircleRadius = null;
+    _resetPathState();
   }
+
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
@@ -1968,12 +2090,6 @@ class OneSecondGame extends FlameGame
       currentCircleCenter = dragStart!;
       currentCircleRadius = radius;
     }
-
-    componentsAtPoint(event.canvasStartPosition).forEach((element) {
-      if (element is RectangleShape) {
-        element.touchAtPoint(userPath);
-      }
-    });
   }
 
   // ===========================================================================================================
@@ -2016,6 +2132,64 @@ class OneSecondGame extends FlameGame
   //   }
   // }
 
+  bool _doesPathTouchComponent(
+    PositionComponent comp,
+    List<Vector2> path,
+  ) {
+    final rect = comp.toRect();
+
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+
+      if (_lineIntersectsRect(p1, p2, rect)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
+    final rectBox = rect.toRect();
+
+    int intersectionCount = 0;
+
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+
+      if (_lineIntersectsRect(p1, p2, rectBox)) {
+        intersectionCount++;
+      }
+    }
+
+    // 사각형을 진짜로 가로질렀으면
+    // 최소 2번 이상 경계와 교차해야 함
+    return intersectionCount >= 2;
+  }
+
+
+  bool _lineIntersectsRect(Vector2 p1, Vector2 p2, Rect rect) {
+    final edges = [
+      [rect.topLeft, rect.topRight],
+      [rect.topRight, rect.bottomRight],
+      [rect.bottomRight, rect.bottomLeft],
+      [rect.bottomLeft, rect.topLeft],
+    ];
+
+    for (final edge in edges) {
+      if (_doLinesIntersect(
+        p1,
+        p2,
+        Vector2(edge[0].dx, edge[0].dy),
+        Vector2(edge[1].dx, edge[1].dy),
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void pauseGame() {
     print("blinkingMap:${blinkingMap.values}");
     if (pausedScreen != null && pausedScreen!.isMounted) return;
@@ -2027,8 +2201,12 @@ class OneSecondGame extends FlameGame
       _timerPaused = true;
     }
 
+    // if (_missionResolved) {
+    //   _timerEndedNotified = true;
+    // }
     _isPausedGlobally = true;
     _timerPaused = true;
+    // _timerEndedNotified = true;
 
     for (final c in children.whereType<CircleShape>()) {
       c.isPaused = true;
@@ -2062,28 +2240,26 @@ class OneSecondGame extends FlameGame
   }
 
   void resumeGame() {
-    print("resumed");
-    
-    // 1️. pause 상태 먼저 해제
-    _isPausedGlobally = false;
-    _timerPaused = true; // 결과창 뜰 동안 타이머는 멈춤 유지
+  print("resumed");
 
-    // 2️. pause UI 제거
-    if (pausedScreen != null) {
-      pausedScreen!.removeFromParent();
-      pausedScreen = null;
-    }
+  // 1️⃣ pause 상태 먼저 해제
+  _isPausedGlobally = false;
+  _timerPaused = true; // 결과창 뜰 동안 타이머는 멈춤 유지
 
-    if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
-      _pendingResult = StageResult.fail;
-    }
+  // 2️⃣ pause UI 제거
+  if (pausedScreen != null) {
+    pausedScreen!.removeFromParent();
+    pausedScreen = null;
+  }
 
-    // 3️. pending 결과 있으면 → 결과창 띄우고 return
-    if (_pendingResult != null) {
-      final result = _pendingResult!;
-      _pendingResult = null;
+  if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
+    _pendingResult = StageResult.fail;
+  }
 
-      _missionResolved = false;
+  // 3️⃣ pending 결과 있으면 → 결과창 띄우고 return
+  if (_pendingResult != null) {
+    final result = _pendingResult!;
+    _pendingResult = null;
 
       String msnTitle = _getMsnTitle();
 
@@ -2099,18 +2275,31 @@ class OneSecondGame extends FlameGame
       });
       return;
     }
+    _missionResolved = false;
 
-    // 4️. 진짜 resume인 경우만 타이머/도형 재개
-    _timerPaused = false;
-
-    for (final c in children.whereType<CircleShape>()) {
-      c.isPaused = false;
-    }
-
-    for (final b in blinkingMap.values) {
-      b.isPaused = false;
-    }
+    final starRating = _calculateStarRating(result);
+    Future.microtask(() {
+    showAftermathScreen(
+      result,
+      starRating,
+      _selectedStageIndex,
+      _selectedMissionIndex,
+    );
+    });
+    return;
   }
+
+  // 4️⃣ 진짜 resume인 경우만 타이머/도형 재개
+  _timerPaused = false;
+
+  for (final c in children.whereType<CircleShape>()) {
+    c.isPaused = false;
+  }
+  for (final b in blinkingMap.values) {
+    b.isPaused = false;
+  }
+}
+
 
   String _getMsnTitle() {
     final stage = _allStages[_selectedStageIndex];
