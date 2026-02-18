@@ -15,7 +15,6 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
   late final int starCount;
   late final int stgIndex;
   late final int msnIndex;
-  late final String msnTitle;
 
   // ui svgs
   late final SvgComponent background;
@@ -42,14 +41,12 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
     required Vector2 screenSize,
     required this.stgIndex,
     required this.msnIndex,
-    required this.msnTitle,
   }) : super(position: Vector2.zero(), size: screenSize) {
     priority = 5000;
   }
 
   @override
   Future<void> onLoad() async {
-
     if (result == StageResult.success) {
       await _loadSuccessScreen();
     } else {
@@ -58,214 +55,142 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
   }
 
   Future<void> _loadSuccessScreen() async {
-    // --------------------------
-    // bg 로딩
-    // --------------------------
-    final bgSvg = await Svg.load('menu/common/bg.svg');
+    try {
+      final bgSvg = await Svg.load('menu/common/bg.svg');
+      background = SvgComponent(
+        svg: bgSvg,
+        size: size,
+        position: Vector2.zero(),
+        anchor:Anchor.topLeft,
+      );
+      add(background);
 
-    final svgWidth = 349.0;
-    final svgHeight = 308.0;
+      final statusSvg = await Svg.load('Banner_levelComplete.svg');
+      levelStatus = SvgComponent(
+        svg: statusSvg,
+        size: size / 2,
+        position: Vector2(size.x * 0.5, size.y * 0.35),
+        anchor: Anchor.center,
+      );
+      add(levelStatus);
 
-    final scaleX = size.x / svgWidth;
-    final scaleY = size.y / svgHeight;
-    final scale = scaleX < scaleY ? scaleX : scaleY;
-
-    final double marginFactor = 0.92; // 배너 뒤에 배경창이 삐져나가지 않도록
-
-    final renderSize = Vector2(
-        svgWidth * scale * marginFactor,
-        svgHeight * scale * marginFactor
-    );
-
-    background = SvgComponent(
-      svg: bgSvg,
-      size: renderSize,
-      position: size / 2,
-      anchor: Anchor.center,
-    );
-
-    add(background);
-
-    // --------------------------
-    // 좌표 계산 (bg 기준)
-    // --------------------------
-    Vector2 p(double xPct, double yPct) =>
-        Vector2(background.size.x * xPct,
-            background.size.y * yPct);
-
-    Vector2 sq(double sidePct) =>
-        Vector2.all(background.size.x * sidePct);
-
-    // --------------------------
-    // 1) 상단 타이틀
-    // --------------------------
-    final bannerSvg = await Svg.load('Banner_levelComplete.svg');
-
-    final banner = SvgComponent(
-      svg: bannerSvg,
-      size: p(1.18, 0.6),
-      position: p(0.5,0.02),
-      anchor: Anchor.center,
-    );
-
-    background.add(banner);
-
-    final titleText = TextComponent(
-      text: "S ${stgIndex + 1} - M $msnIndex: ${msnTitle}",
-      textRenderer: TextPaint(
-        style: TextStyle(
-          fontFamily: appFontFamily,
-          fontSize: 24,
-          color: Colors.black,
+      final levelTitle = TextComponent(
+        text: "S ${stgIndex + 1} - M ${msnIndex}",
+        textRenderer: TextPaint(
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontSize: 22,
+            color: Colors.black,
+          ),
         ),
-      ),
-      anchor: Anchor.center,
-      position: p(0.5, 0.01),
-    );
-    background.add(titleText);
+        position: Vector2(size.x * 0.5, size.y * 0.35),
+        anchor: Anchor.center,
+      );
+      add(levelTitle);
 
-    // --------------------------
-    // 2) 스코어
-    // --------------------------
-    final starSvgTitle = _addStars();
-    final starSvg = await Svg.load(starSvgTitle);
-
-    final starIcon = SvgComponent(
-      svg: starSvg,
-      size: p(0.6,0.3),
-      position: p(0.5, 0.35),
-      anchor: Anchor.center,
-    );
-
-    background.add(starIcon);
-
-    // --------------------------
-    // 3) Level Completed 텍스트
-    // --------------------------
-    final completedText = TextComponent(
-      text: i18n.t('level_completed'),
-      textRenderer: TextPaint(
-        style: TextStyle(
-          fontFamily: appFontFamily,
-          fontSize: 22,
-          color: Colors.black,
+      final label = TextComponent(
+        text: i18n.t('level_completed'),
+        textRenderer: TextPaint(
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontSize: 22,
+            color: Colors.black,
+          ),
         ),
-      ),
-      anchor: Anchor.center,
-      position: p(0.5, 0.6),
-    );
+        position: Vector2(size.x * 0.5, size.y * 0.55),
+        anchor: Anchor.center,
+      );
+      add(label);
 
-    background.add(completedText);
+      // Stars based on rating (centered)
+      final starSvgTitle = _addStars();
+      final levelIconSvg = await Svg.load(starSvgTitle);
+      levelIcon = SvgComponent(
+        svg: levelIconSvg,
+        size: size / 2,
+        position: Vector2(size.x * 0.5, size.y * 0.45),
+        anchor: Anchor.center,
+      );
+      add(levelIcon);
 
-    // --------------------------
-    // 4) 하단 버튼들
-    // --------------------------
+      // bottom area button row
+      final buttonX = size.x * 0.2;
+      final buttonY = size.y * 0.55;
+      final buttonSpacing = size.x * 0.25;
 
-    // 좌측 Exit 버튼
-    final exitButton = SvgButton(
-      assetPath: 'Exit_basic.svg',
-      size: sq(0.12),
-      position: p(0.10, 0.8),
-      onTap: onMenu,
-    );
+      final menuButton = SvgButton(
+        assetPath: 'Exit_basic.svg',
+        size: size / 8,
+        position: Vector2(buttonX, buttonY),
+        onTap: onMenu,
+      );
+      add(menuButton);
 
-    background.add(exitButton);
+      final playNextButton = SvgButton(
+        assetPath: 'Next_basic.svg',
+        size: size / 8,
+        position: Vector2(buttonX + buttonSpacing, buttonY),
+        onTap: onPlay,
+      );
+      add(playNextButton);
 
-    // 중앙 Next 버튼 (가장 강조)
-    final nextButton = SvgButton(
-      assetPath: 'Next_basic.svg', // 초록 버튼 SVG로 교체 가능
-      size: p(0.32, 0.12),
-      position: p(0.35, 0.80),
-      onTap: onPlay,
-    );
+      final retryButton = SvgButton(
+        assetPath: 'Retry_default.svg',
+        size: size / 8,
+        position: Vector2(buttonX + buttonSpacing*2, buttonY),
+        onTap: onRetry,
+      );
+      add(retryButton);
 
-    background.add(nextButton);
-
-    // 우측 Retry 버튼
-    final retryButton = SvgButton(
-      assetPath: 'Retry_default.svg',
-      size: sq(0.12),
-      position: p(0.8, 0.8),
-      onTap: onRetry,
-    );
-
-    background.add(retryButton);
+    } catch (e) {
+      print('Error loading success aftermath : $e');
+    }
   }
-
 
   Future<void> _loadFailScreen() async {
     try {
-      // --------------------------
-      // bg 로딩
-      // --------------------------
       final bgSvg = await Svg.load('menu/common/bg.svg');
-
-      final svgWidth = 349.0;
-      final svgHeight = 308.0;
-
-      final scaleX = size.x / svgWidth;
-      final scaleY = size.y / svgHeight;
-      final scale = scaleX < scaleY ? scaleX : scaleY;
-
-      final double marginFactor = 0.92; // 배너 뒤에 배경창이 삐져나가지 않도록
-
-      final renderSize = Vector2(
-          svgWidth * scale * marginFactor,
-          svgHeight * scale * marginFactor
-      );
-
       background = SvgComponent(
         svg: bgSvg,
-        size: renderSize,
-        position: size / 2,
-        anchor: Anchor.center,
+        size: size,
+        position: Vector2.zero(),
+        anchor: Anchor.topLeft,
       );
-
       add(background);
-
-      // --------------------------
-      // 좌표 계산 (bg 기준)
-      // --------------------------
-      Vector2 p(double xPct, double yPct) =>
-          Vector2(background.size.x * xPct,
-              background.size.y * yPct);
-
-      Vector2 sq(double sidePct) =>
-          Vector2.all(background.size.x * sidePct);
 
       final statusSvg = await Svg.load('Banner_levelFailed.svg');
       levelStatus = SvgComponent(
         svg: statusSvg,
-        size: p(1.18, 0.6),
-        position: p(0.5,0.02),
+        size: size / 2,
+        position: Vector2(size.x * 0.5, size.y * 0.35),
         anchor: Anchor.center,
       );
-      background.add(levelStatus);
+      add(levelStatus);
       
       final levelLabel = TextComponent(
-        text: "S ${stgIndex + 1} - M ${msnIndex} : ${msnTitle}",
+        text: "S ${stgIndex + 1} - M ${msnIndex}",
         textRenderer: TextPaint(
           style: TextStyle(
             fontFamily: appFontFamily,
             fontFamilyFallback: fallbackFontFamily,
-            fontSize: 24.0,
+            fontSize: 22.0,
             color: Colors.black,
           ),
         ),
-        position: p(0.5, 0.01),
+        position: Vector2(size.x * 0.5, size.y * 0.35),
         anchor: Anchor.center,
       );
-      background.add(levelLabel);
+      add(levelLabel);
 
       // Stars based on rating (centered)
       final levelIconSvg = await Svg.load('Heart_failed.svg');
       levelIcon = SvgComponent(
         svg: levelIconSvg,
-        size: sq(0.25),
-        position:p(0.5, 0.4),
+        size: size / 4,
+        position: Vector2(size.x * 0.5, size.y * 0.45),
         anchor: Anchor.center,
       );
-      background.add(levelIcon);
+      add(levelIcon);
 
       final label = TextComponent(
         text: i18n.t('almost_there'),
@@ -277,10 +202,10 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
             color: Colors.black,
           ),
         ),
-        position: p(0.5,0.55),
+        position: Vector2(size.x * 0.5, size.y * 0.55),
         anchor: Anchor.center,
       );
-      background.add(label);
+      add(label);
 
       final label2 = TextComponent(
         text: i18n.t('resume_description'),
@@ -292,35 +217,39 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
             color: Colors.black,
           ),
         ),
-        position: p(0.5,0.62),
+        position: Vector2(size.x * 0.5, size.y * 0.58),
         anchor: Anchor.center,
       );
-      background.add(label2);
+      add(label2);
+
+      // bottom area button row
+      final buttonX = size.x * 0.2;
+      final buttonY = size.y * 0.60;
+      final buttonSpacing = size.x * 0.25;
 
       final menuButton = SvgButton(
         assetPath: 'Exit_basic.svg',
-        size: sq(0.10),
-        position: p(0.1, 0.8),
+        size: size / 8,
+        position: Vector2(buttonX, buttonY),
         onTap: onMenu,
       );
-      background.add(menuButton);
+      add(menuButton);
 
       final continueButton = SvgButton(
         assetPath: 'Continue_basic.svg',
-        size: p(0.4, 0.2),
-        position: p(0.30, 0.75),
+        size: size / 8,
+        position: Vector2(buttonX + buttonSpacing, buttonY),
         onTap: onContinue,
       );
-      background.add(continueButton);
+      add(continueButton);
 
       final retryButton = SvgButton(
         assetPath: 'Retry_default.svg',
-        size: sq(0.10),
-        position: p(0.8, 0.8),
+        size: size / 8,
+        position: Vector2(buttonX + buttonSpacing * 2, buttonY),
         onTap: onRetry,
       );
-      background.add(retryButton);
-
+      add(retryButton);
     } catch (e) {
       print('Error loading fail aftermath : $e');
     }
