@@ -1209,6 +1209,9 @@ class OneSecondGame extends FlameGame
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
         customSize: size,
+        order: enemy.order,
+        onInteracted: _onOrderInteracted,
+        onRemoved: _onOrderedShapeRemoved,
       );
     } else if (enemy.shape.startsWith('Pentagon')) {
       // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
@@ -1647,12 +1650,17 @@ class OneSecondGame extends FlameGame
       _clearAllShapes();
     }
 
+    final stage = _allStages[_selectedStageIndex];
+    final int missionNo = _selectedMissionIndex; // 이미 1-based
+    final String msnTitle = stage.missionTitle[missionNo] ?? '';
+
     print("stage result is = $result");
     final aftermath = AftermathScreen(
       result: result,
       starCount: starCount,
       msnIndex: msnIndex,
       stgIndex: stgIndex,
+      msnTitle: msnTitle,
       screenSize: size,
       onContinue: () {
         print('[AFTERMATH] Continue pressed.');
@@ -1889,7 +1897,7 @@ class OneSecondGame extends FlameGame
       int energy = 0;
 
       if (comp is CircleShape) energy = comp.count;
-      if (comp is RectangleShape) energy = comp.energy;
+      if (comp is RectangleShape) energy = comp.count;
       if (comp is PentagonShape) energy = comp.energy;
       if (comp is HexagonShape) energy = comp.energy;
 
