@@ -120,9 +120,9 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
         ),
       ),
       anchor: Anchor.center,
-      position: p(0.5, 0.01),
+      position: p(0.6,0.26),
     );
-    background.add(titleText);
+    banner.add(titleText);
 
     // --------------------------
     // 2) 스코어
@@ -252,10 +252,10 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
             color: Colors.black,
           ),
         ),
-        position: p(0.5, 0.01),
+        position: p(0.59,0.26),
         anchor: Anchor.center,
       );
-      background.add(levelLabel);
+      levelStatus.add(levelLabel);
 
       // Stars based on rating (centered)
       final levelIconSvg = await Svg.load('Heart_failed.svg');
