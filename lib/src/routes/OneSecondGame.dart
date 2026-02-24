@@ -1785,45 +1785,62 @@ class OneSecondGame extends FlameGame
     return false;
   }
 
-  bool _doLinesIntersect(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2) {
-    double ccw(Vector2 a, Vector2 b, Vector2 c) {
-      return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-    }
+  int _orientation(Vector2 a, Vector2 b, Vector2 c) {
+    final v = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+    const eps = 1e-9;
+    if (v.abs() < eps) return 0;     // collinear
+    return (v > 0) ? 1 : 2;          // 1: clockwise, 2: counterclockwise
+  }
 
-    return (ccw(p1, p2, q1) * ccw(p1, p2, q2) < 0) &&
-        (ccw(q1, q2, p1) * ccw(q1, q2, p2) < 0);
+  bool _onSegment(Vector2 a, Vector2 b, Vector2 c) {
+    // b is on segment ac (collinear assumed)
+    return b.x >= math.min(a.x, c.x) - 1e-9 &&
+        b.x <= math.max(a.x, c.x) + 1e-9 &&
+        b.y >= math.min(a.y, c.y) - 1e-9 &&
+        b.y <= math.max(a.y, c.y) + 1e-9;
+  }
+
+  bool _doLinesIntersect(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2) {
+    final o1 = _orientation(p1, p2, q1);
+    final o2 = _orientation(p1, p2, q2);
+    final o3 = _orientation(q1, q2, p1);
+    final o4 = _orientation(q1, q2, p2);
+
+    // general case
+    if (o1 != o2 && o3 != o4) return true;
+
+    // special collinear cases
+    if (o1 == 0 && _onSegment(p1, q1, p2)) return true;
+    if (o2 == 0 && _onSegment(p1, q2, p2)) return true;
+    if (o3 == 0 && _onSegment(q1, p1, q2)) return true;
+    if (o4 == 0 && _onSegment(q1, p2, q2)) return true;
+
+    return false;
   }
 
   bool _isPathClosed(List<Vector2> path) {
-    if (path.length < 3) return false;
+  if (path.length < 5) return false;
 
-    const double maxStartEndDistance = 80;
-    const double minLength = 300;
-    const double minArea = 1000;
+  const double minLength = 80;
+  const double minArea = 8000;   // 이 값 조절 가능
 
-    final start = path.first;
-    final end = path.last;
-
-    final bool isShortLoop = start.distanceTo(end) < maxStartEndDistance;
-    final bool pathCrosses = _doesPathCrossLine(start, end, path);
-
-    if (!(isShortLoop || pathCrosses)) {
-      print("Path is not considered closed: no short loop or crossing");
-      return false;
-    }
-
-    // 추가적으로 최소 길이, 최소 면적 조건도 적용 가능
-    double length = 0;
-    for (int i = 0; i < path.length - 1; i++) {
-      length += path[i].distanceTo(path[i + 1]);
-    }
-    if (length < minLength) return false;
-
-    final double area = _calculatePolygonArea(path);
-    if (area < minArea) return false;
-
-    return true;
+  // 전체 길이
+  double length = 0;
+  for (int i = 0; i < path.length - 1; i++) {
+    length += path[i].distanceTo(path[i + 1]);
   }
+
+  if (length < minLength) return false;
+
+  final area = _calculatePolygonArea(path);
+
+  if (area < minArea) {
+    print("Path area too small: $area");
+    return false;
+  }
+
+  return true;
+}
 
   double _calculatePolygonArea(List<Vector2> path) {
     double area = 0;
@@ -1909,6 +1926,42 @@ class OneSecondGame extends FlameGame
     }
   }
 
+//   bool _isLongEnoughForAnyRect(double straightDist) {
+//   for (final rect in children.whereType<RectangleShape>()) {
+//     final size = rect.size;
+//     final minRequired = math.min(size.x, size.y) * 0.8;
+//     if (straightDist >= minRequired) {
+//       return true;
+//     }
+//   }
+//   return false;
+// }
+
+bool _isStraightLine(List<Vector2> path) {
+  if (path.length < 2) return false;
+
+  final start = path.first;
+  final end = path.last;
+
+  final lineDir = (end - start);
+  final len = lineDir.length;
+  if (len == 0) return false;
+
+  final norm = lineDir / len;
+
+  double maxDeviation = 0;
+
+  for (final p in path) {
+    final v = p - start;
+    final projLength = v.dot(norm).clamp(0, len).toDouble();
+    final projPoint = start + norm * projLength;
+    final deviation = p.distanceTo(projPoint);
+    maxDeviation = math.max(maxDeviation, deviation);
+  }
+
+  return maxDeviation < 10;  // 허용 오차
+}
+
 
   @override
   void onDragStart(DragStartEvent event) {
@@ -1963,21 +2016,28 @@ class OneSecondGame extends FlameGame
       _resetPathState();
       return;
     }
+    final filtered = _filterDensePoints(userPath, minDistance: 6);
+    final smoothed = _smoothPoints(filtered, window: 2);
+    final judgePath = smoothed;
 
-    final isClosed = _isPathClosed(userPath);
-    final pathLength = _calculatePathLength(userPath);
+    // final isClosed = _isPathClosed(userPath);
+    final pathLength = _calculatePathLength(judgePath);
     final straightDist =
-        userPath.first.distanceTo(userPath.last);
-    final ratio = straightDist / pathLength;
+        judgePath.first.distanceTo(judgePath.last);
+    final ratio = (pathLength <= 0) ? 0.0 : (straightDist / pathLength);
 
 
     // ─────────────────────────────
     // 슬라이스 제스처 판정
     // ─────────────────────────────
-    final isSliceGesture =
-        !isClosed &&
-        straightDist > 100 &&
-        ratio > 0.55;
+    final bool isStraightEnough =
+    pathLength > 0 &&
+    (straightDist / pathLength) > 0.35;  // 0.55 → 0.4 완화
+
+    // final bool isLongEnough = _isLongEnoughForAnyRect(straightDist);
+
+    final isSliceGesture =straightDist > 20 &&
+    _isStraightLine(judgePath);
 
     print("straightDist: $straightDist");
     print("pathLength: $pathLength");
@@ -1986,11 +2046,10 @@ class OneSecondGame extends FlameGame
 
     if (isSliceGesture) {
       for (final comp in children.whereType<RectangleShape>()) {
-        if (_isRealSlice(comp, userPath)) {
-            comp.touchAtPoint(userPath);
+        if (_isRealSlice(comp, judgePath)) {
+          comp.touchAtPoint(judgePath);
         }
       }
-
       _resetPathState();
       return;
     }
@@ -1998,7 +2057,7 @@ class OneSecondGame extends FlameGame
     // ─────────────────────────────
     // 원 판정 시작
     // ─────────────────────────────
-
+    final isClosed = _isPathClosed(judgePath);
     if (!isClosed && !isSliceGesture) {
       print("triangle not enclosed");
 
@@ -2009,7 +2068,7 @@ class OneSecondGame extends FlameGame
         // 삼각형은 여기서 제외 (감싸기 전용)
         if (comp is TriangleShape) continue;
 
-        if (_doesPathTouchComponent(comp, userPath)) {
+        if (_doesPathTouchComponent(comp, judgePath)) {
           touchedOtherShapes.add(comp);
         }
       }
@@ -2028,7 +2087,7 @@ class OneSecondGame extends FlameGame
 
     for (final comp in children.whereType<PositionComponent>()) {
       if (comp is TriangleShape) {
-        if (comp.isFullyEnclosedByUserPath(userPath)) {
+        if (comp.isFullyEnclosedByUserPath(judgePath)) {
           enclosedTriangles.add(comp);
         }
       } else if (comp is CircleShape ||
@@ -2036,8 +2095,8 @@ class OneSecondGame extends FlameGame
           comp is PentagonShape ||
           comp is HexagonShape) {
 
-        final enclosed = _isComponentEnclosed(comp, userPath);
-        final touched = _doesPathTouchComponent(comp, userPath);
+        final enclosed = _isComponentEnclosed(comp, judgePath);
+        final touched = _doesPathTouchComponent(comp, judgePath);
 
         if (enclosed || touched) {
           touchedOtherShapes.add(comp);
@@ -2148,22 +2207,31 @@ class OneSecondGame extends FlameGame
   }
 
   bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
-    final rectBox = rect.toRect();
-
-    int intersectionCount = 0;
+    final box = rect.toRect();
+    int hits = 0;
 
     for (int i = 0; i < path.length - 1; i++) {
       final p1 = path[i];
       final p2 = path[i + 1];
 
-      if (_lineIntersectsRect(p1, p2, rectBox)) {
-        intersectionCount++;
+      final p1Inside = box.contains(Offset(p1.x, p1.y));
+      final p2Inside = box.contains(Offset(p2.x, p2.y));
+
+      // 1) 둘 중 하나라도 안/밖이 다르면 경계 통과 가능성 높음 → +1
+      if (p1Inside != p2Inside) {
+        hits++;
+        continue;
+      }
+
+      // 2) 둘 다 밖이면, 실제로 경계와 교차하는지 검사
+      if (!p1Inside && !p2Inside && _lineIntersectsRect(p1, p2, box)) {
+        hits++;
       }
     }
 
-    // 사각형을 진짜로 가로질렀으면
-    // 최소 2번 이상 경계와 교차해야 함
-    return intersectionCount >= 2;
+    // 일반적으로: 밖->안->밖이면 hits가 최소 2
+    // 하지만 안에서 시작하거나 손가락이 짧게 긋는 경우 hits가 1일 수도 있음
+    return hits >= 2 || (hits >= 1 && box.contains(Offset(path.first.x, path.first.y)));
   }
 
 
