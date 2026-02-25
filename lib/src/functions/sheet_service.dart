@@ -135,7 +135,7 @@ class SheetService {
       final String attackRaw= row.length > 4
           ? row[4]?.toString().trim() ?? ''
           : '';
-      final int? order = parseOrder(shape);
+
       final String movement = row.length > 5
           ? row[5]?.toString().trim() ?? ''
           : '';
@@ -152,7 +152,9 @@ class SheetService {
       final resolvedAttackRaw = resolveRD(attackRaw);
       final resolvedMovement = resolveRD(movement);
       final resolvedPosition = resolveRD(position);
-      
+
+      final int? order = parseOrder(shape);
+
       double? attackSeconds;
       double? attackDamage;
 
@@ -201,15 +203,13 @@ class SheetService {
     }
 
     final OEParse = parts[1].split('(');
-    if(OEParse.length != 2) {
-      throw FormatException('Invalid order value in-OEParse: $OEParse');
-    }
 
     final order = int.tryParse(OEParse[0]);
     if (order == null) {
       throw FormatException('Invalid order value in-order: $shape');
     }
 
+    print("shape $shape order = $order");
     return order;
   }
 

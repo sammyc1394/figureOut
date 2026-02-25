@@ -155,7 +155,18 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               children: [
                 const SizedBox(height: 120),
                 Text(
-                  'Figure Out the Shapes!',
+                  'Figure Out',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: appFontFamily,
+                    fontSize: 42,
+                    fontWeight: FontWeight.w300,
+                    color: Colors.black,
+                    letterSpacing: 0,
+                  ),
+                ),
+                Text(
+                  'the Shapes!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: appFontFamily,
