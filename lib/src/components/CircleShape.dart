@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
+import 'AttackExplosionEffect.dart';
 import 'CircleDisappearEffect.dart';
 
 class CircleShape extends PositionComponent
@@ -145,6 +146,15 @@ class CircleShape extends PositionComponent
         // 타이머 자폭
         wasRemovedByUser = false;
 
+        parent?.add(
+          AttackExplosionEffect(
+            basePath: _buildCirclePath(),
+            position: position.clone(),
+            size: size.clone(),
+            color: const Color(0xFFFF9D33),
+          ),
+        );
+
         removeFromParent();
       }
     }
@@ -208,6 +218,19 @@ class CircleShape extends PositionComponent
       );
     }
   }
+
+  Path _buildCirclePath() {
+    final radius = size.x * 0.48;
+
+    return Path()
+      ..addOval(
+        Rect.fromCircle(
+          center: Offset(size.x / 2, size.y / 2),
+          radius: radius,
+        ),
+      );
+  }
+
 
   bool get _attackTimeCritical {
     if ((attackTime ?? 0) <= 0) return false;
