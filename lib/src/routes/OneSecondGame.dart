@@ -75,8 +75,8 @@ class OneSecondGame extends FlameGame
   List<StageData> _allStages = [];
 
   // temp data
-  int maxMissionIndex = 8 ;
-  int maxStageIndex = 10;
+  late int maxMissionIndex;
+  late int maxStageIndex;
 
   final SheetService sheetService = SheetService();
 
@@ -258,6 +258,9 @@ class OneSecondGame extends FlameGame
     try {
       // _allStages = await sheetService.fetchData();
       _allStages = stages;
+
+      maxStageIndex = _allStages.length;
+      maxMissionIndex = _allStages[stageIndex].missions.length;
 
       _selectedStageIndex = stageIndex;
       _selectedMissionIndex = missionIndex + 1;
@@ -1199,6 +1202,7 @@ class OneSecondGame extends FlameGame
          // 기본값이 Rectangle4라고 가정하면 scale 1.0 -> 40,80
          // Rectangle2 -> scale 0.5 -> 20,40
          size = Vector2(40 * scale, 80 * scale);
+
       }
 
       shape = RectangleShape(
@@ -1206,6 +1210,7 @@ class OneSecondGame extends FlameGame
         enemy.energy,
         isDark: enemy.darkYN,
         onForbiddenTouch: penalty,
+        isAttackable: isAttackable,
         attackTime: enemy.attackSeconds,
         onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
         customSize: size,
@@ -1213,6 +1218,8 @@ class OneSecondGame extends FlameGame
         onInteracted: _onOrderInteracted,
         onRemoved: _onOrderedShapeRemoved,
       );
+      print('[RECT] size=${shape.size} scale=${shape.scale}');
+
     } else if (enemy.shape.startsWith('Pentagon')) {
       // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
       final scale = _parseScale(enemy.shape);
@@ -1688,8 +1695,10 @@ class OneSecondGame extends FlameGame
             _selectedMissionIndex = _selectedMissionIndex + 1;
           } else {
             print("last mission - move to next stage");
-            _selectedStageIndex = _selectedStageIndex + 1;
+            _selectedStageIndex = 0;
             _selectedMissionIndex = 0;
+
+
           }
 
           print(

@@ -33,10 +33,10 @@ class _MainGameScreenState extends State<MainGameScreen> {
     _decreaseHeartOnStart();
 
     oneSec = OneSecondGame(
-        navigatorContext: context,
-        stages: widget.stages,
-        stageIndex: widget.stageIndex,
-        missionIndex: widget.missionIndex
+      navigatorContext: context,
+      stages: widget.stages,
+      stageIndex: widget.stageIndex,
+      missionIndex: widget.missionIndex,
     );
   }
 
@@ -60,13 +60,16 @@ class _MainGameScreenState extends State<MainGameScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return ColoredBox(
-      color: const Color(0xFFEDEBE0), // 배경 색
-      child: GameWidget(
-        game: oneSec,
-        // Flame의 캔버스에 덮이는 배경 지정
-        backgroundBuilder: (context) =>
-            Container(color: const Color(0xFFEDEBE0)),
+    return PopScope(
+      canPop: false,
+      child: ColoredBox(
+        color: const Color(0xFFEDEBE0), // 배경 색
+        child: GameWidget(
+          game: oneSec,
+          // Flame의 캔버스에 덮이는 배경 지정
+          backgroundBuilder: (context) =>
+              Container(color: const Color(0xFFEDEBE0)),
+        ),
       ),
     );
   }
