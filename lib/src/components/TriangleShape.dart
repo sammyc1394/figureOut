@@ -8,6 +8,8 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
+import 'AttackExplosionEffect.dart';
+
 class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   late final SvgComponent svg;
   int energy = 0;
@@ -179,6 +181,15 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
       // 타이머 자폭은 유저 제거 아님
       wasRemovedByUser = false;
 
+      parent?.add(
+        AttackExplosionEffect(
+          basePath: _buildExplosionTrianglePath(),   // 삼각형 외곽 그대로 사용
+          position: position.clone(),
+          size: size.clone(),
+          color: const Color(0xFFFFD84D),
+        ),
+      );
+
       removeFromParent();
       return;
     }
@@ -270,5 +281,16 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
       }
     }
     return count.isOdd;
+  }
+
+  Path _buildExplosionTrianglePath() {
+    final w = size.x;
+    final h = size.y;
+
+    return Path()
+      ..moveTo(w / 2, 0)
+      ..lineTo(0, h)
+      ..lineTo(w, h)
+      ..close();
   }
 }
