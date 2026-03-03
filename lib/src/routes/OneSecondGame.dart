@@ -1267,42 +1267,65 @@ class OneSecondGame extends FlameGame
     return shape;
   }
 
+  bool _isVisualEffectComponent(Component c) {
+    // Flame Effect는 물론이고, 너가 만든 "xxxDisappearEffect" 같은 것도 잡기
+    if (c is Effect) return true;
+
+    final name = c.runtimeType.toString();
+    if (name.contains('DisappearEffect')) return true;
+    if (name.contains('ExplosionEffect')) return true;
+    if (name.contains('SliceEffect')) return true;
+
+    return false;
+  }
+
+  bool _hasAnyActiveVisualEffectsInTree() {
+    bool found = false;
+
+    void walk(Component node) {
+      if (found) return;
+
+      if (_isVisualEffectComponent(node)) {
+        found = true;
+        return;
+      }
+
+      for (final child in node.children) {
+        walk(child);
+        if (found) return;
+      }
+    }
+
+    for (final c in children) {
+      walk(c);
+      if (found) break;
+    }
+
+    return found;
+  }
+
   // 그냥 도형 다 죽였는지 여부
-  Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
-    // add 직후 같은 프레임 race 방지 (mount 될 시간 한 프레임 양보)
+    Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
+    // add 직후 같은 프레임 race 방지
     await Future<void>.delayed(Duration.zero);
 
     while (true) {
+      // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
+      if (_hasAnyActiveVisualEffectsInTree()) {
+        await Future.delayed(const Duration(milliseconds: 60));
+        continue;
+      }
+
       if (_isTimeOver) return StageResult.fail;
 
       final remaining = targets.where((c) {
         // 1) 다크 도형 제외
         if (_isDarkShape(c)) return false;
 
-        // 2) mount 되어있으면 남아있음
-        if (c.isMounted) {
-          if (c is UserRemovable) {
-          // UserRemovable에 getter가 선언돼 있지 않아서 dynamic으로 접근해야 함
-          final dyn = c as dynamic;
+        // 2) 아직 트리에 붙어 있으면(=애니메이션 중 포함) 무조건 남아있는 것으로 간주
+        if (c.isMounted) return true;
 
-          bool removedByUser = false;
-          try {
-            removedByUser = (dyn.isRemovedByUser == true);
-          } catch (_) {
-            // 해당 프로퍼티가 아예 없는 컴포넌트면 "사용자 제거 여부 추적 불가"로 간주
-            removedByUser = false;
-          }
-
-          // 사용자가 제거하지 않았으면 아직 남아있는 걸로 취급
-          if (!removedByUser) return true;
-
-          // 사용자가 제거한 걸로 표기된 경우는 남아있지 않은 걸로 취급
-          return false;
-        }
-          return true;
-        }
-
-        // 3) mount 해제(=removeFromParent 완료 등)면 기본적으로 cleared
+        // 3) mount 해제면 기본 cleared
         //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
         if (c is PositionComponent) {
           final blinking = blinkingMap[c];
@@ -1316,7 +1339,6 @@ class OneSecondGame extends FlameGame
 
       if (remaining.isEmpty) {
         print('Mission cleared');
-        // await Future.delayed(const Duration(milliseconds: 1000));
         break;
       }
 
