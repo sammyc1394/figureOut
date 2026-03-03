@@ -51,21 +51,21 @@ class PausedScreen extends PositionComponent {
         ),
       ),
       anchor: Anchor.topCenter,
-      position: Vector2(panelSize.x / 2, panel.y * 0.12),
+      position: Vector2(panelSize.x / 2, panel.y * 0.17),
     );
     panel.add(pausedText);
 
-    final buttonSize = Vector2(panelSize.x * 0.18, panelSize.x * 0.18);
+    final buttonSize = Vector2(panelSize.x * 0.2, panelSize.y * 0.18);
 
     final centerY = panelSize.y / 2;
 
     // 버튼 배치
     final buttonY = centerY* 1.1;
-    final spacing = panelSize.x * 0.3;
+    final spacing = panelSize.x * 0.35;
 
     final menuButton = SvgButton(
       assetPath: 'Exit_basic.svg',
-      size: buttonSize ,
+      size: buttonSize*0.8 ,
       position: Vector2(panelSize.x / 2 - spacing, buttonY),
       onTap: onMenu,
     )..anchor=Anchor.center;
@@ -73,7 +73,7 @@ class PausedScreen extends PositionComponent {
 
     final resumeButton = SvgButton(
       assetPath: 'Resume_default.svg',
-      size: buttonSize,
+      size: buttonSize*2.3,
       position: Vector2(panelSize.x / 2, buttonY),
       onTap: onResume,
     )..anchor=Anchor.center;
@@ -81,7 +81,7 @@ class PausedScreen extends PositionComponent {
 
     final retryButton = SvgButton(
       assetPath: 'Retry_default.svg',
-      size: buttonSize,
+      size: buttonSize*0.8,
       position: Vector2(panelSize.x / 2+spacing, buttonY),
       onTap: onRetry,
     )..anchor=Anchor.center;
