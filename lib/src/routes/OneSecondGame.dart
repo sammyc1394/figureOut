@@ -1359,23 +1359,23 @@ class OneSecondGame extends FlameGame
   }
 
   bool _onOrderInteracted(OrderableShape c) {
-    print('[GAME] circle input received. order=${c.order}');
+    print('[GAME] shape input received. order=${c.order}');
 
-    // // 1) dark 도형 판단
-    // print('[GAME] dark shape YN = ${c.isDark}');
-    // if (c.isDark) return true;
+    // order 없는 도형은 항상 패스
+    if (c.order == null) return true;
+    print('[GAME] shape order YN(c.order == null) check = ${c.order == null}');
 
-    // 2) order 퍼즐인지 아닌지 판단
-    print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
+    // 1) order 퍼즐인지 아닌지 판단
+    // print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
 
-    if (!_hasOrder) return true;
+    // if (!_hasOrder) return true;
 
     print('[GAME] order shape YN (order from shape)= ${c.order == null}');
 
-    // 3) order 퍼즐이고 순서가 맞는지 판단
+    // 2) order 퍼즐이고 순서가 맞는지 판단
     final expected = _orderedShapes[_currentOrderIndex];
 
-    print('[GAME] circle input checking for validity. validity = ${identical(c, expected)}');
+    print('[GAME] shape input checking for validity. validity = ${identical(c, expected)}');
     return identical(c.order, expected.order);
   }
 
@@ -1957,17 +1957,6 @@ class OneSecondGame extends FlameGame
     }
   }
 
-//   bool _isLongEnoughForAnyRect(double straightDist) {
-//   for (final rect in children.whereType<RectangleShape>()) {
-//     final size = rect.size;
-//     final minRequired = math.min(size.x, size.y) * 0.8;
-//     if (straightDist >= minRequired) {
-//       return true;
-//     }
-//   }
-//   return false;
-// }
-
 bool _isStraightLine(List<Vector2> path) {
   if (path.length < 2) return false;
 
@@ -2076,6 +2065,7 @@ bool _isStraightLine(List<Vector2> path) {
 
 
     if (isSliceGesture) {
+      print("=== SLICED =============");
       for (final comp in children.whereType<RectangleShape>()) {
         if (_isRealSlice(comp, judgePath)) {
           comp.touchAtPoint(judgePath);
@@ -2238,31 +2228,40 @@ bool _isStraightLine(List<Vector2> path) {
   }
 
   bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
+    final start = path.first;
+    final end = path.last;
+
     final box = rect.toRect();
-    int hits = 0;
 
-    for (int i = 0; i < path.length - 1; i++) {
-      final p1 = path[i];
-      final p2 = path[i + 1];
+    final intersections = rect.getLineRectangleIntersections(start, end, box);
 
-      final p1Inside = box.contains(Offset(p1.x, p1.y));
-      final p2Inside = box.contains(Offset(p2.x, p2.y));
+    return intersections.length >= 2;
 
-      // 1) 둘 중 하나라도 안/밖이 다르면 경계 통과 가능성 높음 → +1
-      if (p1Inside != p2Inside) {
-        hits++;
-        continue;
-      }
-
-      // 2) 둘 다 밖이면, 실제로 경계와 교차하는지 검사
-      if (!p1Inside && !p2Inside && _lineIntersectsRect(p1, p2, box)) {
-        hits++;
-      }
-    }
-
-    // 일반적으로: 밖->안->밖이면 hits가 최소 2
-    // 하지만 안에서 시작하거나 손가락이 짧게 긋는 경우 hits가 1일 수도 있음
-    return hits >= 2 || (hits >= 1 && box.contains(Offset(path.first.x, path.first.y)));
+    // final box = rect.toRect();
+    // int hits = 0;
+    //
+    // for (int i = 0; i < path.length - 1; i++) {
+    //   final p1 = path[i];
+    //   final p2 = path[i + 1];
+    //
+    //   final p1Inside = box.contains(Offset(p1.x, p1.y));
+    //   final p2Inside = box.contains(Offset(p2.x, p2.y));
+    //
+    //   // 1) 둘 중 하나라도 안/밖이 다르면 경계 통과 가능성 높음 → +1
+    //   if (p1Inside != p2Inside) {
+    //     hits++;
+    //     continue;
+    //   }
+    //
+    //   // 2) 둘 다 밖이면, 실제로 경계와 교차하는지 검사
+    //   if (!p1Inside && !p2Inside && _lineIntersectsRect(p1, p2, box)) {
+    //     hits++;
+    //   }
+    // }
+    //
+    // // 일반적으로: 밖->안->밖이면 hits가 최소 2
+    // // 하지만 안에서 시작하거나 손가락이 짧게 긋는 경우 hits가 1일 수도 있음
+    // return hits >= 2 || (hits >= 1 && box.contains(Offset(path.first.x, path.first.y)));
   }
 
 

@@ -262,6 +262,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   }
 
   void touchAtPoint(List<Vector2> userPath) {
+    print("=== RUNNING TOUCHATPOINT ==============");
     if (userPath.length < 2 || isSliced) return;
 
     final slicePoints = getSlicePoints(userPath);
@@ -306,7 +307,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     }
 
     if(count <= 0) {
-      Future.delayed(const Duration(milliseconds: 50), () {
+      // Future.delayed(const Duration(milliseconds: 50), () {
 
         // ------------------------------------------------------------
         // Rectangle disappear effect
@@ -361,11 +362,11 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
         parent?.add(piece2);
 
         wasRemovedByUser = true;
-        onRemoved?.call();
+        if(order != null ) onRemoved?.call();
         removeFromParent();
         // ------------------------------------------------------------
-      });
-    }
+      // });
+    } // if(count <= 0) {
   }
 
   ({Path item1, Path item2})? _splitRectToTwoClipPaths(
@@ -579,6 +580,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   }
 
   void applyValidInteraction() {
+    print("=== VALID MOVE ==============");
     count--;
 
     Future.delayed(const Duration(milliseconds: 1), () {
