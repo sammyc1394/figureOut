@@ -11,6 +11,8 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
+import 'AttackExplosionEffect.dart';
+
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 
@@ -161,6 +163,16 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
       // 타이머 자폭으로 제거됨을 명확히
       wasRemovedByUser = false;
+
+      
+      parent?.add(
+        AttackExplosionEffect(
+          basePath: _buildExplosionRectanglePath(),   // 사각형 외곽 그대로 사용
+          position: position.clone(),
+          size: size.clone(),
+          color: const Color(0xFF4680FF),
+        ),
+      );
 
       // 즉시 제거
       removeFromParent();
@@ -589,6 +601,19 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
       sliceEnd = null;
     });
     return;
+  }
+
+  
+  Path _buildExplosionRectanglePath() {
+    final w = size.x;
+    final h = size.y;
+
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
   }
 }
 
