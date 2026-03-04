@@ -301,8 +301,10 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
     final paths = _splitRectToTwoClipPaths(localA, localB, size);
     if (paths == null) {
-      wasRemovedByUser = true;
-      removeFromParent();
+      if (count <= 0) {
+        wasRemovedByUser = true;
+        removeFromParent();
+      }
       return;
     }
 
