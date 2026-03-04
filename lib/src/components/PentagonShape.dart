@@ -192,7 +192,7 @@ class PentagonShape extends PositionComponent
         
         parent?.add(
           AttackExplosionEffect(
-            basePath: _buildExplosionPentagonPath(),   // 삼각형 외곽 그대로 사용
+            basePath: _buildExplosionPentagonPath(),   // 오각형 외곽 그대로 사용
             position: position.clone(),
             size: size.clone(),
             color: const Color(0xFFC100BA),
