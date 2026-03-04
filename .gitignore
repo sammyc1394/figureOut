@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Auto-generated Android files (should not be tracked)
+android/local.properties
+**/GeneratedPluginRegistrant.java
+
 # Secret files
 .env
 *.env
