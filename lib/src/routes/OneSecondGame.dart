@@ -1979,7 +1979,7 @@ bool _isStraightLine(List<Vector2> path) {
     maxDeviation = math.max(maxDeviation, deviation);
   }
 
-  return maxDeviation < 10;  // 허용 오차
+  return maxDeviation < 20;  // 허용 오차 (원래 10에서 20으로 늘려 관대하게)
 }
 
 
@@ -2036,8 +2036,12 @@ bool _isStraightLine(List<Vector2> path) {
       _resetPathState();
       return;
     }
-    final filtered = _filterDensePoints(userPath, minDistance: 6);
-    final smoothed = _smoothPoints(filtered, window: 2);
+    // 드래그 포인트 최적화 파라미터 튜닝
+    // minDistance: 포인트 간 최소 간격. (기존 6 -> 3: 촘촘하게 수집하여 원 닫힘 인식 개선)
+    final filtered = _filterDensePoints(userPath, minDistance: 3);
+    
+    // window: 스무딩 강도. (기존 2 -> 4: 손떨림 지글거림을 확실히 눌러줌)
+    final smoothed = _smoothPoints(filtered, window: 4);
     final judgePath = smoothed;
 
     // final isClosed = _isPathClosed(userPath);
@@ -2056,7 +2060,7 @@ bool _isStraightLine(List<Vector2> path) {
 
     // final bool isLongEnough = _isLongEnoughForAnyRect(straightDist);
 
-    final isSliceGesture =straightDist > 20 &&
+    final isSliceGesture = straightDist > 30 && // 너무 짧은 터치를 슬라이스로 오인 방지 (20->30)
     _isStraightLine(judgePath);
 
     print("straightDist: $straightDist");
