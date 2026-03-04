@@ -120,10 +120,14 @@ class OneSecondGame extends FlameGame
   double _lastValidRangeY = 1;
 
 
-  // order
+  // order (circle / other shapes)
   List<OrderableShape> _orderedShapes = [];
   int _currentOrderIndex = 0;
   bool _hasOrder = false;
+
+  // order (rectangle slice)
+  List<RectangleShape> _orderedRects = [];
+  int _currentRectOrderIndex = 0;
 
   // gestures
   Vector2? dragStart;
@@ -699,6 +703,7 @@ class OneSecondGame extends FlameGame
 
           if (currentWave.isNotEmpty) {
             _initOrder();
+            _initRectOrder();
             // await waitUntilMissionCleared(currentWave);
             await waitUntilMissionCleared(Set<Component>.from(currentWave));
           }
@@ -1216,7 +1221,7 @@ class OneSecondGame extends FlameGame
         customSize: size,
         order: enemy.order,
         onInteracted: _onOrderInteracted,
-        onRemoved: _onOrderedShapeRemoved,
+        onRemoved: _onOrderedRectRemoved,
       );
       print('[RECT] size=${shape.size} scale=${shape.scale}');
 
@@ -1366,11 +1371,19 @@ class OneSecondGame extends FlameGame
     print('[GAME] shape order YN(c.order == null) check = ${c.order == null}');
 
     // 1) order 퍼즐인지 아닌지 판단
-    // print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
+    print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
 
     // if (!_hasOrder) return true;
 
+    // 만약 모든 순서 도형을 제거한 상태라면 남은 도형 자유 터치 가능
+    if (_currentOrderIndex >= _orderedShapes.length) {
+      return true;
+    }
+
     print('[GAME] order shape YN (order from shape)= ${c.order == null}');
+
+    // 순서 도형이 남아있는데, 순서 없는 다른 도형을 눌렀다면 터치 금지 (패널티 처리 유도)
+    if (c.order == null) return false;
 
     // 2) order 퍼즐이고 순서가 맞는지 판단
     final expected = _orderedShapes[_currentOrderIndex];
@@ -1380,24 +1393,96 @@ class OneSecondGame extends FlameGame
   }
 
   void _onOrderedShapeRemoved() {
-    // if (!_hasOrder) return;
-    // if (shape.order == null) return;
-
     _currentOrderIndex++;
-
     print('[ORDER] next index = $_currentOrderIndex');
   }
 
+  void _onOrderedRectRemoved() {
+    _currentRectOrderIndex++;
+    print('[RECT ORDER] next rect index = $_currentRectOrderIndex');
+  }
 
   void _initOrder() {
     _orderedShapes = children
         .whereType<OrderableShape>()
-        .where((c) => c.order != null)
+        // RectangleShape는 슬라이스 전용 순서(_orderedRects)로 관리, 여기설 제외
+        .where((c) => c.order != null && c is! RectangleShape)
         .toList()
       ..sort((a, b) => a.order!.compareTo(b.order!));
 
     _currentOrderIndex = 0;
     _hasOrder = _orderedShapes.isNotEmpty;
+  }
+
+  void _initRectOrder() {
+    _orderedRects = children
+        .whereType<RectangleShape>()
+        .where((r) => r.order != null)
+        .toList()
+      ..sort((a, b) => a.order!.compareTo(b.order!));
+
+    _currentRectOrderIndex = 0;
+    print('[RECT ORDER] initialized with ${_orderedRects.length} rects');
+  }
+
+  // 슬라이스 경로에 닿는 사각형들이 순서 규칙을 만족하는지 검증
+  // 순서 있는 사각형이 경로에 포함될 경우, 가장 낮은 order가 현재 기대 순서와 같아야 함
+  // 경로가 사각형에 처음 닿는 path index를 반환
+  int _firstContactIndex(RectangleShape rect, List<Vector2> path) {
+    final bounds = rect.toRect();
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      if (bounds.contains(Offset(p1.x, p1.y)) ||
+          bounds.contains(Offset(p2.x, p2.y))) {
+        return i;
+      }
+      // 선분-사각형 교차 확인
+      final intersections = rect.getLineRectangleIntersections(p1, p2, bounds);
+      if (intersections.isNotEmpty) return i;
+    }
+    return path.length; // 미취시 가장 뒤로
+  }
+
+  // 슬라이스 경로가 순서 굳은 사각형들을 올바른 방향(order 오름차순)으로 통과하는지 확인
+  // - 경로가 1번 다음에 2번 다음에 3번 순으로 닿으면 허용
+  // - 3번을 먼저 닿으면(역방향) 차단
+  // - 현재 기대 순서(expected) 보다 렮은 것을 먼저 닿으면 차단
+  bool _isRectSliceOrderValid(List<RectangleShape> slicedRects, List<Vector2> path) {
+    final orderedInPath = slicedRects
+        .where((r) => r.order != null)
+        .toList();
+
+    // 경로 위에 순서 있는 사각형이 없으면 항상 허용
+    if (orderedInPath.isEmpty) return true;
+
+    // 모든 순서 사각형 이미 제거된 경우 허용
+    if (_currentRectOrderIndex >= _orderedRects.length) return true;
+
+    final expected = _orderedRects[_currentRectOrderIndex];
+
+    // 경로에서 각 사각형에 첫 번째 닿는 path index 계산
+    orderedInPath.sort((a, b) {
+      return _firstContactIndex(a, path).compareTo(_firstContactIndex(b, path));
+    });
+
+    // 경로가 첫 번째로 닿는 사각형이 현재 기대 순서여야 함
+    final firstHit = orderedInPath.first;
+    if (!identical(firstHit, expected)) {
+      print('[RECT ORDER] Blocked: first hit=${firstHit.order}, expected=${expected.order}');
+      return false;
+    }
+
+    // 경로 통과 순서가 order 오름차순임을 확인
+    for (int i = 0; i < orderedInPath.length - 1; i++) {
+      if (orderedInPath[i].order! > orderedInPath[i + 1].order!) {
+        print('[RECT ORDER] Blocked: traversal order mismatch');
+        return false;
+      }
+    }
+
+    print('[RECT ORDER] Valid traversal: ${orderedInPath.map((r) => r.order).toList()}');
+    return true;
   }
 
   // Convert from your coordinate system to play area coordinates
@@ -2065,11 +2150,45 @@ bool _isStraightLine(List<Vector2> path) {
 
 
     if (isSliceGesture) {
-      print("=== SLICED =============");
-      for (final comp in children.whereType<RectangleShape>()) {
-        if (_isRealSlice(comp, judgePath)) {
-          comp.touchAtPoint(judgePath);
+      // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
+      final overlappingShapes = <PositionComponent>[];
+      for (final comp in children.whereType<PositionComponent>()) {
+        if (comp is CircleShape ||
+            comp is TriangleShape ||
+            comp is PentagonShape ||
+            comp is HexagonShape) {
+          if (_doesPathTouchComponent(comp, judgePath)) {
+            overlappingShapes.add(comp);
+          }
         }
+      }
+
+      // 다른 도형과 겹쳤다면 슬라이스(사각형 깎기)를 취소하고 패널티 부여
+      if (overlappingShapes.isNotEmpty) {
+        print('[SLICE BLOCKED] Other shapes on path: ${overlappingShapes.map((c) => c.runtimeType)}');
+        _applyTouchPenalty(overlappingShapes);
+        _resetPathState();
+        return;
+      }
+
+      // 경로에 닿는 사각형 목록 수집
+      final slicedRects = children
+          .whereType<RectangleShape>()
+          .where((r) => _isRealSlice(r, judgePath))
+          .toList();
+
+      // 순서 체크: 현재 기대 순서의 사각형이 경로에 없으면 차단 + 패널티
+      if (!_isRectSliceOrderValid(slicedRects, judgePath)) {
+        print('[RECT ORDER BLOCKED] Wrong order slice attempted');
+        _applyTouchPenalty(slicedRects.cast<PositionComponent>());
+        _resetPathState();
+        return;
+      }
+
+      // 유효한 슬라이스: 경로에 닿는 모든 사각형 처리
+      // (traversal order 검증을 통과했으므로 경로 위 모든 사각형 슬라이스 허용)
+      for (final rect in slicedRects) {
+        rect.touchAtPoint(judgePath);
       }
       _resetPathState();
       return;
@@ -2219,6 +2338,10 @@ bool _isStraightLine(List<Vector2> path) {
     for (int i = 0; i < path.length - 1; i++) {
       final p1 = path[i];
       final p2 = path[i + 1];
+
+      if (rect.contains(Offset(p1.x, p1.y)) || rect.contains(Offset(p2.x, p2.y))) {
+        return true;
+      }
 
       if (_lineIntersectsRect(p1, p2, rect)) {
         return true;
