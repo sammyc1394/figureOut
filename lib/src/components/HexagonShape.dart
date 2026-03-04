@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'dart:math' as math;
 
+import 'AttackExplosionEffect.dart';
+
 enum HexagonState {
   normal,
   autoGrowing,
@@ -199,6 +201,16 @@ class HexagonShape extends PositionComponent
         }
 
         wasRemovedByUser = false;
+
+        
+        parent?.add(
+          AttackExplosionEffect(
+            basePath: _buildExplosionHexagonPath(),   // 육각형 외곽 그대로 사용
+            position: position.clone(),
+            size: size.clone(),
+            color: const Color(0xFF9BEE3B),
+          ),
+        );
         removeFromParent(); 
         return;
       }
@@ -258,5 +270,20 @@ class HexagonShape extends PositionComponent
       width: size.x * scale.x,
       height: size.y * scale.y,
     );
+  }
+
+  
+  Path _buildExplosionHexagonPath() {
+    final w = size.x;
+    final h = size.y;
+
+    return Path()
+      ..moveTo(w * 0.25, 0)       // top-left
+      ..lineTo(w * 0.75, 0)       // top-right
+      ..lineTo(w, h * 0.5)        // right
+      ..lineTo(w * 0.75, h)       // bottom-right
+      ..lineTo(w * 0.25, h)       // bottom-left
+      ..lineTo(0, h * 0.5)        // left
+      ..close();
   }
 }
