@@ -10,6 +10,8 @@ import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
+import 'AttackExplosionEffect.dart';
+
 class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
   int energy;
@@ -186,6 +188,16 @@ class PentagonShape extends PositionComponent
         }
 
         wasRemovedByUser = false; // 타이머 자폭
+
+        
+        parent?.add(
+          AttackExplosionEffect(
+            basePath: _buildExplosionPentagonPath(),   // 삼각형 외곽 그대로 사용
+            position: position.clone(),
+            size: size.clone(),
+            color: const Color(0xFFC100BA),
+          ),
+        );
         removeFromParent();
         return;
       }
@@ -364,4 +376,18 @@ class PentagonShape extends PositionComponent
     }
     return null;
   }
+
+  
+  Path _buildExplosionPentagonPath() {
+    final w = size.x;
+    final h = size.y;
+
+    return Path()
+      ..moveTo(w / 2, 0)          // top
+      ..lineTo(0, h * 0.4)        // left upper
+      ..lineTo(w * 0.2, h)        // left bottom
+      ..lineTo(w * 0.8, h)        // right bottom
+      ..lineTo(w, h * 0.4)        // right upper
+      ..close();
+    }
 }
