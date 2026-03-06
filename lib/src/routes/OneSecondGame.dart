@@ -318,6 +318,11 @@ class OneSecondGame extends FlameGame
         _debugTapCount = 0;
       }
     }
+
+    // 사각형 슬라이스 시작 위치 추가
+    // userPath.clear();
+    // userPath.add(event.canvasPosition);
+    // print("=== userPath start point added : ${userPath.first} ==========");
   }
 
   //시간 패널티
@@ -1359,16 +1364,13 @@ class OneSecondGame extends FlameGame
   }
 
   bool _onOrderInteracted(OrderableShape c) {
-    print('[GAME] shape input received. order=${c.order}');
-
     // order 없는 도형은 항상 패스
-    if (c.order == null) return true;
+
     print('[GAME] shape order YN(c.order == null) check = ${c.order == null}');
+    if (c.order == null) return true;
 
     // 1) order 퍼즐인지 아닌지 판단
     print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
-
-    // if (!_hasOrder) return true;
 
     // 만약 모든 순서 도형을 제거한 상태라면 남은 도형 자유 터치 가능
     if (_currentOrderIndex >= _orderedShapes.length) {
@@ -2024,8 +2026,9 @@ bool _isStraightLine(List<Vector2> path) {
   @override
   void onDragStart(DragStartEvent event) {
     dragStart = event.canvasPosition;
-    userPath.clear();
+    // userPath.clear();
     userPath.add(event.canvasPosition);
+    print("=== userPath added : ${userPath.last} =============");
 
     _dragStartPos = event.canvasPosition;
     _dragLastPos = event.canvasPosition;
@@ -2149,7 +2152,7 @@ bool _isStraightLine(List<Vector2> path) {
           if (stopSlicing) break;
 
           if (rect.order == null) {
-            rect.touchAtPoint(judgePath);
+            rect.touchAtPoint(userPath);
             continue;
           }
 
@@ -2157,7 +2160,7 @@ bool _isStraightLine(List<Vector2> path) {
 
           if (expected == null || rect.order == expected.order) {
             // 올바른 순서의 사각형을 타격함
-            rect.touchAtPoint(judgePath);
+            rect.touchAtPoint(userPath);
             hitAnyExpected = true;
           } else {
             // 기대하지 않은 순서의 사각형을 타격함

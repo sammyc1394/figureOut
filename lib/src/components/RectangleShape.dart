@@ -277,7 +277,21 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     print("=== RUNNING TOUCHATPOINT ==============");
     if (userPath.length < 2 || isSliced) return;
 
+    // ===== A 좌표계 문제 확인 =====
+    final r = toRect();
+    print("rectBounds: $r");
+    print("path first=${userPath.first}, last=${userPath.last}");
+    print("firstInside=${r.contains(Offset(userPath.first.x, userPath.first.y))}");
+    print("lastInside=${r.contains(Offset(userPath.last.x, userPath.last.y))}");
+
+    // ===== B 교차점이 몇 개인지 =====
+    final a = userPath.first;
+    final b = userPath.last;
+    final ints = getLineRectangleIntersections(a, b, r);
+    print("line intersections=${ints.length}  $ints");
+
     final slicePoints = getSlicePoints(userPath);
+
     if (slicePoints == null) return;
 
     if (isDark) {
@@ -295,6 +309,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     sliceEnd = slicePoints.end;
     // isSliced = true;
     isSliced = onInteracted?.call(this) ?? false;
+    print("=== slice check : $isSliced ============");
     if (isSliced) {
       applyValidInteraction();
     } else {
@@ -313,10 +328,8 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
     final paths = _splitRectToTwoClipPaths(localA, localB, size);
     if (paths == null) {
-      if (count <= 0) {
-        wasRemovedByUser = true;
-        removeFromParent();
-      }
+      wasRemovedByUser = true;
+      removeFromParent();
       return;
     }
 
@@ -536,17 +549,24 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   Vector2? getLineIntersection(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4) {
     final denom =
         (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
-    if (denom == 0) return null;
+
+    if (denom.abs() < 0.000001) return null;
 
     final t = ((p1.x - p3.x) * (p3.y - p4.y) -
         (p1.y - p3.y) * (p3.x - p4.x)) /
         denom;
+
     final u = -((p1.x - p2.x) * (p1.y - p3.y) -
         (p1.y - p2.y) * (p1.x - p3.x)) /
         denom;
 
-    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-      return Vector2(p1.x + t * (p2.x - p1.x), p1.y + t * (p2.y - p1.y));
+    const eps = 0.01;
+
+    if (t >= -eps && t <= 1 + eps && u >= -eps && u <= 1 + eps) {
+      return Vector2(
+        p1.x + t * (p2.x - p1.x),
+        p1.y + t * (p2.y - p1.y),
+      );
     }
 
     return null;
