@@ -42,6 +42,22 @@ class CircleShape extends PositionComponent
 
   final Color dangerColor = const Color(0xFFEE0505);
 
+  double _blinkAlpha = 1.0;
+
+  void setBlinkAlpha(double alpha) {
+    _blinkAlpha = alpha.clamp(0.0, 1.0);
+    // _attackPaint.color =
+    // _attackPaint.color.withValues(alpha: _blinkAlpha);
+
+    // if (_svg.isMounted) {
+      _svg.opacity = _blinkAlpha;
+    // }
+
+    // if (_png.isMounted) {
+      _png.opacity = _blinkAlpha;
+    // }
+  }
+
   CircleShape(
     Vector2 position,
     this.count, {
@@ -181,7 +197,8 @@ class CircleShape extends PositionComponent
       final sweep = 2 * pi * ratio;
 
       _attackPaint.color =
-          _attackTimeCritical ? dangerColor : Colors.orangeAccent;
+        (_attackTimeCritical ? dangerColor : Colors.orangeAccent)
+            .withValues(alpha: _blinkAlpha);
 
       final center = Offset(size.x / 2, size.y / 2);
       final radius = size.x * 0.48;
@@ -201,9 +218,8 @@ class CircleShape extends PositionComponent
           text: count.toString(),
           style: TextStyle(
             color:
-                _attackTimeCritical ? dangerColor : const Color(0xFFFF9D33),
+                (_attackTimeCritical ? dangerColor : const Color(0xFFFF9D33)).withValues(alpha:_blinkAlpha),
             fontSize: 20,
-            fontWeight: FontWeight.bold,
           ),
         ),
         textDirection: TextDirection.ltr,
