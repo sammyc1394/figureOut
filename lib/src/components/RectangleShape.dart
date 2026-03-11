@@ -22,6 +22,10 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   late final SpriteComponent _png;
   late PositionComponent _orderBadge;
 
+  double _blinkAlpha = 1.0;
+  CircleComponent? _orderBadgeBg;
+  TextComponent? _orderBadgeText;
+
   bool isSliced = false;
   Vector2? sliceStart;
   Vector2? sliceEnd;
@@ -73,6 +77,39 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
           size: customSize ?? Vector2(40, 80),
           anchor: Anchor.center,
         );
+
+  bool get _usesPngLayer => (attackTime ?? 0) > 0;
+
+  void setBlinkAlpha(double alpha) {
+    _blinkAlpha = alpha.clamp(0.0, 1.0);
+
+    // svg.opacity = _blinkAlpha;
+    // _png.opacity = _blinkAlpha;
+
+    if (_usesPngLayer) {
+      svg.opacity = 0.0;
+      _png.opacity = _blinkAlpha;
+    } else {
+      svg.opacity = _blinkAlpha;
+      _png.opacity = 0.0;
+    }
+
+    if (_orderBadgeBg != null) {
+      _orderBadgeBg!.paint.color = const Color(0xFF4680FF)
+          .withValues(alpha: _blinkAlpha);
+    }
+
+    if (_orderBadgeText != null) {
+      _orderBadgeText!.textRenderer = TextPaint(
+        style: TextStyle(
+          fontSize: 18,
+          fontFamily: appFontFamily,
+          fontWeight: FontWeight.bold,
+          color: Colors.white.withValues(alpha: _blinkAlpha),
+        ),
+      );
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -211,6 +248,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
       final drawLen = _outlineLength * ratio;
 
       _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
+      _attackPaint.color = _attackPaint.color.withAlpha((_blinkAlpha * 255).toInt());
 
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
@@ -230,7 +268,11 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(color: Color(0xFF4680FF), fontSize: 20),
+        style: TextStyle(
+          color: Color(0xFF4680FF)
+              .withAlpha((_blinkAlpha * 255).toInt()),
+          fontSize: 20,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -248,7 +290,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   void _renderSliceLine(Canvas canvas) {
     if (sliceStart != null && sliceEnd != null) {
       final slicePaint = Paint()
-        ..color = Colors.black
+        ..color = Colors.black.withAlpha((_blinkAlpha * 255).toInt())
         ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke;
 
