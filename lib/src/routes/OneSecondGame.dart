@@ -977,6 +977,7 @@ class OneSecondGame extends FlameGame
               xMax: maxXCenter,
               yMin: minYCenter,
               yMax: maxYCenter,
+              onFadeAlphaChanged: _applyBlinkAlpha,
             );
 
             blinkingMap[shape] = blinking;
@@ -1029,6 +1030,7 @@ class OneSecondGame extends FlameGame
               xMax: maxXCenter,
               yMin: minYCenter,
               yMax: maxYCenter,
+              onFadeAlphaChanged: _applyBlinkAlpha,
             );
 
             blinkingMap[shape] = blinking;
@@ -2490,7 +2492,15 @@ bool _isStraightLine(List<Vector2> path) {
   }
 }
 
+  void _applyBlinkAlpha(PositionComponent shape, double alpha) {
+    final target = shape as dynamic;
 
+    try {
+      target.setBlinkAlpha(alpha);
+    } catch (e) {
+      print('[BLINK ALPHA] setBlinkAlpha not found on ${shape.runtimeType}: $e');
+    }
+  }
   
   void _drawDashedPath(
     Canvas canvas,
