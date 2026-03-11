@@ -220,7 +220,6 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   }
 
   void _renderRectangleShape(Canvas canvas) {
-    svg.render(canvas);
 
     if (!isDark && count > 1) {
       _drawText(canvas, count.toString());
