@@ -705,7 +705,6 @@ class OneSecondGame extends FlameGame
 
           if (currentWave.isNotEmpty) {
             _initOrder();
-            // await waitUntilMissionCleared(currentWave);
             await waitUntilMissionCleared(Set<Component>.from(currentWave));
           }
 
@@ -796,9 +795,6 @@ class OneSecondGame extends FlameGame
               ),
             );
 
-            // await waitUntilMissionCleared({shape});
-
-            // continue;
           }
           //Z command e
 
@@ -1130,9 +1126,6 @@ class OneSecondGame extends FlameGame
     }
 
     StageResult ret = await waitUntilMissionCleared(currentWave);
-    // await waitUntilMissionCleared(currentWave);
-    // return StageResult.success;
-    // _missionResolved = true;
     return ret;
   }
 
@@ -1311,10 +1304,17 @@ class OneSecondGame extends FlameGame
 
   // 그냥 도형 다 죽였는지 여부
     Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
-    // add 직후 같은 프레임 race 방지
-    await Future<void>.delayed(Duration.zero);
+      // add 직후 같은 프레임 race 방지
+      await Future<void>.delayed(Duration.zero);
 
-    while (true) {
+      print('[CLEAR CHECK] start wave size=${targets.length}');
+
+      // to get log
+      print("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
+      print("[CLEAR CHECK] parent = ${targets.first.parent}");
+      print("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
+
+      while (true) {
       // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
       if (_hasAnyActiveVisualEffectsInTree()) {
         await Future.delayed(const Duration(milliseconds: 60));
@@ -1324,6 +1324,7 @@ class OneSecondGame extends FlameGame
       if (_isTimeOver) return StageResult.fail;
 
       final remaining = targets.where((c) {
+
         // 1) 다크 도형 제외
         if (_isDarkShape(c)) return false;
 
