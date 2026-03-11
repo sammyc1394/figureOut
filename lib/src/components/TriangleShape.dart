@@ -26,6 +26,17 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   bool _penaltyFired = false; 
   bool isPaused = false;
 
+  double _blinkAlpha = 1.0;
+
+  void setBlinkAlpha(double alpha){
+    if (_isDisappearing) return;
+
+    _blinkAlpha = alpha.clamp(0.0, 1.0);
+
+    svg.opacity = _blinkAlpha;
+    _png.opacity = _blinkAlpha;
+  }
+
   // ===== 사라짐 애니메이션 상태 (유저 제거용) =====
   bool _isDisappearing = false;
   double _disappearTime = 0.0;
@@ -218,7 +229,9 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final drawLen = _outlineLength * ratio;
-      _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
+      _attackPaint.color =
+          (ratio <= 0.2 ? dangerColor : baseColor)
+              .withValues(alpha: _blinkAlpha);
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
     }
