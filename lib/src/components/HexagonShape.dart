@@ -22,6 +22,7 @@ class HexagonShape extends PositionComponent
 
   late final SvgComponent svg;
   late final SpriteComponent _png;
+
   int energy = 0;
 
   final bool isDark;
@@ -33,7 +34,7 @@ class HexagonShape extends PositionComponent
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
-  bool _penaltyFired = false; 
+  bool _penaltyFired = false;
 
   late Path _outlinePath;
   late double _outlineLength;
@@ -63,6 +64,17 @@ class HexagonShape extends PositionComponent
   static const double _hexAngleOffset = -math.pi / 30;
   static const double extraDisappearScale = 1.25;
 
+  // ============================
+  // BLINKING
+  // ============================
+
+  double _blinkAlpha = 1.0;
+
+  void setBlinkAlpha(double alpha) {
+    _blinkAlpha = alpha.clamp(0.0, 1.0);
+    svg.opacity = _blinkAlpha * _opacity;
+  }
+
   HexagonShape(
     Vector2 position,
     this.energy, {
@@ -80,7 +92,9 @@ class HexagonShape extends PositionComponent
 
   @override
   Future<void> onLoad() async {
+
     priority = 100 + (1000 - size.x).toInt();
+
     await super.onLoad();
 
     final asset = isDark ? 'Hexagon_dark.svg' : 'Hexagon_basic.svg';
@@ -92,18 +106,21 @@ class HexagonShape extends PositionComponent
       anchor: Anchor.center,
       position: size / 2,
     );
+
     add(svg);
 
-    // final img = await Images(prefix: 'assets/').load('shapes/hexagon.png');
-    // _png = SpriteComponent(
-    //   sprite: Sprite(img),
-    //   size: size,
-    //   anchor: Anchor.center,
-    //   position: size / 2,
-    // )
-    //   ..opacity = 0.8
-    //   ..paint.colorFilter = ColorFilter.mode(baseColor, BlendMode.srcATop);
-    // add(_png);
+    final img = await Images(prefix: 'assets/').load('shapes/hexagon.png');
+
+    _png = SpriteComponent(
+      sprite: Sprite(img),
+      size: size,
+      anchor: Anchor.center,
+      position: size / 2,
+    )
+      ..opacity = 0.8
+      ..paint.colorFilter = ColorFilter.mode(baseColor, BlendMode.srcATop);
+
+    add(_png);
 
     if ((attackTime ?? 0) > 0) {
       svg.opacity = 0;
@@ -111,38 +128,59 @@ class HexagonShape extends PositionComponent
     }
 
     _outlinePath = _buildHexagonPath(size.toSize());
+
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
   }
 
   Path _buildHexagonPath(Size s) {
+
     final center = Offset(s.width / 2, s.height / 2);
+
     final inset = (_attackPaint.strokeWidth / 2) + 10.0;
+
     final radius = (s.width / 2) - inset;
 
     final path = Path();
+
     for (int i = 0; i < 6; i++) {
+
       final angle = (math.pi / 3) * i + _hexAngleOffset;
+
       final p = Offset(
         center.dx + radius * math.cos(angle),
         center.dy + radius * math.sin(angle),
       );
-      if (i == 0) path.moveTo(p.dx, p.dy);
-      else path.lineTo(p.dx, p.dy);
+
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
     }
+
     path.close();
+
     return path;
   }
 
   Path _extractPartialPath(Path path, double length) {
+
     final result = Path();
+
     double remaining = length;
+
     for (final metric in path.computeMetrics()) {
+
       if (remaining <= 0) break;
+
       final len = remaining.clamp(0.0, metric.length);
+
       result.addPath(metric.extractPath(0, len), Offset.zero);
+
       remaining -= len;
     }
+
     return result;
   }
 
@@ -153,65 +191,79 @@ class HexagonShape extends PositionComponent
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
+
     if (isDark) {
       onForbiddenTouch?.call();
       return;
     }
+
     if (_state != HexagonState.normal) return;
 
     dragScale += 0.01;
+
     scale = Vector2.all(dragScale);
   }
 
   @override
   void onDragEnd(DragEndEvent event) {
+
     if (_state != HexagonState.normal) return;
+
     if (dragScale >= triggerScale) {
+
       _state = HexagonState.autoGrowing;
+
       wasRemovedByUser = true;
     }
   }
 
   @override
   void update(double dt) {
+
     super.update(dt);
 
     // ============================
     // ATTACK TIMER → 즉시 자폭
     // ============================
+
     if ((attackTime ?? 0) > 0 && !_attackDone) {
+
       _attackElapsed += dt;
 
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+
       final isDanger = ratio <= 0.2;
 
       _png.paint.colorFilter = ColorFilter.mode(
         isDanger ? dangerColor : baseColor,
         BlendMode.srcATop,
       );
+
       _attackPaint.color = isDanger ? outlineDanger : outlineNormal;
 
       if (_attackElapsed >= attackTime!) {
+
         _attackDone = true;
 
         if (!_penaltyFired) {
           _penaltyFired = true;
-          onExplode?.call(); // 시간 패널티
+          onExplode?.call();
         }
 
         wasRemovedByUser = false;
 
-        
         parent?.add(
           AttackExplosionEffect(
-            basePath: _buildExplosionHexagonPath(),   // 육각형 외곽 그대로 사용
+            basePath: _buildExplosionHexagonPath(),
             position: position.clone(),
             size: size.clone(),
             color: const Color(0xFF9BEE3B),
           ),
         );
-        removeFromParent(); 
+
+        removeFromParent();
+
         return;
       }
     }
@@ -219,32 +271,54 @@ class HexagonShape extends PositionComponent
     // ============================
     // USER REMOVE
     // ============================
+
     if (_state == HexagonState.autoGrowing) {
+
       _autoGrowT += dt / 0.4;
+
       final t = Curves.easeOut.transform(_autoGrowT.clamp(0.0, 1.0));
+
       autoScale = 1.0 + t * maxAutoScale;
+
       scale = Vector2.all(dragScale * autoScale);
 
       if (_autoGrowT >= 1.0) {
+
         _finalScale = dragScale * autoScale;
+
         _state = HexagonState.disappearing;
       }
     }
 
     if (_state == HexagonState.disappearing) {
+
       _disappearT += dt / 0.35;
+
       final t = _disappearT.clamp(0.0, 1.0);
 
       final extraT = (t / 0.25).clamp(0.0, 1.0);
+
       final extraScale =
           Curves.easeOut.transform(extraT) * (extraDisappearScale - 1.0);
 
       scale = Vector2.all(_finalScale * (1.0 + extraScale));
 
       _opacity = 1.0 - Curves.easeIn.transform(t);
-      svg.opacity = _opacity;
+
+      svg.opacity = _blinkAlpha * _opacity;
 
       if (_disappearT >= 1.0) {
+
+        // 일반 제거 explosion (zoom 제거)
+        parent?.add(
+          AttackExplosionEffect(
+            basePath: _buildExplosionHexagonPath(),
+            position: position.clone(),
+            size: size.clone(),
+            color: const Color(0xFF9BEE3B),
+          ),
+        );
+
         removeFromParent();
       }
     }
@@ -252,19 +326,25 @@ class HexagonShape extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+
     super.render(canvas);
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
+
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+
       final drawLen = _outlineLength * ratio;
+
       final partial = _extractPartialPath(_outlinePath, drawLen);
+
       canvas.drawPath(partial, _attackPaint);
     }
   }
 
   @override
   Rect toRect() {
+
     return Rect.fromCenter(
       center: Offset(position.x, position.y),
       width: size.x * scale.x,
@@ -272,18 +352,18 @@ class HexagonShape extends PositionComponent
     );
   }
 
-  
   Path _buildExplosionHexagonPath() {
+
     final w = size.x;
     final h = size.y;
 
     return Path()
-      ..moveTo(w * 0.25, 0)       // top-left
-      ..lineTo(w * 0.75, 0)       // top-right
-      ..lineTo(w, h * 0.5)        // right
-      ..lineTo(w * 0.75, h)       // bottom-right
-      ..lineTo(w * 0.25, h)       // bottom-left
-      ..lineTo(0, h * 0.5)        // left
+      ..moveTo(w * 0.25, 0)
+      ..lineTo(w * 0.75, 0)
+      ..lineTo(w, h * 0.5)
+      ..lineTo(w * 0.75, h)
+      ..lineTo(w * 0.25, h)
+      ..lineTo(0, h * 0.5)
       ..close();
   }
 }
