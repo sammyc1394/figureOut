@@ -2603,6 +2603,12 @@ bool _isStraightLine(List<Vector2> path) {
       b.isPaused = true;
     }
 
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final e in c.children.whereType<Effect>()) {
+        e.pause();
+      }
+    }
+
     pausedScreen = PausedScreen(
       screenSize: size,
       onResume: () {
@@ -2640,6 +2646,12 @@ bool _isStraightLine(List<Vector2> path) {
 
   if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
     _pendingResult = StageResult.fail;
+  }
+
+  for (final c in children.whereType<PositionComponent>()) {
+    for (final e in c.children.whereType<Effect>()) {
+      e.resume();
+    }
   }
 
   // 3️⃣ pending 결과 있으면 → 결과창 띄우고 return
