@@ -2380,25 +2380,124 @@ bool _isStraightLine(List<Vector2> path) {
   //   }
   // }
 
+  // [CHANGED] 도형별 정밀 히트판정으로 교체 (bounding box → 실제 형태)
   bool _doesPathTouchComponent(
     PositionComponent comp,
     List<Vector2> path,
   ) {
-    final rect = comp.toRect();
+    if (comp is TriangleShape) {
+      // 삼각형: 기존 getTriangleVertices() 재사용 (월드 좌표)
+      return _doesPathTouchPolygon(comp.getTriangleVertices(), path);
+    }
+    if (comp is CircleShape) {
+      // 원: 중심 + 반지름으로 원 판정
+      return _doesPathTouchCircle(comp.absoluteCenter, comp.size.x * 0.48, path);
+    }
+    if (comp is PentagonShape) {
+      // 오각형: 월드 좌표 꼭짓점 5개 계산 후 폴리곤 판정
+      return _doesPathTouchPolygon(_getPentagonVertices(comp), path);
+    }
+    if (comp is HexagonShape) {
+      // 육각형: 월드 좌표 꼭짓점 6개 계산 후 폴리곤 판정
+      return _doesPathTouchPolygon(_getHexagonVertices(comp), path);
+    }
+    // 기타 도형(RectangleShape 등)은 기존 bbox 판정 유지
+    return _doesPathTouchRect(comp.toRect(), path);
+  }
 
+  // [NEW] 기존 bbox 판정 분리
+  bool _doesPathTouchRect(Rect rect, List<Vector2> path) {
     for (int i = 0; i < path.length - 1; i++) {
       final p1 = path[i];
       final p2 = path[i + 1];
-
       if (rect.contains(Offset(p1.x, p1.y)) || rect.contains(Offset(p2.x, p2.y))) {
         return true;
       }
+      if (_lineIntersectsRect(p1, p2, rect)) return true;
+    }
+    return false;
+  }
 
-      if (_lineIntersectsRect(p1, p2, rect)) {
+  // [NEW] 경로-폴리곤 충돌 판정 (ray-casting + 선분 교차)
+  bool _doesPathTouchPolygon(List<Vector2> vertices, List<Vector2> path) {
+    if (vertices.length < 3) return false;
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      // 점이 폴리곤 내부에 있는지
+      if (_isPointInPolygon(p1, vertices) || _isPointInPolygon(p2, vertices)) {
         return true;
+      }
+      // 선분이 폴리곤 변과 교차하는지
+      for (int j = 0; j < vertices.length; j++) {
+        final va = vertices[j];
+        final vb = vertices[(j + 1) % vertices.length];
+        if (_doLinesIntersect(p1, p2, va, vb)) return true;
       }
     }
     return false;
+  }
+
+
+
+  // [NEW] 경로-원 충돌 판정
+  bool _doesPathTouchCircle(Vector2 center, double radius, List<Vector2> path) {
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      if ((p1 - center).length <= radius || (p2 - center).length <= radius) {
+        return true;
+      }
+      if (_lineIntersectsCircle(p1, p2, center, radius)) return true;
+    }
+    return false;
+  }
+
+  // [NEW] 선분-원 교차 판정
+  bool _lineIntersectsCircle(Vector2 p1, Vector2 p2, Vector2 center, double radius) {
+    final d = p2 - p1;
+    final f = p1 - center;
+    final a = d.dot(d);
+    if (a < 0.00001) return false;
+    final b = 2 * f.dot(d);
+    final c = f.dot(f) - radius * radius;
+    double discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return false;
+    discriminant = math.sqrt(discriminant);
+    final t1 = (-b - discriminant) / (2 * a);
+    final t2 = (-b + discriminant) / (2 * a);
+    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+  }
+
+  // [NEW] 오각형 월드 꼭짓점 반환 (PentagonShape.dart의 _buildPentagonPath와 동일한 공식)
+  List<Vector2> _getPentagonVertices(PentagonShape comp) {
+    // _visualPentagonCenter 오프셋 반영
+    final localCenter = Vector2(
+      comp.size.x / 2 - comp.size.x * 0.04,
+      comp.size.y / 2 + comp.size.y * 0.04,
+    );
+    // 월드 좌표로 변환 (anchor = center이므로 position이 도형 중심)
+    final topLeft = comp.position - comp.size / 2;
+    final worldCenter = topLeft + localCenter;
+    final radius = comp.size.x * 0.392;
+
+    return List.generate(5, (i) {
+      final a = (-90 + i * 72) * math.pi / 180;
+      return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
+    });
+  }
+
+  // [NEW] 육각형 월드 꼭짓점 반환 (HexagonShape.dart의 _buildHexagonPath와 동일한 공식)
+  List<Vector2> _getHexagonVertices(HexagonShape comp) {
+    final worldCenter = comp.absoluteCenter;
+    // inset = strokeWidth/2 + 10 = 3 + 10 = 13, radius = size.x/2 - 13
+    final radius = comp.size.x / 2 - 13.0;
+    const angleOffset = -math.pi / 30;
+
+    return List.generate(6, (i) {
+      final a = (math.pi / 3) * i + angleOffset;
+      return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
+    });
   }
 
   bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
@@ -2449,6 +2548,7 @@ bool _isStraightLine(List<Vector2> path) {
     }
     return false;
   }
+
 
   void pauseGame() {
     print("blinkingMap:${blinkingMap.values}");
