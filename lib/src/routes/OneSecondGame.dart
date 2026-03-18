@@ -624,13 +624,16 @@ class OneSecondGame extends FlameGame
     int missionIndex,{
     int startIndex = 0,
   }) async {
+    // 게임 시작전 토큰확인
     int runId = _runToken;
 
+    // 이전 스테이지 혹은 새로고침 전 남은 데이터가 없는지 확인 및 이전 데이터 제거
     _hardResetMissionState();
 
     _stopEnemyBehaviors();
     _clearAllShapes();
 
+    // 시간 데이터 분석
     double? missionSeconds = stage.missionTimeLimits[missionIndex];
 
     String tl = stage.timeLimit;
@@ -664,6 +667,7 @@ class OneSecondGame extends FlameGame
       );
     }
 
+    // 게임데이터 분석 시작
     print('current stage index = $runId');
     int stgLength = _allStages.length;
     print('mission length = ${stage.missions.length}');
@@ -674,16 +678,21 @@ class OneSecondGame extends FlameGame
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
 
+    // 에너미 데이터
+    // startIndex 를 굳이 파라미터에서 initialize 한 이유가 있나?
     for (int i = startIndex; i < enemies.length; i++) {
       final enemy = enemies[i];
-      
-      print("runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
+
+      // run token 불일치시 취소
+      print("[TOKEN CHECK] runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
 
       if(runId != _runToken) {
-        print("run token not matching, stage cancelled");
+        print("[TOKEN CHECK] run token not matching, stage cancelled");
         return StageResult.cancelled;
       }
 
+      // 게임 시간 체크
+      // 시간 오버시 실패 및 게임 일시정지 정리
       if (_isTimeOver) return StageResult.fail;
       if (_isPausedGlobally) {
         // 게임이 resume될 때까지 기다림
@@ -692,6 +701,8 @@ class OneSecondGame extends FlameGame
           await Future.delayed(Duration(milliseconds: 100));
         }
       }
+
+      // wait 명령어 체크
       if (enemy.command == 'wait') {
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
 
@@ -735,7 +746,10 @@ class OneSecondGame extends FlameGame
         continue;
       }
 
-      //Position parse s
+      // 포지션 체크 s
+      final spawnStart = DateTime.now();
+      print('[SPAWN START] index=$i time=${spawnStart.millisecondsSinceEpoch}');
+
       final posMatch = RegExp(
         r'\((-?\d+),\s*(-?\d+)\)',
       ).firstMatch(enemy.position);
@@ -778,13 +792,22 @@ class OneSecondGame extends FlameGame
             currentWave.add(shape);
           }
 
+          // 도형 스폰
           await add(shape);
           await shape.loaded;
+
+          final afterLoad = DateTime.now();
+          print('[AFTER LOAD] index=$i diff=${afterLoad.difference(spawnStart).inMilliseconds}ms');
+
           print('shape spawned: ${shape.position.toString()}');
           print('[DEBUG] currentWave size after spawn = ${currentWave.length}');
           print('[DEBUG] spawnedThisMission size after spawn = ${spawnedThisMission.length}');
 
-          //Position parse e
+          // 포지션 체크 e
+
+          // 움직임 체크 s
+          final beforeMovement = DateTime.now();
+          print('[BEFORE MOVE] index=$i diff=${beforeMovement.difference(spawnStart).inMilliseconds}ms');
 
           // Z command s
           if (enemy.movement.contains('Z(') && shape != null) {
@@ -1125,6 +1148,9 @@ class OneSecondGame extends FlameGame
           await Future.delayed(Duration(milliseconds: 100));
         }
       }
+
+      final loopEnd = DateTime.now();
+      print('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
     }
 
     StageResult ret = await waitUntilMissionCleared(currentWave);
@@ -1481,8 +1507,8 @@ class OneSecondGame extends FlameGame
         ((yourCoordinates.y - minY) / safeRangeY).clamp(0.0, 1.0);
 
     // 4) playArea 내부 상대 좌표 → 절대 좌표 변환
-    double playX = playMinX + (normalizedX * playArea.size.x);
-    double playY = playMinY + (normalizedY * playArea.size.y);
+    double playX = minCenterX + (normalizedX * (maxCenterX - minCenterX));
+    double playY = minCenterY + (normalizedY * (maxCenterY - minCenterY));
 
     // 5) 도형이 playArea 밖으로 나가지 않게 중심 위치 clamp
     if (clampInside) {
