@@ -8,7 +8,6 @@ import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
-import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
 import 'AttackExplosionEffect.dart';
@@ -16,10 +15,19 @@ import 'AttackExplosionEffect.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 
-class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable implements OrderableShape {
+class RectangleShape extends PositionComponent
+    with TapCallbacks, UserRemovable
+    implements OrderableShape {
   int count = 0;
-  late final SvgComponent svg;
-  late final SpriteComponent _png;
+
+  // Base rectangle is rendered as either:
+  // 1) single stretched PNG for narrow width
+  // 2) 3-slice PNG for wider width
+  final List<SpriteComponent> _baseSlices = [];
+
+  // Attack rectangle image (kept as-is for now).
+  late final SpriteComponent _pngAttack;
+
   late PositionComponent _orderBadge;
 
   double _blinkAlpha = 1.0;
@@ -58,6 +66,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   final Color dangerColor = const Color(0xFFEE0505);
   final Color baseColor = const Color(0xFF7CA6FF);
 
+  // Keep SVG source only for sliced-piece effect.
   late final Svg _sourceSvg;
 
   RectangleShape(
@@ -80,23 +89,32 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
   bool get _usesPngLayer => (attackTime ?? 0) > 0;
 
+  Paint _makeCrispPaint() {
+    return Paint()
+      ..isAntiAlias = false
+      ..filterQuality = FilterQuality.none;
+  }
+
+  void _setBaseSlicesOpacity(double value) {
+    for (final slice in _baseSlices) {
+      slice.opacity = value;
+    }
+  }
+
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
 
-    // svg.opacity = _blinkAlpha;
-    // _png.opacity = _blinkAlpha;
-
     if (_usesPngLayer) {
-      svg.opacity = 0.0;
-      _png.opacity = _blinkAlpha;
+      _setBaseSlicesOpacity(0.0);
+      _pngAttack.opacity = _blinkAlpha;
     } else {
-      svg.opacity = _blinkAlpha;
-      _png.opacity = 0.0;
+      _setBaseSlicesOpacity(_blinkAlpha);
+      _pngAttack.opacity = 0.0;
     }
 
     if (_orderBadgeBg != null) {
-      _orderBadgeBg!.paint.color = const Color(0xFF4680FF)
-          .withValues(alpha: _blinkAlpha);
+      _orderBadgeBg!.paint.color =
+          const Color(0xFF4680FF).withValues(alpha: _blinkAlpha);
     }
 
     if (_orderBadgeText != null) {
@@ -116,38 +134,114 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    final String asset = isDark ? 'Rectangle_dark.svg' : 'Rectangle_basic.svg';
-
-    _sourceSvg = await Svg.load(asset);
-
-    svg = SvgComponent(
-      svg: _sourceSvg,
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    );
-    add(svg);
+    // Keep SVG for slice piece effect.
+    final String svgAsset =
+        isDark ? 'Rectangle_dark.svg' : 'Rectangle_basic.svg';
+    _sourceSvg = await Svg.load(svgAsset);
 
     final images = Images(prefix: 'assets/');
-    final img = await images.load('shapes/Rectangle.png');
 
-    _png = SpriteComponent(
-      sprite: Sprite(img),
+    // Base rectangle PNG with border/art.
+    final String basePngAsset =
+        isDark ? 'Rectangle_dark.png' : 'Rectangle_basic.png';
+    final imgBase = await images.load(basePngAsset);
+
+    // Pixel-align size to reduce border tearing.
+    final double targetWidth = size.x.roundToDouble();
+    final double targetHeight = size.y.roundToDouble();
+
+    // Base slice setup
+    const double baseEdgeWidth = 12.0;
+
+    // If width is too narrow, 3-slice looks broken.
+    // In that case, use a single stretched sprite instead.
+    const double singleSpriteThreshold = 56.0;
+
+    if (targetWidth < singleSpriteThreshold) {
+      final single = SpriteComponent(
+        sprite: Sprite(imgBase),
+        size: Vector2(targetWidth, targetHeight),
+        anchor: Anchor.topLeft,
+        position: Vector2.zero(),
+        paint: _makeCrispPaint(),
+      );
+
+      _baseSlices.add(single);
+      add(single);
+    } else {
+      final double edgeWidth = baseEdgeWidth;
+      final double centerWidth =
+          math.max(0.0, targetWidth - edgeWidth * 2).roundToDouble();
+
+      // LEFT slice
+      final left = SpriteComponent(
+        sprite: Sprite(
+          imgBase,
+          srcPosition: Vector2.zero(),
+          srcSize: Vector2(edgeWidth, imgBase.height.toDouble()),
+        ),
+        size: Vector2(edgeWidth, targetHeight),
+        anchor: Anchor.topLeft,
+        position: Vector2(0.0, 0.0),
+        paint: _makeCrispPaint(),
+      );
+
+      // CENTER slice
+      final center = SpriteComponent(
+        sprite: Sprite(
+          imgBase,
+          srcPosition: Vector2(edgeWidth, 0),
+          srcSize: Vector2(
+            imgBase.width.toDouble() - edgeWidth * 2,
+            imgBase.height.toDouble(),
+          ),
+        ),
+        size: Vector2(centerWidth, targetHeight),
+        anchor: Anchor.topLeft,
+        position: Vector2(edgeWidth.roundToDouble(), 0.0),
+        paint: _makeCrispPaint(),
+      );
+
+      // RIGHT slice
+      final right = SpriteComponent(
+        sprite: Sprite(
+          imgBase,
+          srcPosition: Vector2(imgBase.width.toDouble() - edgeWidth, 0),
+          srcSize: Vector2(edgeWidth, imgBase.height.toDouble()),
+        ),
+        size: Vector2(edgeWidth, targetHeight),
+        anchor: Anchor.topLeft,
+        position: Vector2((targetWidth - edgeWidth).roundToDouble(), 0.0),
+        paint: _makeCrispPaint(),
+      );
+
+      _baseSlices.addAll([left, center, right]);
+      add(left);
+      add(center);
+      add(right);
+    }
+
+    // Attack PNG stays as current implementation.
+    final imgAttack = await images.load('shapes/Rectangle.png');
+    _pngAttack = SpriteComponent(
+      sprite: Sprite(imgAttack),
       size: size,
       anchor: Anchor.center,
       position: size / 2,
-    );
-    _png.opacity = 0;
-    add(_png);
+      paint: _makeCrispPaint(),
+    )..opacity = 0.0;
+    add(_pngAttack);
 
     if (order != null) {
       _addOrderBadge(order!);
     }
 
-    // attackTime 있으면 PNG로 시작
-    if ((attackTime ?? 0) > 0) {
-      svg.opacity = 0;
-      _png.opacity = 1;
+    if (_usesPngLayer) {
+      _setBaseSlicesOpacity(0.0);
+      _pngAttack.opacity = 1.0;
+    } else {
+      _setBaseSlicesOpacity(1.0);
+      _pngAttack.opacity = 0.0;
     }
 
     _outlinePath = _buildRectPath(size.toSize());
@@ -201,10 +295,9 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
       // 타이머 자폭으로 제거됨을 명확히
       wasRemovedByUser = false;
 
-      
       parent?.add(
         AttackExplosionEffect(
-          basePath: _buildExplosionRectanglePath(),   // 사각형 외곽 그대로 사용
+          basePath: _buildExplosionRectanglePath(),
           position: position.clone(),
           size: size.clone(),
           color: const Color(0xFF4680FF),
@@ -220,18 +313,22 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     // 절반 이하 → 빨간 tint
     // ------------------------------------------------------------
     if (!_attackDone && _attackTimeHalfLeft) {
-      _png.paint = Paint()
+      _pngAttack.paint = Paint()
+        ..isAntiAlias = false
+        ..filterQuality = FilterQuality.none
         ..colorFilter = ColorFilter.mode(
           dangerColor,
           BlendMode.srcIn,
         );
+    } else {
+      _pngAttack.paint = _makeCrispPaint();
     }
   }
 
   bool get _attackTimeHalfLeft {
     if ((attackTime ?? 0) <= 0) return false;
     final ratio =
-    ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+        ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
     return ratio <= 0.2;
   }
 
@@ -244,11 +341,12 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     // perimeter timer
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
-      ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final drawLen = _outlineLength * ratio;
 
       _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
-      _attackPaint.color = _attackPaint.color.withAlpha((_blinkAlpha * 255).toInt());
+      _attackPaint.color =
+          _attackPaint.color.withAlpha((_blinkAlpha * 255).toInt());
 
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
@@ -258,7 +356,6 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   }
 
   void _renderRectangleShape(Canvas canvas) {
-
     if (!isDark && count > 1) {
       _drawText(canvas, count.toString());
     }
@@ -269,7 +366,7 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
       text: TextSpan(
         text: text,
         style: TextStyle(
-          color: Color(0xFF4680FF)
+          color: const Color(0xFF4680FF)
               .withAlpha((_blinkAlpha * 255).toInt()),
           fontSize: 20,
         ),
@@ -322,8 +419,12 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     final r = toRect();
     print("rectBounds: $r");
     print("path first=${userPath.first}, last=${userPath.last}");
-    print("firstInside=${r.contains(Offset(userPath.first.x, userPath.first.y))}");
-    print("lastInside=${r.contains(Offset(userPath.last.x, userPath.last.y))}");
+    print(
+      "firstInside=${r.contains(Offset(userPath.first.x, userPath.first.y))}",
+    );
+    print(
+      "lastInside=${r.contains(Offset(userPath.last.x, userPath.last.y))}",
+    );
 
     // ===== B 교차점이 몇 개인지 =====
     final a = userPath.first;
@@ -348,7 +449,6 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
 
     sliceStart = slicePoints.start;
     sliceEnd = slicePoints.end;
-    // isSliced = true;
     isSliced = onInteracted?.call(this) ?? false;
     print("=== slice check : $isSliced ============");
     if (isSliced) {
@@ -374,74 +474,70 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
       return;
     }
 
-    if(count <= 0) {
-      // Future.delayed(const Duration(milliseconds: 50), () {
+    if (count <= 0) {
+      // ------------------------------------------------------------
+      // Rectangle disappear effect
+      // ------------------------------------------------------------
+      final rand = math.Random();
 
-        // ------------------------------------------------------------
-        // Rectangle disappear effect
-        // ------------------------------------------------------------
-        final rand = math.Random();
+      final baseVel = Vector2(
+        (rand.nextDouble() * 500) - 250,
+        -600 - rand.nextDouble() * 250,
+      );
 
-        final baseVel = Vector2(
-          (rand.nextDouble() * 500) - 250,
-          -600 - rand.nextDouble() * 250,
-        );
+      final worldCenter = position.clone();
 
-        final worldCenter = position.clone();
+      // 각 조각의 bounds 기준으로 "조각 크기"와 "오프셋" 계산
+      final bounds1 = paths.item1.getBounds();
+      final bounds2 = paths.item2.getBounds();
 
-        // 각 조각의 bounds 기준으로 "조각 크기"와 "오프셋" 계산
-        final bounds1 = paths.item1.getBounds();
-        final bounds2 = paths.item2.getBounds();
+      // 조각은 "원본 SVG를 clipPath로 잘라서" 떨어지게
+      final piece1 = FallingClippedPiece(
+        position: worldCenter +
+            Vector2(
+              bounds1.center.dx - size.x / 2,
+              bounds1.center.dy - size.y / 2,
+            ),
+        sizePx: Vector2(bounds1.width, bounds1.height),
+        sourceSvg: _sourceSvg,
+        sourceSize: size.clone(), // 원본 SVG 렌더 사이즈
+        clipPath: paths.item1,
+        clipOffset: Vector2(bounds1.left, bounds1.top),
+        velocity: baseVel.clone(),
+        angularVelocity: rand.nextDouble() * 6 * (rand.nextBool() ? 1 : -1),
+        fillColor: baseColor,
+      );
 
-        // 조각은 "원본 SVG를 clipPath로 잘라서" 떨어지게
-        final piece1 = FallingClippedPiece(
-          position: worldCenter +
-              Vector2(
-                bounds1.center.dx - size.x / 2,
-                bounds1.center.dy - size.y / 2,
-              ),
-          sizePx: Vector2(bounds1.width, bounds1.height),
-          sourceSvg: _sourceSvg,
-          sourceSize: size.clone(), // 원본 SVG 렌더 사이즈
-          clipPath: paths.item1,
-          clipOffset: Vector2(bounds1.left, bounds1.top),
-          velocity: baseVel.clone(),
-          angularVelocity: rand.nextDouble() * 6 * (rand.nextBool() ? 1 : -1),
-          fillColor: baseColor,
-        );
+      final piece2 = FallingClippedPiece(
+        position: worldCenter +
+            Vector2(
+              bounds2.center.dx - size.x / 2,
+              bounds2.center.dy - size.y / 2,
+            ),
+        sizePx: Vector2(bounds2.width, bounds2.height),
+        sourceSvg: _sourceSvg,
+        sourceSize: size.clone(),
+        clipPath: paths.item2,
+        clipOffset: Vector2(bounds2.left, bounds2.top),
+        velocity: Vector2(-baseVel.x, baseVel.y),
+        angularVelocity: rand.nextDouble() * 6 * (rand.nextBool() ? 1 : -1),
+        fillColor: baseColor,
+      );
 
-        final piece2 = FallingClippedPiece(
-          position: worldCenter +
-              Vector2(
-                bounds2.center.dx - size.x / 2,
-                bounds2.center.dy - size.y / 2,
-              ),
-          sizePx: Vector2(bounds2.width, bounds2.height),
-          sourceSvg: _sourceSvg,
-          sourceSize: size.clone(),
-          clipPath: paths.item2,
-          clipOffset: Vector2(bounds2.left, bounds2.top),
-          velocity: Vector2(-baseVel.x, baseVel.y),
-          angularVelocity: rand.nextDouble() * 6 * (rand.nextBool() ? 1 : -1),
-          fillColor: baseColor,
-        );
+      parent?.add(piece1);
+      parent?.add(piece2);
 
-        parent?.add(piece1);
-        parent?.add(piece2);
-
-        wasRemovedByUser = true;
-        if(order != null ) onRemoved?.call();
-        removeFromParent();
-        // ------------------------------------------------------------
-      // });
-    } // if(count <= 0) {
+      wasRemovedByUser = true;
+      if (order != null) onRemoved?.call();
+      removeFromParent();
+    }
   }
 
   ({Path item1, Path item2})? _splitRectToTwoClipPaths(
-      Vector2 a,
-      Vector2 b,
-      Vector2 rectSize,
-      ) {
+    Vector2 a,
+    Vector2 b,
+    Vector2 rectSize,
+  ) {
     if (a.distanceTo(b) < 0.001) return null;
 
     final corners = <Vector2>[
@@ -546,10 +642,10 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
   }
 
   List<Vector2> getLineRectangleIntersections(
-      Vector2 start,
-      Vector2 end,
-      Rect rect,
-      ) {
+    Vector2 start,
+    Vector2 end,
+    Rect rect,
+  ) {
     final intersections = <Vector2>[];
 
     final topIntersection = getLineIntersection(
@@ -594,11 +690,11 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     if (denom.abs() < 0.000001) return null;
 
     final t = ((p1.x - p3.x) * (p3.y - p4.y) -
-        (p1.y - p3.y) * (p3.x - p4.x)) /
+            (p1.y - p3.y) * (p3.x - p4.x)) /
         denom;
 
     final u = -((p1.x - p2.x) * (p1.y - p3.y) -
-        (p1.y - p2.y) * (p1.x - p3.x)) /
+            (p1.y - p2.y) * (p1.x - p3.x)) /
         denom;
 
     const eps = 0.01;
@@ -652,6 +748,9 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     _orderBadge.add(bg);
     _orderBadge.add(text);
     add(_orderBadge);
+
+    _orderBadgeBg = bg;
+    _orderBadgeText = text;
   }
 
   void applyValidInteraction() {
@@ -666,7 +765,6 @@ class RectangleShape extends PositionComponent with TapCallbacks, UserRemovable 
     return;
   }
 
-  
   Path _buildExplosionRectanglePath() {
     final w = size.x;
     final h = size.y;
