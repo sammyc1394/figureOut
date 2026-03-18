@@ -2128,6 +2128,12 @@ bool _isStraightLine(List<Vector2> path) {
 
 
     if (isSliceGesture) {
+      // 경로에 닿는 사각형 목록을 먼저 수집 (blocker 면제 판단에도 사용)
+      final slicedRects = children
+          .whereType<RectangleShape>()
+          .where((r) => _isRealSlice(r, judgePath))
+          .toList();
+
       // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
       final overlappingShapes = <PositionComponent>[];
       for (final comp in children.whereType<PositionComponent>()) {
@@ -2141,19 +2147,52 @@ bool _isStraightLine(List<Vector2> path) {
         }
       }
 
-      // 다른 도형과 겹쳤다면 슬라이스(사각형 깎기)를 취소하고 패널티 부여
       if (overlappingShapes.isNotEmpty) {
-        print('[SLICE BLOCKED] Other shapes on path: ${overlappingShapes.map((c) => c.runtimeType)}');
-        _applyTouchPenalty(overlappingShapes);
-        _resetPathState();
-        return;
-      }
+        // 슬라이스 대상 사각형 Rect 집합
+        final slicedRectBounds = slicedRects.map((r) => r.toRect()).toList();
 
-      // 경로에 닿는 사각형 목록 수집
-      final slicedRects = children
-          .whereType<RectangleShape>()
-          .where((r) => _isRealSlice(r, judgePath))
-          .toList();
+        // blocker(삼각형 등) 면제 판단:
+        // 경로가 blocker bounding box 안으로 들어오는 포인트가 없으면 → 면제 (노출된 rect만 통과)
+        // 포인트가 하나라도 있으면 → 삼각형 영역을 지나간 것 → 차단
+        final realBlockers = overlappingShapes.where((blocker) {
+          final blockerRect = blocker.toRect();
+
+          // blocker가 슬라이스 대상 사각형과 아예 안 겹치면 → 항상 차단 (무관한 도형)
+          final overlapsAnyRect = slicedRectBounds.any((r) => r.overlaps(blockerRect));
+          if (!overlapsAnyRect) return true;
+
+          // 경로 포인트가 blocker bounding box 안에 들어오는지 확인
+          final pathEntersBlocker = judgePath.any(
+            (p) => blockerRect.contains(Offset(p.x, p.y)),
+          );
+
+          // 선분 교차도 확인 (포인트는 밖에 있어도 선분이 bbox를 통과하는 경우)
+          final lineEntersBlocker = !pathEntersBlocker && (() {
+            for (int i = 0; i < judgePath.length - 1; i++) {
+              if (_lineIntersectsRect(judgePath[i], judgePath[i + 1], blockerRect)) {
+                return true;
+              }
+            }
+            return false;
+          })();
+
+          final touchesBbox = pathEntersBlocker || lineEntersBlocker;
+
+          // bounding box에 닿았으면 → 삼각형 영역 통과로 간주 → 차단
+          // 닿지 않았으면 → 노출된 rect만 통과 → 면제
+          return touchesBbox;
+        }).toList();
+
+        if (realBlockers.isNotEmpty) {
+          print('[SLICE BLOCKED] Path enters blocker bbox: ${realBlockers.map((c) => c.runtimeType)}');
+          _applyTouchPenalty(realBlockers);
+          _resetPathState();
+          return;
+        }
+
+        // 모든 blocker bounding box를 회피 → 슬라이스 허용
+        print('[SLICE ALLOWED] Path avoids all blocker bboxes: ${overlappingShapes.map((c) => c.runtimeType)}');
+      }
 
       if (slicedRects.isNotEmpty) {
         // 경로가 닿은 순서(traversal order)대로 정렬
@@ -2183,8 +2222,8 @@ bool _isStraightLine(List<Vector2> path) {
           } else {
             // 기대하지 않은 순서의 사각형을 타격함
             if (hitAnyExpected) {
-              // 한 제스처 내에서 올바른 앞 번호 사각형을 쳤지만, 완전히 제거(카운트=0)되지 않아서 
-              // 뒤에 있는 번호로 차례가 넘어가지 않은 경우입니다. 
+              // 한 제스처 내에서 올바른 앞 번호 사각형을 쳤지만, 완전히 제거(카운트=0)되지 않아서
+              // 뒤에 있는 번호로 차례가 넘어가지 않은 경우입니다.
               // 이 경우 뒤에 닿은 다른 번호의 사각형들은 슬라이스를 무시합니다. (페널티 없음)
               print('[RECT ORDER] Ignored correctly-sequenced rect because expected rect is not yet destroyed. rect=${rect.order}, expected=${expected.order}');
               stopSlicing = true;
