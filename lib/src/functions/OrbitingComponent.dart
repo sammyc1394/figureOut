@@ -9,6 +9,8 @@ class OrbitingComponent extends Component with HasGameReference {
   final double angularSpeed; // radian/sec
   double angle = 0;
 
+  bool _paused=false;
+
   OrbitingComponent({
     required this.target,
     required this.center,
@@ -22,8 +24,13 @@ class OrbitingComponent extends Component with HasGameReference {
     angle = 0; // 초기화
   }
 
+  void pause() => _paused = true;
+
+  void resume() => _paused = false;
+
   @override
   void update(double dt) {
+    if(_paused) return;
     super.update(dt);
     angle += angularSpeed * dt;
     final x = center.x + radiusX * math.cos(angle);

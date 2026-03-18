@@ -2609,6 +2609,12 @@ bool _isStraightLine(List<Vector2> path) {
       }
     }
 
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final o in c.children.whereType<OrbitingComponent>()) {
+        o.pause();
+      }
+    }
+
     pausedScreen = PausedScreen(
       screenSize: size,
       onResume: () {
@@ -2651,6 +2657,12 @@ bool _isStraightLine(List<Vector2> path) {
   for (final c in children.whereType<PositionComponent>()) {
     for (final e in c.children.whereType<Effect>()) {
       e.resume();
+    }
+  }
+
+  for (final c in children.whereType<PositionComponent>()) {
+    for (final o in c.children.whereType<OrbitingComponent>()) {
+      o.resume();
     }
   }
 
