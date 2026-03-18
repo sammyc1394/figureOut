@@ -1591,8 +1591,10 @@ class OneSecondGame extends FlameGame
     userPath.clear();
     currentCircleCenter = null;
     currentCircleRadius = null;
-    print('${children} before shape removal');
     blinkingMap.clear();
+
+    // 결과 화면도 제거
+    removeAll(children.where((c) => c is AftermathScreen).toList());
 
     children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
       blinking.removeFromParent();
@@ -1615,6 +1617,20 @@ class OneSecondGame extends FlameGame
       shape.removeFromParent();
     });
 
+    // 화면에 남은 도형이 완전히 제거될 때까지 대기 (최대 1.5초 안전망)
+    final deadline = DateTime.now().add(const Duration(milliseconds: 1500));
+    bool _hasShapes() => children.any((c) =>
+        c is CircleShape ||
+        c is RectangleShape ||
+        c is PentagonShape ||
+        c is TriangleShape ||
+        c is HexagonShape ||
+        c is AftermathScreen);
+    while (_hasShapes() && DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    print('[REFRESH] All shapes cleared. Proceeding with fetch.');
+
     print("run fetch data....");
     try {
       final newStages = await sheetService.fetchData();
@@ -1633,7 +1649,6 @@ class OneSecondGame extends FlameGame
 
       // 동일 스테이지 / 미션으로 재시작
       runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-      // runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
     } catch (e) {
       print("데이터 새로고침 실패: $e");
     }
@@ -2113,6 +2128,12 @@ bool _isStraightLine(List<Vector2> path) {
 
 
     if (isSliceGesture) {
+      // 경로에 닿는 사각형 목록을 먼저 수집 (blocker 면제 판단에도 사용)
+      final slicedRects = children
+          .whereType<RectangleShape>()
+          .where((r) => _isRealSlice(r, judgePath))
+          .toList();
+
       // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
       final overlappingShapes = <PositionComponent>[];
       for (final comp in children.whereType<PositionComponent>()) {
@@ -2126,19 +2147,52 @@ bool _isStraightLine(List<Vector2> path) {
         }
       }
 
-      // 다른 도형과 겹쳤다면 슬라이스(사각형 깎기)를 취소하고 패널티 부여
       if (overlappingShapes.isNotEmpty) {
-        print('[SLICE BLOCKED] Other shapes on path: ${overlappingShapes.map((c) => c.runtimeType)}');
-        _applyTouchPenalty(overlappingShapes);
-        _resetPathState();
-        return;
-      }
+        // 슬라이스 대상 사각형 Rect 집합
+        final slicedRectBounds = slicedRects.map((r) => r.toRect()).toList();
 
-      // 경로에 닿는 사각형 목록 수집
-      final slicedRects = children
-          .whereType<RectangleShape>()
-          .where((r) => _isRealSlice(r, judgePath))
-          .toList();
+        // blocker(삼각형 등) 면제 판단:
+        // 경로가 blocker bounding box 안으로 들어오는 포인트가 없으면 → 면제 (노출된 rect만 통과)
+        // 포인트가 하나라도 있으면 → 삼각형 영역을 지나간 것 → 차단
+        final realBlockers = overlappingShapes.where((blocker) {
+          final blockerRect = blocker.toRect();
+
+          // blocker가 슬라이스 대상 사각형과 아예 안 겹치면 → 항상 차단 (무관한 도형)
+          final overlapsAnyRect = slicedRectBounds.any((r) => r.overlaps(blockerRect));
+          if (!overlapsAnyRect) return true;
+
+          // 경로 포인트가 blocker bounding box 안에 들어오는지 확인
+          final pathEntersBlocker = judgePath.any(
+            (p) => blockerRect.contains(Offset(p.x, p.y)),
+          );
+
+          // 선분 교차도 확인 (포인트는 밖에 있어도 선분이 bbox를 통과하는 경우)
+          final lineEntersBlocker = !pathEntersBlocker && (() {
+            for (int i = 0; i < judgePath.length - 1; i++) {
+              if (_lineIntersectsRect(judgePath[i], judgePath[i + 1], blockerRect)) {
+                return true;
+              }
+            }
+            return false;
+          })();
+
+          final touchesBbox = pathEntersBlocker || lineEntersBlocker;
+
+          // bounding box에 닿았으면 → 삼각형 영역 통과로 간주 → 차단
+          // 닿지 않았으면 → 노출된 rect만 통과 → 면제
+          return touchesBbox;
+        }).toList();
+
+        if (realBlockers.isNotEmpty) {
+          print('[SLICE BLOCKED] Path enters blocker bbox: ${realBlockers.map((c) => c.runtimeType)}');
+          _applyTouchPenalty(realBlockers);
+          _resetPathState();
+          return;
+        }
+
+        // 모든 blocker bounding box를 회피 → 슬라이스 허용
+        print('[SLICE ALLOWED] Path avoids all blocker bboxes: ${overlappingShapes.map((c) => c.runtimeType)}');
+      }
 
       if (slicedRects.isNotEmpty) {
         // 경로가 닿은 순서(traversal order)대로 정렬
@@ -2168,8 +2222,8 @@ bool _isStraightLine(List<Vector2> path) {
           } else {
             // 기대하지 않은 순서의 사각형을 타격함
             if (hitAnyExpected) {
-              // 한 제스처 내에서 올바른 앞 번호 사각형을 쳤지만, 완전히 제거(카운트=0)되지 않아서 
-              // 뒤에 있는 번호로 차례가 넘어가지 않은 경우입니다. 
+              // 한 제스처 내에서 올바른 앞 번호 사각형을 쳤지만, 완전히 제거(카운트=0)되지 않아서
+              // 뒤에 있는 번호로 차례가 넘어가지 않은 경우입니다.
               // 이 경우 뒤에 닿은 다른 번호의 사각형들은 슬라이스를 무시합니다. (페널티 없음)
               print('[RECT ORDER] Ignored correctly-sequenced rect because expected rect is not yet destroyed. rect=${rect.order}, expected=${expected.order}');
               stopSlicing = true;
@@ -2326,25 +2380,124 @@ bool _isStraightLine(List<Vector2> path) {
   //   }
   // }
 
+  // [CHANGED] 도형별 정밀 히트판정으로 교체 (bounding box → 실제 형태)
   bool _doesPathTouchComponent(
     PositionComponent comp,
     List<Vector2> path,
   ) {
-    final rect = comp.toRect();
+    if (comp is TriangleShape) {
+      // 삼각형: 기존 getTriangleVertices() 재사용 (월드 좌표)
+      return _doesPathTouchPolygon(comp.getTriangleVertices(), path);
+    }
+    if (comp is CircleShape) {
+      // 원: 중심 + 반지름으로 원 판정
+      return _doesPathTouchCircle(comp.absoluteCenter, comp.size.x * 0.48, path);
+    }
+    if (comp is PentagonShape) {
+      // 오각형: 월드 좌표 꼭짓점 5개 계산 후 폴리곤 판정
+      return _doesPathTouchPolygon(_getPentagonVertices(comp), path);
+    }
+    if (comp is HexagonShape) {
+      // 육각형: 월드 좌표 꼭짓점 6개 계산 후 폴리곤 판정
+      return _doesPathTouchPolygon(_getHexagonVertices(comp), path);
+    }
+    // 기타 도형(RectangleShape 등)은 기존 bbox 판정 유지
+    return _doesPathTouchRect(comp.toRect(), path);
+  }
 
+  // [NEW] 기존 bbox 판정 분리
+  bool _doesPathTouchRect(Rect rect, List<Vector2> path) {
     for (int i = 0; i < path.length - 1; i++) {
       final p1 = path[i];
       final p2 = path[i + 1];
-
       if (rect.contains(Offset(p1.x, p1.y)) || rect.contains(Offset(p2.x, p2.y))) {
         return true;
       }
+      if (_lineIntersectsRect(p1, p2, rect)) return true;
+    }
+    return false;
+  }
 
-      if (_lineIntersectsRect(p1, p2, rect)) {
+  // [NEW] 경로-폴리곤 충돌 판정 (ray-casting + 선분 교차)
+  bool _doesPathTouchPolygon(List<Vector2> vertices, List<Vector2> path) {
+    if (vertices.length < 3) return false;
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      // 점이 폴리곤 내부에 있는지
+      if (_isPointInPolygon(p1, vertices) || _isPointInPolygon(p2, vertices)) {
         return true;
+      }
+      // 선분이 폴리곤 변과 교차하는지
+      for (int j = 0; j < vertices.length; j++) {
+        final va = vertices[j];
+        final vb = vertices[(j + 1) % vertices.length];
+        if (_doLinesIntersect(p1, p2, va, vb)) return true;
       }
     }
     return false;
+  }
+
+
+
+  // [NEW] 경로-원 충돌 판정
+  bool _doesPathTouchCircle(Vector2 center, double radius, List<Vector2> path) {
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      if ((p1 - center).length <= radius || (p2 - center).length <= radius) {
+        return true;
+      }
+      if (_lineIntersectsCircle(p1, p2, center, radius)) return true;
+    }
+    return false;
+  }
+
+  // [NEW] 선분-원 교차 판정
+  bool _lineIntersectsCircle(Vector2 p1, Vector2 p2, Vector2 center, double radius) {
+    final d = p2 - p1;
+    final f = p1 - center;
+    final a = d.dot(d);
+    if (a < 0.00001) return false;
+    final b = 2 * f.dot(d);
+    final c = f.dot(f) - radius * radius;
+    double discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return false;
+    discriminant = math.sqrt(discriminant);
+    final t1 = (-b - discriminant) / (2 * a);
+    final t2 = (-b + discriminant) / (2 * a);
+    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+  }
+
+  // [NEW] 오각형 월드 꼭짓점 반환 (PentagonShape.dart의 _buildPentagonPath와 동일한 공식)
+  List<Vector2> _getPentagonVertices(PentagonShape comp) {
+    // _visualPentagonCenter 오프셋 반영
+    final localCenter = Vector2(
+      comp.size.x / 2 - comp.size.x * 0.04,
+      comp.size.y / 2 + comp.size.y * 0.04,
+    );
+    // 월드 좌표로 변환 (anchor = center이므로 position이 도형 중심)
+    final topLeft = comp.position - comp.size / 2;
+    final worldCenter = topLeft + localCenter;
+    final radius = comp.size.x * 0.392;
+
+    return List.generate(5, (i) {
+      final a = (-90 + i * 72) * math.pi / 180;
+      return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
+    });
+  }
+
+  // [NEW] 육각형 월드 꼭짓점 반환 (HexagonShape.dart의 _buildHexagonPath와 동일한 공식)
+  List<Vector2> _getHexagonVertices(HexagonShape comp) {
+    final worldCenter = comp.absoluteCenter;
+    // inset = strokeWidth/2 + 10 = 3 + 10 = 13, radius = size.x/2 - 13
+    final radius = comp.size.x / 2 - 13.0;
+    const angleOffset = -math.pi / 30;
+
+    return List.generate(6, (i) {
+      final a = (math.pi / 3) * i + angleOffset;
+      return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
+    });
   }
 
   bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
@@ -2395,6 +2548,7 @@ bool _isStraightLine(List<Vector2> path) {
     }
     return false;
   }
+
 
   void pauseGame() {
     print("blinkingMap:${blinkingMap.values}");
