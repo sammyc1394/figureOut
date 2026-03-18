@@ -109,18 +109,18 @@ class HexagonShape extends PositionComponent
 
     add(svg);
 
-    final img = await Images(prefix: 'assets/').load('shapes/hexagon.png');
-
-    _png = SpriteComponent(
-      sprite: Sprite(img),
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    )
-      ..opacity = 0.8
-      ..paint.colorFilter = ColorFilter.mode(baseColor, BlendMode.srcATop);
-
-    add(_png);
+    if (attackTime != null) {
+      final img = await Images(prefix: 'assets/').load('shapes/hexagon.png');
+      _png = SpriteComponent(
+        sprite: Sprite(img),
+        size: size,
+        anchor: Anchor.center,
+        position: size / 2,
+      )
+        ..opacity = 0.8
+        ..paint.colorFilter = ColorFilter.mode(baseColor, BlendMode.srcATop);
+      add(_png);
+    }
 
     if ((attackTime ?? 0) > 0) {
       svg.opacity = 0;
