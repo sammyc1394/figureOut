@@ -1591,8 +1591,10 @@ class OneSecondGame extends FlameGame
     userPath.clear();
     currentCircleCenter = null;
     currentCircleRadius = null;
-    print('${children} before shape removal');
     blinkingMap.clear();
+
+    // 결과 화면도 제거
+    removeAll(children.where((c) => c is AftermathScreen).toList());
 
     children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
       blinking.removeFromParent();
@@ -1615,6 +1617,20 @@ class OneSecondGame extends FlameGame
       shape.removeFromParent();
     });
 
+    // 화면에 남은 도형이 완전히 제거될 때까지 대기 (최대 1.5초 안전망)
+    final deadline = DateTime.now().add(const Duration(milliseconds: 1500));
+    bool _hasShapes() => children.any((c) =>
+        c is CircleShape ||
+        c is RectangleShape ||
+        c is PentagonShape ||
+        c is TriangleShape ||
+        c is HexagonShape ||
+        c is AftermathScreen);
+    while (_hasShapes() && DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    print('[REFRESH] All shapes cleared. Proceeding with fetch.');
+
     print("run fetch data....");
     try {
       final newStages = await sheetService.fetchData();
@@ -1633,7 +1649,6 @@ class OneSecondGame extends FlameGame
 
       // 동일 스테이지 / 미션으로 재시작
       runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-      // runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
     } catch (e) {
       print("데이터 새로고침 실패: $e");
     }
