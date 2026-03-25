@@ -1,3 +1,5 @@
+import 'package:figureout/src/behaviors/MCommand.dart';
+import 'package:figureout/src/behaviors/ZCommand.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:flame/components.dart';
@@ -32,6 +34,10 @@ import 'package:figureout/src/functions/OrbitingComponent.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/components/PauseButton.dart';
 import 'package:go_router/go_router.dart';
+import '../behaviors/CCommand.dart';
+import '../behaviors/DDrCommand.dart';
+import '../behaviors/shapeBehavior.dart';
+import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
@@ -809,17 +815,17 @@ class OneSecondGame extends FlameGame
           final beforeMovement = DateTime.now();
           print('[BEFORE MOVE] index=$i diff=${beforeMovement.difference(spawnStart).inMilliseconds}ms');
 
-          // Z command s
-          if (enemy.movement.contains('Z(') && shape != null) {
-            unawaited(
-              _runSequentialZMovement(
-                shape: shape,
-                movementRaw: enemy.movement,
-              ),
-            );
+          final behavior = checkBehavior(
+            enemy.movement,
+            actPosition,
+            flipY,
+            toPlayArea,
+          );
 
+          if (behavior != null && shape != null) {
+            await behavior.apply(shape);
+            continue;
           }
-          //Z command e
 
           //L Movement s
           final moveMatch = RegExp(
@@ -899,252 +905,6 @@ class OneSecondGame extends FlameGame
           }
           //L Movement e
 
-          // C command s
-          final cMatch = RegExp(
-            r'C\((-?\d+),\s*(-?\d+)\)',
-          ).firstMatch(enemy.movement);
-          if (cMatch != null) {
-            final r = double.parse(cMatch.group(1)!);
-            final s = double.parse(cMatch.group(2)!); // degree per second
-
-            final halfSizeX = shape.size.x / 2;
-
-            // cMove 중심점
-            final centerWorld = actPosition;
-
-            print("centerworld(${centerWorld.x}, ${centerWorld.y})");
-
-            final originWorld = toPlayArea(
-              flipY(Vector2(0, 0)),
-              halfSizeX,
-              clampInside: false,
-            );
-
-            final eastWorld = toPlayArea(
-              flipY(Vector2(0 + r, 0)),
-              halfSizeX,
-              clampInside: false,
-            );
-            final northWorld = toPlayArea(
-              flipY(Vector2(0, 0 + r)),
-              halfSizeX,
-              clampInside: false,
-            );
-
-           // 실제 변환된 반지름
-            final radiusWorldX = (eastWorld.x - originWorld.x).abs();
-            final radiusWorldY = (northWorld.y - originWorld.y).abs();
-
-            final angularSpeed = s * math.pi / 180;
-
-            // angle 이 0, 즉 원의 오른쪽에서 시작해야하기 때문에 원의 오른쪽 좌표 구해줌
-            shape.position = Vector2(
-              centerWorld.x + radiusWorldX,
-              centerWorld.y,
-            );
-
-            // 타원 궤도로 회전 (radiusX / radiusY 별도)
-            shape.add(
-              OrbitingComponent(
-                target: shape,
-                center: centerWorld,
-                radiusX: radiusWorldX,
-                radiusYParam: radiusWorldY,
-                angularSpeed: angularSpeed,
-              ),
-
-            );
-            continue;
-          }
-
-          Rect _timerRectWorld() => timerBar.toRect();
-          //C command e
-
-          // D command s
-          final dMatch = RegExp(
-            r'D\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
-          ).firstMatch(enemy.movement);
-          if (dMatch != null && shape != null) {
-            final a = double.parse(dMatch.group(1)!);
-            final b = double.parse(dMatch.group(2)!);
-
-            await add(shape); // 초기 visible 상태로 추가
-            await shape.loaded;
-
-            final r = _timerRectWorld();
-            const pad = 8.0;
-            const margin = 50.0;
-
-            final halfW = shape.size.x / 2;
-            final halfH = shape.size.y / 2;
-            // 타이머바 "아래" 영역 (Y는 아래로 증가)
-            final minYCenter = r.bottom + pad + halfH;
-            final maxYCenter = size.y - margin - halfH;
-
-            // 화면 좌우 여백 고려
-            final minXCenter = margin + halfW;
-            final maxXCenter = size.x - margin - halfW;
-
-            // 시작 위치도 즉시 범위 안으로
-            shape.position = Vector2(
-              shape.position.x.clamp(minXCenter, maxXCenter),
-              shape.position.y.clamp(minYCenter, maxYCenter),
-            );
-
-            final blinking = BlinkingBehaviorComponent(
-              shape: shape,
-              visibleDuration: a,
-              invisibleDuration: b,
-              isRandomRespawn: false,
-              xMin: minXCenter,
-              xMax: maxXCenter,
-              yMin: minYCenter,
-              yMax: maxYCenter,
-              onFadeAlphaChanged: _applyBlinkAlpha,
-            );
-
-            blinkingMap[shape] = blinking;
-
-            // shape.parent?.add(blinking); // 같은 parent에 붙여줘야 shape 제어 가능
-            add(blinking);
-            continue;
-          }
-          //D command e
-
-          // DR command s
-          // DR(a,b): 깜빡이며 랜덤 위치로 재등장
-          final drMatch = RegExp(
-            r'DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
-          ).firstMatch(enemy.movement);
-          if (drMatch != null && shape != null) {
-            final a = double.parse(drMatch.group(1)!);
-            final b = double.parse(drMatch.group(2)!);
-
-            await add(shape); // 초기에 등장
-            await shape.loaded;
-
-            final r = _timerRectWorld();
-            const pad = 8.0;
-            const margin = 50.0;
-
-            final halfW = shape.size.x / 2;
-            final halfH = shape.size.y / 2;
-
-            // 타이머바 "아래" 영역 (Y는 아래로 증가)
-            final minYCenter = r.bottom + pad + halfH;
-            final maxYCenter = size.y - margin - halfH;
-
-            // 화면 좌우 여백 고려
-            final minXCenter = margin + halfW;
-            final maxXCenter = size.x - margin - halfW;
-
-            // 시작 위치도 즉시 범위 안으로
-            shape.position = Vector2(
-              shape.position.x.clamp(minXCenter, maxXCenter),
-              shape.position.y.clamp(minYCenter, maxYCenter),
-            );
-
-            final blinking = BlinkingBehaviorComponent(
-              shape: shape,
-              visibleDuration: a,
-              invisibleDuration: b,
-              isRandomRespawn: true,
-              xMin: minXCenter,
-              xMax: maxXCenter,
-              yMin: minYCenter,
-              yMax: maxYCenter,
-              onFadeAlphaChanged: _applyBlinkAlpha,
-            );
-
-            blinkingMap[shape] = blinking;
-
-            add(blinking);
-
-            continue;
-          }
-          //DR Command e
-
-          //M Command s
-          // Movement: M(angle, speed, stopX, stopY)
-          final MMatch = RegExp(
-            r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
-          ).firstMatch(enemy.movement);
-
-          if (MMatch != null) {
-            print("Mmatch");
-
-            final angleDeg = double.parse(MMatch.group(1)!);
-            final speed = double.parse(MMatch.group(2)!); // px/sec
-            final stopY = MMatch.group(3)!;
-
-            print("stopY = $stopY");
-            double yCoord = position.y;
-            if (stopY.contains("Y")) {
-              yCoord = size.y;
-            } else {
-              yCoord = double.parse(stopY);
-            }
-
-            // 목표 지점 (에디터 좌표 → 실제 플레이좌표)
-            final target = toPlayArea(
-              flipY(Vector2(position.x, yCoord)),
-              halfSizeX,
-              clampInside: false,
-            );
-
-            print("target = (${target.x}, ${target.y})");
-
-            // shape는 nullable이므로 non-null 로컬 변수로 캡쳐
-            final comp = shape!;
-
-            // 이전 이펙트 제거
-            for (final e in List.of(comp.children.whereType<Effect>())) {
-              e.removeFromParent();
-            }
-
-            // 1) 스폰 위치에서 잠깐 보임
-            comp.position = position;
-
-            const showDelay = 0.25;
-            final originalScale = comp.scale.clone();
-
-            // (a) 잠깐 있다가 축소
-            comp.add(
-              ScaleEffect.to(
-                Vector2.zero(),
-                EffectController(duration: 0.10, startDelay: showDelay),
-                onComplete: () {
-                  // (b) target 방향에서 다시 스폰 후 확대
-                  comp.position = position; // 처음 위치에서 시작
-                  comp.add(
-                    ScaleEffect.to(
-                      originalScale,
-                      EffectController(duration: 0.50),
-                      onComplete: () {
-                        // (c) target 으로 이동 → 도착하면 멈춤
-                        final distance = comp.position.distanceTo(target);
-                        final duration = distance / speed;
-
-                        comp.add(
-                          MoveEffect.to(
-                            target,
-                            EffectController(
-                              duration: duration,
-                              curve: Curves.linear,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            );
-
-            continue;
-          }
-          //M Command e
-
           await Future.delayed(Duration(milliseconds: 100));
         }
       }
@@ -1157,43 +917,142 @@ class OneSecondGame extends FlameGame
     return ret;
   }
 
+  PreparedEnemy? buildPreparedEnemy({
+    required EnemyData enemy,
+    required Vector2 Function(Vector2) flipY,
+    required Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea,
+    required ShapeBehavior? Function(String movement, Vector2 actPosition) parseBehavior,
+  }) {
+    // 1. 도형 & 사이즈 파싱
+    String shapeType = "";
+    Vector2 size = Vector2.zero();
+    if (enemy.shape.startsWith('Circle')) {
+      final scale = _parseScale(enemy.shape);
+      size = Vector2.all(80 * scale);
+
+      shapeType = "Circle";
+
+    } else if (enemy.shape.startsWith('Rectangle')) {
+      // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
+      Vector2 size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
+
+      // 만약 Rectangle2 처럼 스케일만 적혀있다면 기본(40,80)에 스케일 적용
+      if (_parseRectSize(enemy.shape) == null) {
+        final scale = _parseScale(enemy.shape);
+        // 기본값이 Rectangle4라고 가정하면 scale 1.0 -> 40,80
+        // Rectangle2 -> scale 0.5 -> 20,40
+        size = Vector2(40 * scale, 80 * scale);
+      }
+
+      shapeType = "Rectangle";
+
+    } else if (enemy.shape.startsWith('Pentagon')) {
+      final scale = _parseScale(enemy.shape);
+      size = Vector2.all(100 * scale);
+
+      shapeType = "Pentagon";
+
+    } else if (enemy.shape.startsWith('Triangle')) {
+      final scale = _parseScale(enemy.shape);
+      final size = Vector2.all(70 * scale);
+
+      shapeType = "Triangle";
+
+    } else if (enemy.shape.startsWith('Hexagon')) {
+      final scale = _parseScale(enemy.shape);
+      final size = Vector2.all(100 * scale);
+
+      shapeType = "Hexagon";
+
+    }
+
+    // 2. 에너지 및 금지도형 파싱
+    final count = enemy.energy;
+
+    bool isDark = false;
+    if(enemy.energy == -1) {
+      isDark = true;
+    }
+
+    // 4. order
+    final int? order = enemy.order;
+
+    // 5. 좌표 변환
+    final posMatch = RegExp(
+      r'\((-?\d+),\s*(-?\d+)\)',
+    ).firstMatch(enemy.position);
+    if (posMatch == null) {
+      throw FormatException('Invalid position: ${enemy.position}');
+    }
+    final x = double.parse(posMatch.group(1)!);
+    final y = double.parse(posMatch.group(2)!);
+
+    final halfSizeX = size.x / 2;
+    final halfSizeY = size.y / 2;
+
+    Vector2 actPosition = toPlayArea(
+      flipY(Vector2(x, y)),
+      halfSizeX,
+      clampInside: true,
+    );
+
+    final localPos = worldToVirtualPlay(actPosition);
+    print('playLocal = (${localPos.x}, ${localPos.y})');
+
+    // 6. behavior 파싱 (이미 만든 구조 활용)
+    final behavior = parseBehavior(
+      enemy.movement,
+      actPosition,
+    );
+
+    // 7. PreparedEnemy 생성
+    return PreparedEnemy(
+      shapeType: shapeType,
+      count: count,
+      isDark: isDark,
+      actPosition: actPosition,
+      order: order,
+      behavior: behavior,
+    );
+  }
+
+  // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
+  //    1~8: 0.25배씩 증가 (1=0.25, 4=1.0, 8=2.0)
+  //    9~ : 0.5배씩 증가 (9=2.5, 10=3.0 ...)
+  double _parseScale(String s) {
+    // "Circle2", "Circle4_02", "Pentagon12" 등에서 숫자 추출
+    // 도형 이름(알파벳) 뒤에 오는 숫자
+    final m = RegExp(r'[a-zA-Z]+(\d+)').firstMatch(s);
+    if (m != null) {
+      final val = int.parse(m.group(1)!);
+      if (val <= 8) {
+        return val * 0.25;
+      } else {
+        // 8번이 2.0이므로, 거기서부터 0.5씩 증가
+        return 2.0 + (val - 8) * 0.5;
+      }
+    }
+    return 1.0; // 기본값 (Circle == Circle4)
+  }
+
+  // 2) Rectangle 직접 크기 파싱 (Rectangle40:200)
+  Vector2? _parseRectSize(String s) {
+    final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
+    if (m != null) {
+      final w = double.parse(m.group(1)!);
+      final h = double.parse(m.group(2)!);
+      return Vector2(w, h);
+    }
+    return null;
+  }
+
+
   PositionComponent? checkShape(EnemyData enemy, Vector2 position) {
     PositionComponent? shape;
 
     // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
     final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
     final bool isAttackable = (enemy.attackSeconds != null);
-
-
-    // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
-    //    1~8: 0.25배씩 증가 (1=0.25, 4=1.0, 8=2.0)
-    //    9~ : 0.5배씩 증가 (9=2.5, 10=3.0 ...)
-    double _parseScale(String s) {
-      // "Circle2", "Circle4_02", "Pentagon12" 등에서 숫자 추출
-      // 도형 이름(알파벳) 뒤에 오는 숫자
-      final m = RegExp(r'[a-zA-Z]+(\d+)').firstMatch(s);
-      if (m != null) {
-        final val = int.parse(m.group(1)!);
-        if (val <= 8) {
-          return val * 0.25;
-        } else {
-          // 8번이 2.0이므로, 거기서부터 0.5씩 증가
-          return 2.0 + (val - 8) * 0.5;
-        }
-      }
-      return 1.0; // 기본값 (Circle == Circle4)
-    }
-
-    // 2) Rectangle 직접 크기 파싱 (Rectangle40:200)
-    Vector2? _parseRectSize(String s) {
-      final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
-      if (m != null) {
-        final w = double.parse(m.group(1)!);
-        final h = double.parse(m.group(2)!);
-        return Vector2(w, h);
-      }
-      return null;
-    }
 
     double tp = enemy.attackDamage ?? 5;
     void Function()? penalty = () => applyTimePenalty(tp.abs());
@@ -1291,6 +1150,109 @@ class OneSecondGame extends FlameGame
     }
 
     return shape;
+  }
+
+  ShapeBehavior? checkBehavior(
+      String raw,
+      Vector2 actPosition,
+      Vector2 Function(Vector2) flipY,
+      Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea,
+      ) {
+
+    print("[Behavior check] parsing command into behavior");
+    final cMatch = RegExp(
+      r'C\((-?\d+),\s*(-?\d+)\)',
+    ).firstMatch(raw);
+
+    if (cMatch != null) {
+      print("[Behavior check] returning c command");
+      final r = double.parse(cMatch.group(1)!);
+      final s = double.parse(cMatch.group(2)!);
+
+      return CCommand(
+        radius: r,
+        degreePerSec: s,
+        actPosition: actPosition,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+      );
+    }
+
+    Rect _timerRectWorld() => timerBar.toRect();
+
+    final drMatch = RegExp(
+      r'DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+    ).firstMatch(raw);
+
+    if (drMatch != null) {
+      print("[Behavior check] returning dr command");
+      final a = double.parse(drMatch.group(1)!);
+      final b = double.parse(drMatch.group(2)!);
+
+      return DDrCommand(
+        visibleDuration: a,
+        invisibleDuration: b,
+        isRandomRespawn: true,
+        timerRectWorld: _timerRectWorld,
+        gameSize: size,
+        blinkingMap: blinkingMap,
+      );
+    }
+
+    final dMatch = RegExp(
+      r'D\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+    ).firstMatch(raw);
+
+    if (dMatch != null) {
+      print("[Behavior check] returning d command");
+
+      final a = double.parse(dMatch.group(1)!);
+      final b = double.parse(dMatch.group(2)!);
+
+      return DDrCommand(
+        visibleDuration: a,
+        invisibleDuration: b,
+        isRandomRespawn: false,
+        timerRectWorld: _timerRectWorld,
+        gameSize: size,
+        blinkingMap: blinkingMap,
+      );
+    }
+
+    final mMatch = RegExp(
+      r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
+    ).firstMatch(raw);
+
+    if (mMatch != null) {
+      print("[Behavior check] returning m command");
+
+      final angle = double.parse(mMatch.group(1)!);
+      final speed = double.parse(mMatch.group(2)!);
+      final stopY = mMatch.group(3)!;
+
+      return MCommand(
+        angleDeg: angle,
+        speed: speed,
+        stopY: stopY,
+        position: actPosition,
+        size: size,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+      );
+    }
+
+    if (raw.contains('Z(')) {
+      print("[Behavior check] returning z command");
+
+      return ZCommand(
+        movementRaw: raw,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+        worldToVirtualPlay: worldToVirtualPlay,
+      );
+    }
+
+    return null;
   }
 
   bool _isVisualEffectComponent(Component c) {
@@ -2710,16 +2672,6 @@ bool _isStraightLine(List<Vector2> path) {
     b.isPaused = false;
   }
 }
-
-  void _applyBlinkAlpha(PositionComponent shape, double alpha) {
-    final target = shape as dynamic;
-
-    try {
-      target.setBlinkAlpha(alpha);
-    } catch (e) {
-      print('[BLINK ALPHA] setBlinkAlpha not found on ${shape.runtimeType}: $e');
-    }
-  }
   
   void _drawDashedPath(
     Canvas canvas,
@@ -2850,4 +2802,13 @@ bool _isStraightLine(List<Vector2> path) {
     }
   }
 
+  void _applyBlinkAlpha(PositionComponent shape, double alpha) {
+    final target = shape as dynamic;
+
+    try {
+      target.setBlinkAlpha(alpha);
+    } catch (e) {
+      print('[BLINK ALPHA] setBlinkAlpha not found on ${shape.runtimeType}: $e');
+    }
+  }
 }

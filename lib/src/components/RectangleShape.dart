@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:figureout/src/components/FallingClippedPiece.dart';
+import 'package:figureout/src/effect/FallingClippedPiece.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
@@ -10,7 +10,7 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-import 'AttackExplosionEffect.dart';
+import '../effect/AttackExplosionEffect.dart';
 
 import '../config.dart';
 import '../functions/OrderableShape.dart';
