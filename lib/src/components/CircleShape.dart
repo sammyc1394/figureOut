@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
-import 'AttackExplosionEffect.dart';
-import 'CircleDisappearEffect.dart';
+import '../effect/AttackExplosionEffect.dart';
+import '../effect/CircleDisappearEffect.dart';
 
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef

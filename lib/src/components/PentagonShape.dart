@@ -10,7 +10,7 @@ import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
-import 'AttackExplosionEffect.dart';
+import '../effect/AttackExplosionEffect.dart';
 
 class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {

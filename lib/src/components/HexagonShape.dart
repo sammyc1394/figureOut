@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'dart:math' as math;
 
-import 'AttackExplosionEffect.dart';
+import '../effect/AttackExplosionEffect.dart';
 
 enum HexagonState {
   normal,

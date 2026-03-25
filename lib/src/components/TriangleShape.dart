@@ -8,7 +8,7 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
-import 'AttackExplosionEffect.dart';
+import '../effect/AttackExplosionEffect.dart';
 
 class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   late final SvgComponent svg;
