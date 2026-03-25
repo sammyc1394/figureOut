@@ -1794,6 +1794,21 @@ class OneSecondGame extends FlameGame
       onPlay: () {
         // play next stage
         removeAll(children.where((c) => c is AftermathScreen).toList());
+
+        final isLastStage = _selectedStageIndex >= maxStageIndex - 1;
+        final isLastMission = _selectedMissionIndex >= maxMissionIndex - 1;
+
+        if (isLastStage && isLastMission) {
+          print("All stages cleared → go to menu");
+
+          rootNavigatorKey.currentContext!.go(
+            '/missions',
+            extra: {"stages": stages, "index": 0},
+          );
+
+          return;
+        }
+
         // Could start from stage 0 or a chosen stage
         // move to next stage
         if (_selectedStageIndex < maxStageIndex) {
