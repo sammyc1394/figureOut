@@ -36,6 +36,7 @@ import 'package:figureout/src/components/PauseButton.dart';
 import 'package:go_router/go_router.dart';
 import '../behaviors/CCommand.dart';
 import '../behaviors/DDrCommand.dart';
+import '../behaviors/LCommand.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
@@ -1110,6 +1111,20 @@ class OneSecondGame extends FlameGame
       ) {
 
     print("[Behavior check] parsing command into behavior");
+    final lMatch = RegExp(
+      r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$'
+    ).firstMatch(raw.trim());
+
+    if (lMatch != null) {
+      print("[Behavior check] returning L command");
+
+      return LCommand(
+        movementRaw: raw,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+      );
+    }
+
     final cMatch = RegExp(
       r'C\((-?\d+),\s*(-?\d+)\)',
     ).firstMatch(raw);
