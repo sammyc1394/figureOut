@@ -683,6 +683,7 @@ class OneSecondGame extends FlameGame
 
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
+    // final preparedEnemies = <PreparedEnemy>[];
 
     // 에너미 데이터
     // startIndex 를 굳이 파라미터에서 initialize 한 이유가 있나?
@@ -752,162 +753,106 @@ class OneSecondGame extends FlameGame
         continue;
       }
 
-      // 포지션 체크 s
       final spawnStart = DateTime.now();
       print('[SPAWN START] index=$i time=${spawnStart.millisecondsSinceEpoch}');
 
-      final posMatch = RegExp(
-        r'\((-?\d+),\s*(-?\d+)\)',
-      ).firstMatch(enemy.position);
-      if (posMatch == null) continue;
-      final x = double.parse(posMatch.group(1)!);
-      final y = double.parse(posMatch.group(2)!);
-      Vector2 position = Vector2(x, y);
+      final prepared = buildPreparedEnemy(
+        enemy: enemy,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+        checkBehavior: checkBehavior,
+      );
 
-      print('Spawning enemy at $position: ${enemy.shape}');
+      if (prepared == null) continue;
 
-      PositionComponent? shape = checkShape(enemy, position);
+      print("[PREPARED CHECK END] prepared size : (${prepared.customSize.x}, ${prepared.customSize.y})");
 
-      if (shape != null) {
-        final halfSizeX = shape.size.x / 2;
-        final halfSizeY = shape.size.y / 2;
+      await spawnPreparedEnemy(
+        prepared,
+        spawnedThisMission,
+        currentWave,
+      );
 
-        Vector2 actPosition = toPlayArea(
-          flipY(Vector2(x, y)),
-          halfSizeX,
-          clampInside: true,
-        );
-
-        shape.position = actPosition;
-
-        final localPos = worldToVirtualPlay(actPosition);
-        print('playLocal = (${localPos.x}, ${localPos.y})');
-
-        final shapeRect = shape.toRect();
-        final isWithinBounds =
-            shapeRect.left >= 0 &&
-            shapeRect.top >= 0 &&
-            shapeRect.right <= screenWidth &&
-            shapeRect.bottom <= screenHeight;
-
-        print("is within bounds? = $isWithinBounds");
-
-        if (isWithinBounds) {
-          spawnedThisMission.add(shape);
-          if (!_isDarkShape(shape)) {
-            currentWave.add(shape);
-          }
-
-          // 도형 스폰
-          await add(shape);
-          await shape.loaded;
-
-          final afterLoad = DateTime.now();
-          print('[AFTER LOAD] index=$i diff=${afterLoad.difference(spawnStart).inMilliseconds}ms');
-
-          print('shape spawned: ${shape.position.toString()}');
-          print('[DEBUG] currentWave size after spawn = ${currentWave.length}');
-          print('[DEBUG] spawnedThisMission size after spawn = ${spawnedThisMission.length}');
-
-          // 포지션 체크 e
-
-          // 움직임 체크 s
-          final beforeMovement = DateTime.now();
-          print('[BEFORE MOVE] index=$i diff=${beforeMovement.difference(spawnStart).inMilliseconds}ms');
-
-          final behavior = checkBehavior(
-            enemy.movement,
-            actPosition,
-            flipY,
-            toPlayArea,
-          );
-
-          if (behavior != null && shape != null) {
-            await behavior.apply(shape);
-            continue;
-          }
-
-          //L Movement s
-          final moveMatch = RegExp(
-            r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
-          ).firstMatch(enemy.movement);
-
-          if (moveMatch != null) {
-            print("-----moveMatch runnung---------------------------------");
-            final dx1 = double.parse(moveMatch.group(1)!);
-            final dy1 = double.parse(moveMatch.group(2)!);
-            final dx2 = double.parse(moveMatch.group(3)!);
-            final dy2 = double.parse(moveMatch.group(4)!);
-            final speed = double.parse(moveMatch.group(5)!); // px/sec
-
-            // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
-            // 도형 화면 밖으로 안나가도록
-            final p1 = toPlayArea(
-              flipY(Vector2(dx1, dy1)),
-              halfSizeX,
-              clampInside: true,
-            );
-            final p2 = toPlayArea(
-              flipY(Vector2(dx2, dy2)),
-              halfSizeX,
-              clampInside: true,
-            );
-
-            // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
-            final comp = shape!;
-
-            // 이전 이펙트 있으면 제거
-            for (final e in List.of(comp.children.whereType<Effect>())) {
-              e.removeFromParent();
-            }
-
-            // 1) 스폰: H열 위치에서 잠깐 보임
-            comp.position = actPosition;
-
-            // 2) 사라졌다가(p1로 재스폰) → 3) p1<->p2 왕복
-            const showDelay = 0.25; // 최초 노출 시간 (필요시 조절)
-            final originalScale = comp.scale.clone();
-
-            // (a) showDelay 후 0까지 축소하여 "사라짐" (DelayEffect 대신 startDelay 사용)
-            comp.add(
-              ScaleEffect.to(
-                Vector2.zero(),
-                EffectController(duration: 0.10, startDelay: showDelay),
-                onComplete: () {
-                  // (b) p1에서 재스폰(위치 이동) 후 다시 보이게(확대)
-                  comp.position = p1;
-
-                  comp.add(
-                    ScaleEffect.to(
-                      originalScale,
-                      EffectController(duration: 0.50),
-                      onComplete: () {
-                        // (c) 본 이동: p1 <-> p2 왕복 (무한)
-                        final segTime = p1.distanceTo(p2) / speed;
-                        comp.add(
-                          MoveEffect.to(
-                            p2,
-                            EffectController(
-                              duration: segTime,
-                              alternate: true,
-                              infinite: true,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            );
-
-            continue;
-          }
+          // //L Movement s
+          // final moveMatch = RegExp(
+          //   r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
+          // ).firstMatch(enemy.movement);
+          //
+          // if (moveMatch != null) {
+          //   final dx1 = double.parse(moveMatch.group(1)!);
+          //   final dy1 = double.parse(moveMatch.group(2)!);
+          //   final dx2 = double.parse(moveMatch.group(3)!);
+          //   final dy2 = double.parse(moveMatch.group(4)!);
+          //   final speed = double.parse(moveMatch.group(5)!); // px/sec
+          //
+          //   // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
+          //   // 도형 화면 밖으로 안나가도록
+          //   final p1 = toPlayArea(
+          //     flipY(Vector2(dx1, dy1)),
+          //     halfSizeX,
+          //     clampInside: true,
+          //   );
+          //   final p2 = toPlayArea(
+          //     flipY(Vector2(dx2, dy2)),
+          //     halfSizeX,
+          //     clampInside: true,
+          //   );
+          //
+          //   // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
+          //   final comp = shape!;
+          //
+          //   // 이전 이펙트 있으면 제거
+          //   for (final e in List.of(comp.children.whereType<Effect>())) {
+          //     e.removeFromParent();
+          //   }
+          //
+          //   // 1) 스폰: H열 위치에서 잠깐 보임
+          //   comp.position = actPosition;
+          //
+          //   // 2) 사라졌다가(p1로 재스폰) → 3) p1<->p2 왕복
+          //   const showDelay = 0.25; // 최초 노출 시간 (필요시 조절)
+          //   final originalScale = comp.scale.clone();
+          //
+          //   // (a) showDelay 후 0까지 축소하여 "사라짐" (DelayEffect 대신 startDelay 사용)
+          //   comp.add(
+          //     ScaleEffect.to(
+          //       Vector2.zero(),
+          //       EffectController(duration: 0.10, startDelay: showDelay),
+          //       onComplete: () {
+          //         // (b) p1에서 재스폰(위치 이동) 후 다시 보이게(확대)
+          //         comp.position = p1;
+          //
+          //         comp.add(
+          //           ScaleEffect.to(
+          //             originalScale,
+          //             EffectController(duration: 0.50),
+          //             onComplete: () {
+          //               // (c) 본 이동: p1 <-> p2 왕복 (무한)
+          //               final segTime = p1.distanceTo(p2) / speed;
+          //               comp.add(
+          //                 MoveEffect.to(
+          //                   p2,
+          //                   EffectController(
+          //                     duration: segTime,
+          //                     alternate: true,
+          //                     infinite: true,
+          //                   ),
+          //                 ),
+          //               );
+          //             },
+          //           ),
+          //         );
+          //       },
+          //     ),
+          //   );
+          //
+          //   continue;
+          // }
           //L Movement e
 
           await Future.delayed(Duration(milliseconds: 100));
-        }
-      }
+
+
 
       final loopEnd = DateTime.now();
       print('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
@@ -921,20 +866,23 @@ class OneSecondGame extends FlameGame
     required EnemyData enemy,
     required Vector2 Function(Vector2) flipY,
     required Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea,
-    required ShapeBehavior? Function(String movement, Vector2 actPosition) parseBehavior,
+    required ShapeBehavior? Function(String movement, Vector2 actPosition) checkBehavior,
   }) {
     // 1. 도형 & 사이즈 파싱
     String shapeType = "";
     Vector2 size = Vector2.zero();
+    print("[PreparedEnemy] enemy name : ${enemy.shape}");
     if (enemy.shape.startsWith('Circle')) {
       final scale = _parseScale(enemy.shape);
       size = Vector2.all(80 * scale);
+
+      print("[PreparedEnemy] size = (${size.x}, ${size.y})");
 
       shapeType = "Circle";
 
     } else if (enemy.shape.startsWith('Rectangle')) {
       // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
-      Vector2 size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
+      size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
 
       // 만약 Rectangle2 처럼 스케일만 적혀있다면 기본(40,80)에 스케일 적용
       if (_parseRectSize(enemy.shape) == null) {
@@ -954,20 +902,20 @@ class OneSecondGame extends FlameGame
 
     } else if (enemy.shape.startsWith('Triangle')) {
       final scale = _parseScale(enemy.shape);
-      final size = Vector2.all(70 * scale);
+      size = Vector2.all(70 * scale);
 
       shapeType = "Triangle";
 
     } else if (enemy.shape.startsWith('Hexagon')) {
       final scale = _parseScale(enemy.shape);
-      final size = Vector2.all(100 * scale);
+      size = Vector2.all(100 * scale);
 
       shapeType = "Hexagon";
 
     }
 
     // 2. 에너지 및 금지도형 파싱
-    final count = enemy.energy;
+    final energy = enemy.energy;
 
     bool isDark = false;
     if(enemy.energy == -1) {
@@ -1000,7 +948,7 @@ class OneSecondGame extends FlameGame
     print('playLocal = (${localPos.x}, ${localPos.y})');
 
     // 6. behavior 파싱 (이미 만든 구조 활용)
-    final behavior = parseBehavior(
+    final behavior = checkBehavior(
       enemy.movement,
       actPosition,
     );
@@ -1008,12 +956,119 @@ class OneSecondGame extends FlameGame
     // 7. PreparedEnemy 생성
     return PreparedEnemy(
       shapeType: shapeType,
-      count: count,
+      customSize: size,
+      energy: energy,
       isDark: isDark,
       actPosition: actPosition,
       order: order,
       behavior: behavior,
+      attackTime: enemy.attackSeconds,
+      attackDamage: enemy.attackDamage,
     );
+  }
+
+  Future<void> spawnPreparedEnemy(
+      PreparedEnemy enemy,
+      Set<Component> spawnedThisMission,
+      Set<Component> currentWave,
+      ) async {
+    final shape = _createShapeFromPrepared(enemy);
+
+    shape.position = enemy.actPosition;
+
+    await add(shape);
+    await shape.loaded;
+
+    // behavior attach
+    if (enemy.behavior != null) {
+      ShapeBehavior behavior = enemy.behavior!;
+      await behavior.apply(shape);
+    }
+
+    spawnedThisMission.add(shape);
+
+    if (!enemy.isDark) {
+      currentWave.add(shape);
+    }
+  }
+
+  PositionComponent _createShapeFromPrepared(PreparedEnemy enemy) {
+    PositionComponent? shape;
+
+    double tp = enemy.attackDamage ?? 5;
+    void Function()? penalty = () => applyTimePenalty(tp.abs());
+
+    bool isAttackable = false;
+    if (enemy.attackTime != null) isAttackable = true;
+
+
+    switch (enemy.shapeType) {
+      case "Circle":
+        shape = CircleShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          isAttackable: isAttackable,
+          onForbiddenTouch: penalty,
+          attackTime: enemy.attackTime,
+          onExplode: penalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+          onInteracted: _onOrderInteracted,
+          onRemoved: _onOrderedShapeRemoved,
+        );
+      case "Rectangle":
+        shape = RectangleShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: penalty,
+          isAttackable: isAttackable,
+          attackTime: enemy.attackTime,
+          onExplode: penalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+          onInteracted: _onOrderInteracted,
+        );
+
+      case "Triangle":
+        shape = TriangleShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: penalty,
+          attackTime: enemy.attackTime,
+          onExplode: penalty,
+          customSize: enemy.customSize,
+        );
+
+      case "Pentagon":
+        shape = PentagonShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: penalty,
+          attackTime: enemy.attackTime,
+          onExplode: penalty,
+          customSize: enemy.customSize,
+        );
+
+      case "Hexagon":
+        shape = HexagonShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: penalty,
+          attackTime: enemy.attackTime,
+          onExplode: penalty,
+          customSize: enemy.customSize,
+        );
+
+      default:
+        throw Exception("Unknown shapeType");
+    }
+
+    return shape;
   }
 
   // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
@@ -1024,6 +1079,7 @@ class OneSecondGame extends FlameGame
     // 도형 이름(알파벳) 뒤에 오는 숫자
     final m = RegExp(r'[a-zA-Z]+(\d+)').firstMatch(s);
     if (m != null) {
+      print ("[Scale parse] m not null : $m ");
       final val = int.parse(m.group(1)!);
       if (val <= 8) {
         return val * 0.25;
@@ -1032,6 +1088,7 @@ class OneSecondGame extends FlameGame
         return 2.0 + (val - 8) * 0.5;
       }
     }
+    print ("[Scale parse] m null : 1.0 ");
     return 1.0; // 기본값 (Circle == Circle4)
   }
 
@@ -1039,6 +1096,7 @@ class OneSecondGame extends FlameGame
   Vector2? _parseRectSize(String s) {
     final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
     if (m != null) {
+      print ("[Scale parse] m : $m ");
       final w = double.parse(m.group(1)!);
       final h = double.parse(m.group(2)!);
       return Vector2(w, h);
@@ -1046,117 +1104,9 @@ class OneSecondGame extends FlameGame
     return null;
   }
 
-
-  PositionComponent? checkShape(EnemyData enemy, Vector2 position) {
-    PositionComponent? shape;
-
-    // 다크 도형 여부: (-1) 인식(띄어쓰기 허용)
-    final bool isDark = RegExp(r'\(\s*-1\s*\)').hasMatch(enemy.shape);
-    final bool isAttackable = (enemy.attackSeconds != null);
-
-    double tp = enemy.attackDamage ?? 5;
-    void Function()? penalty = () => applyTimePenalty(tp.abs());
-    final damage = enemy.attackDamage;
-
-    if (enemy.shape.startsWith('Circle')) {
-      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
-      final scale = _parseScale(enemy.shape);
-      final size = Vector2.all(80 * scale);
-
-      shape = CircleShape(
-        position,
-        enemy.energy,
-        isDark: enemy.darkYN,
-        isAttackable: isAttackable,
-        onForbiddenTouch: penalty,
-        attackTime: enemy.attackSeconds,
-        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
-        customSize: size,
-        order: enemy.order,
-        onInteracted: _onOrderInteracted,
-        onRemoved: _onOrderedShapeRemoved,
-      );
-    } else if (enemy.shape.startsWith('Rectangle')) {
-      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
-      
-      // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
-      Vector2 size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
-      
-      // 만약 Rectangle2 처럼 스케일만 적혀있다면 기본(40,80)에 스케일 적용
-      if (_parseRectSize(enemy.shape) == null) {
-         final scale = _parseScale(enemy.shape);
-         // 기본값이 Rectangle4라고 가정하면 scale 1.0 -> 40,80
-         // Rectangle2 -> scale 0.5 -> 20,40
-         size = Vector2(40 * scale, 80 * scale);
-
-      }
-
-      shape = RectangleShape(
-        position,
-        enemy.energy,
-        isDark: enemy.darkYN,
-        onForbiddenTouch: penalty,
-        isAttackable: isAttackable,
-        attackTime: enemy.attackSeconds,
-        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
-        customSize: size,
-        order: enemy.order,
-        onInteracted: _onOrderInteracted,
-      );
-      print('[RECT] size=${shape.size} scale=${shape.scale}');
-
-    } else if (enemy.shape.startsWith('Pentagon')) {
-      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 10);
-      final scale = _parseScale(enemy.shape);
-      final size = Vector2.all(100 * scale);
-
-      shape = PentagonShape(
-        position,
-        enemy.energy,
-        isDark: enemy.darkYN,
-        onForbiddenTouch: penalty,
-        attackTime: enemy.attackSeconds,
-        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
-        customSize: size,
-      );
-    } else if (enemy.shape.startsWith('Triangle')) {
-      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
-      final scale = _parseScale(enemy.shape);
-      final size = Vector2.all(70 * scale);
-
-      shape = TriangleShape(
-        position,
-        enemy.energy,
-        isDark: enemy.darkYN,
-        onForbiddenTouch: penalty,
-        attackTime: enemy.attackSeconds,
-        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
-        customSize: size,
-      );
-    } else if (enemy.shape.startsWith('Hexagon')) {
-      // final energy = isDark ? 0 : _parseEnergy(enemy.shape, 1);
-      final scale = _parseScale(enemy.shape);
-      final size = Vector2.all(100 * scale);
-
-      shape = HexagonShape(
-        position,
-        enemy.energy,
-        isDark: enemy.darkYN,
-        onForbiddenTouch: penalty,
-        attackTime: enemy.attackSeconds,
-        onExplode: damage != null ? () => applyTimePenalty(damage.abs()) : null,
-        customSize: size,
-      );
-    }
-
-    return shape;
-  }
-
   ShapeBehavior? checkBehavior(
       String raw,
-      Vector2 actPosition,
-      Vector2 Function(Vector2) flipY,
-      Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea,
+      Vector2 actPosition
       ) {
 
     print("[Behavior check] parsing command into behavior");
@@ -1300,9 +1250,9 @@ class OneSecondGame extends FlameGame
       print('[CLEAR CHECK] start wave size=${targets.length}');
 
       // to get log
-      print("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
-      print("[CLEAR CHECK] parent = ${targets.first.parent}");
-      print("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
+      // print("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
+      // print("[CLEAR CHECK] parent = ${targets.first.parent}");
+      // print("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
 
       while (true) {
       // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
