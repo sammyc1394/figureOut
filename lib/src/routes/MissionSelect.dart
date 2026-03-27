@@ -2,6 +2,7 @@ import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'menuAppBar.dart';
 
@@ -20,14 +21,51 @@ class MissionSelectScreen extends StatefulWidget {
       _MissionSelectScreenState();
 }
 
-class _MissionSelectScreenState
-    extends State<MissionSelectScreen> {
+class _MissionSelectScreenState extends State<MissionSelectScreen> {
   int? selectedIndex;
+  Set<int> clearedMissions = {};
+
+  bool isLoaded = false;
 
   final String defaultMsn =
       "assets/menu/mission/Mission_default_empty.svg";
   final String selectedMsn =
       "assets/menu/mission/Mission_selected_empty.svg";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMissionProgress();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadMissionProgress();
+  }
+
+  Future<void> _loadMissionProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stage = widget.stages[widget.stageIndex];
+    final loaded = <int>{};
+
+    print('clearedMissions = $loaded');
+
+    for (final missionNo in stage.missions.keys) {
+      final key =
+          'stage_${widget.stageIndex}_mission_${missionNo}_cleared';
+      final isCleared = prefs.getBool(key) ?? false;
+      if (isCleared) {
+        loaded.add(missionNo);
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      clearedMissions = loaded;
+      isLoaded = true;
+    });
+  }
 
   String _difficultyStars(int level) {
     switch (level) {
@@ -51,11 +89,37 @@ class _MissionSelectScreenState
     return angles[index % angles.length];
   }
 
+  bool _isBossLocked(StageData stage, int missionNo) {
+  final isBossMission = stage.missionIsBoss[missionNo] ?? false;
+  if (!isBossMission) return false;
+
+  final missionNumbers = stage.missions.keys.toList()..sort();
+  final bossIndex = missionNumbers.indexOf(missionNo);
+
+  if (bossIndex <= 0) return false;
+
+  final previousMissionNo = missionNumbers[bossIndex - 1];
+  return !clearedMissions.contains(previousMissionNo);
+}
+
+  bool _isMissionCleared(int missionNo) {
+    return clearedMissions.contains(missionNo);
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!isLoaded) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFDFBF5),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     final stages = widget.stages;
     final stage = stages[widget.stageIndex];
     final missions = stage.missions;
+    final missionNumbers = missions.keys.toList()..sort();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFDFBF5),
@@ -65,7 +129,9 @@ class _MissionSelectScreenState
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 16),
+                horizontal: 24,
+                vertical: 16,
+              ),
               gridDelegate:
                   const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
@@ -73,17 +139,16 @@ class _MissionSelectScreenState
                 mainAxisSpacing: 16,
                 childAspectRatio: 1,
               ),
-              itemCount: missions.length,
+              itemCount: missionNumbers.length,
               itemBuilder: (context, index) {
+                final missionNo = missionNumbers[index];
                 final isSelected = selectedIndex == index;
                 final rotationAngle = _rotationAngleFor(index);
 
-                /// 🔥 핵심: Boss 판별
                 final isBossMission =
-                    stage.missionIsBoss[index + 1] ?? false;
-
-                /// 🔥 락 (원하면 조건 바꿔)
-                final isLocked = isBossMission;
+                    stage.missionIsBoss[missionNo] ?? false;
+                final isLocked = _isBossLocked(stage, missionNo);
+                final isCleared = _isMissionCleared(missionNo);
 
                 return GestureDetector(
                   onTap: isLocked
@@ -94,14 +159,17 @@ class _MissionSelectScreenState
                           });
 
                           await Future.delayed(
-                              const Duration(milliseconds: 800));
+                            const Duration(milliseconds: 800),
+                          );
 
                           if (!mounted) return;
 
                           context.push('/game', extra: {
                             "stages": widget.stages,
                             "stageIndex": widget.stageIndex,
-                            "missionIndex": index,
+                            "missionIndex": missionNo - 1,
+                          }).then((_) {
+                            _loadMissionProgress();
                           });
                         },
                   child: Transform.rotate(
@@ -109,7 +177,6 @@ class _MissionSelectScreenState
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        /// 🎨 회색 처리
                         ColorFiltered(
                           colorFilter: isLocked
                               ? const ColorFilter.matrix([
@@ -120,7 +187,8 @@ class _MissionSelectScreenState
                                 ])
                               : const ColorFilter.mode(
                                   Colors.transparent,
-                                  BlendMode.multiply),
+                                  BlendMode.multiply,
+                                ),
                           child: SvgPicture.asset(
                             isSelected ? selectedMsn : defaultMsn,
                             width: 100,
@@ -128,13 +196,10 @@ class _MissionSelectScreenState
                           ),
                         ),
 
-                        /// 🔥 Boss or 번호
                         Positioned(
                           top: 28,
                           child: Text(
-                            isBossMission
-                                ? "Boss"
-                                : "${index + 1}",
+                            isBossMission ? "Boss" : "$missionNo",
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w600,
@@ -144,29 +209,35 @@ class _MissionSelectScreenState
                           ),
                         ),
 
-                        /// ⭐ 별 (보스는 제거)
-                        // if (!isBossMission)
                         Positioned(
                           bottom: 10,
                           child: isBossMission
-                        ? Transform.translate(
-                            offset: const Offset(0, -4), // 위로 6px
-                            child: SvgPicture.asset(
-                              "assets/menu/mission/lock.svg",
-                              width: 40,
-                              height: 40,
-                              
-                              colorFilter: const ColorFilter.mode(
-                                Colors.black54,
-                                BlendMode.srcIn,
-                              ),
-                            )
-                        )
-                        : SvgPicture.asset(
-                            _difficultyStars(1),
-                            width: 50,
-                            height: 20,
-                          ),
+                              ? (isLocked
+                                  ? Transform.translate(
+                                      offset: const Offset(0, -4),
+                                      child: SvgPicture.asset(
+                                        "assets/menu/mission/lock.svg",
+                                        width: 40,
+                                        height: 40,
+                                        colorFilter:
+                                            const ColorFilter.mode(
+                                          Colors.black54,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
+                                    )
+                                  : SvgPicture.asset(
+                                      _difficultyStars(1),
+                                      width: 50,
+                                      height: 20,
+                                    ))
+                              : SvgPicture.asset(
+                                  _difficultyStars(
+                                    isCleared ? 3 : 1,
+                                  ),
+                                  width: 50,
+                                  height: 20,
+                                ),
                         ),
                       ],
                     ),
@@ -178,7 +249,10 @@ class _MissionSelectScreenState
 
           Padding(
             padding: const EdgeInsets.only(
-                bottom: 24, left: 24, right: 24),
+              bottom: 24,
+              left: 24,
+              right: 24,
+            ),
             child: Stack(
               alignment: Alignment.center,
               children: [
