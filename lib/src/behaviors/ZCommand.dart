@@ -150,6 +150,5 @@ class ZCommand implements ShapeBehavior {
   }
 
   @override
-  // TODO: implement command
   String get command => throw UnimplementedError();
 }

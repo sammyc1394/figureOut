@@ -687,6 +687,7 @@ class OneSecondGame extends FlameGame
     final currentWave = <Component>{};
     // final preparedEnemies = <PreparedEnemy>[];
 
+    print("[BEFORE LOOP] enemy processing start : ${enemies.length}");
     // 에너미 데이터
     // startIndex 를 굳이 파라미터에서 initialize 한 이유가 있나?
     for (int i = startIndex; i < enemies.length; i++) {
@@ -713,6 +714,7 @@ class OneSecondGame extends FlameGame
 
       // wait 명령어 체크
       if (enemy.command == 'wait') {
+        print("[WAIT] processing wait command");
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
 
         final duration = durationMatch != null
@@ -726,19 +728,17 @@ class OneSecondGame extends FlameGame
           if (currentWave.isNotEmpty) {
             _initOrder();
             await waitUntilMissionCleared(Set<Component>.from(currentWave));
+            print("current wave size : ${currentWave.length}");
           }
 
           // 다크도형까지 제거위함
           for (final comp in List<Component>.from(spawnedThisMission)) {
-            // if (comp is PositionComponent &&
-            //     enemies.any((e) => e.movement.contains('Z('))) {
-            //   continue;
-            // }
             comp.removeFromParent();
           }
 
           currentWave.clear();
           spawnedThisMission.clear();
+          print("[WAIT] processing over");
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
           await Future.delayed(
@@ -775,91 +775,13 @@ class OneSecondGame extends FlameGame
         currentWave,
       );
 
-          // //L Movement s
-          // final moveMatch = RegExp(
-          //   r'\((-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+)\)',
-          // ).firstMatch(enemy.movement);
-          //
-          // if (moveMatch != null) {
-          //   final dx1 = double.parse(moveMatch.group(1)!);
-          //   final dy1 = double.parse(moveMatch.group(2)!);
-          //   final dx2 = double.parse(moveMatch.group(3)!);
-          //   final dy2 = double.parse(moveMatch.group(4)!);
-          //   final speed = double.parse(moveMatch.group(5)!); // px/sec
-          //
-          //   // 스폰 위치(H열) 기준 상대 좌표(네가 쓰는 위가 +Y 좌표계라 flipY 유지)
-          //   // 도형 화면 밖으로 안나가도록
-          //   final p1 = toPlayArea(
-          //     flipY(Vector2(dx1, dy1)),
-          //     halfSizeX,
-          //     clampInside: true,
-          //   );
-          //   final p2 = toPlayArea(
-          //     flipY(Vector2(dx2, dy2)),
-          //     halfSizeX,
-          //     clampInside: true,
-          //   );
-          //
-          //   // shape는 nullable이므로 non-null 로컬로 캡쳐해서 클로저 경고 제거
-          //   final comp = shape!;
-          //
-          //   // 이전 이펙트 있으면 제거
-          //   for (final e in List.of(comp.children.whereType<Effect>())) {
-          //     e.removeFromParent();
-          //   }
-          //
-          //   // 1) 스폰: H열 위치에서 잠깐 보임
-          //   comp.position = actPosition;
-          //
-          //   // 2) 사라졌다가(p1로 재스폰) → 3) p1<->p2 왕복
-          //   const showDelay = 0.25; // 최초 노출 시간 (필요시 조절)
-          //   final originalScale = comp.scale.clone();
-          //
-          //   // (a) showDelay 후 0까지 축소하여 "사라짐" (DelayEffect 대신 startDelay 사용)
-          //   comp.add(
-          //     ScaleEffect.to(
-          //       Vector2.zero(),
-          //       EffectController(duration: 0.10, startDelay: showDelay),
-          //       onComplete: () {
-          //         // (b) p1에서 재스폰(위치 이동) 후 다시 보이게(확대)
-          //         comp.position = p1;
-          //
-          //         comp.add(
-          //           ScaleEffect.to(
-          //             originalScale,
-          //             EffectController(duration: 0.50),
-          //             onComplete: () {
-          //               // (c) 본 이동: p1 <-> p2 왕복 (무한)
-          //               final segTime = p1.distanceTo(p2) / speed;
-          //               comp.add(
-          //                 MoveEffect.to(
-          //                   p2,
-          //                   EffectController(
-          //                     duration: segTime,
-          //                     alternate: true,
-          //                     infinite: true,
-          //                   ),
-          //                 ),
-          //               );
-          //             },
-          //           ),
-          //         );
-          //       },
-          //     ),
-          //   );
-          //
-          //   continue;
-          // }
-          //L Movement e
-
-          await Future.delayed(Duration(milliseconds: 100));
-
-
+      await Future.delayed(Duration(milliseconds: 100));
 
       final loopEnd = DateTime.now();
       print('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
     }
 
+    print("[AFTER LOOP] enemy processing over");
     StageResult ret = await waitUntilMissionCleared(currentWave);
     return ret;
   }
@@ -1258,12 +1180,26 @@ class OneSecondGame extends FlameGame
   bool _hasAnyActiveVisualEffectsInTree() {
     bool found = false;
 
+    bool isAttachedToDarkShape(Component node) {
+      Component? current = node;
+
+      while (current != null) {
+        if (_isDarkShape(current)) return true;
+        current = current.parent;
+      }
+
+      return false;
+    }
+
     void walk(Component node) {
       if (found) return;
 
       if (_isVisualEffectComponent(node)) {
-        found = true;
-        return;
+        // 🔥 금지도형에 붙은 effect면 무시
+        if (!isAttachedToDarkShape(node)) {
+          found = true;
+          return;
+        }
       }
 
       for (final child in node.children) {
@@ -1288,49 +1224,52 @@ class OneSecondGame extends FlameGame
       print('[CLEAR CHECK] start wave size=${targets.length}');
 
       // to get log
+      // 순서도형이 마지막에 오는 경우 아래 로그 찍으면 에러남
       // print("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
       // print("[CLEAR CHECK] parent = ${targets.first.parent}");
       // print("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
 
       while (true) {
       // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
-      if (_hasAnyActiveVisualEffectsInTree()) {
-        await Future.delayed(const Duration(milliseconds: 60));
-        continue;
-      }
-
-      if (_isTimeOver) return StageResult.fail;
-
-      final remaining = targets.where((c) {
-
-        // 1) 다크 도형 제외
-        if (_isDarkShape(c)) return false;
-
-        // 2) 아직 트리에 붙어 있으면(=애니메이션 중 포함) 무조건 남아있는 것으로 간주
-        if (c.isMounted) return true;
-
-        // 3) mount 해제면 기본 cleared
-        //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
-        if (c is PositionComponent) {
-          final blinking = blinkingMap[c];
-          if (blinking != null) {
-            if (!blinking.isRemoving && blinking.willReappear) return true;
-          }
+        if (_hasAnyActiveVisualEffectsInTree()) {
+          await Future.delayed(const Duration(milliseconds: 60));
+          continue;
         }
 
-        return false;
-      }).toList();
+        if (_isTimeOver) return StageResult.fail;
 
-      if (remaining.isEmpty) {
-        print('Mission cleared');
-        break;
+        final remaining = targets.where((c) {
+          // 1) 다크 도형 제외
+          if (_isDarkShape(c)) return false;
+
+          // 2) 아직 트리에 붙어 있으면(=애니메이션 중 포함) 무조건 남아있는 것으로 간주
+          if (c.isMounted) return true;
+
+          // 3) mount 해제면 기본 cleared
+          //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
+          if (c is PositionComponent) {
+            final blinking = blinkingMap[c];
+            if (blinking != null) {
+              if (!blinking.isRemoving && blinking.willReappear) return true;
+            }
+          }
+
+          return false;
+        }).toList();
+
+        if (remaining.isEmpty) {
+          print('Mission cleared');
+          break;
+        }
+        // else {
+        //   print('Still left : ${remaining.length}');
+        // }
+
+        await Future.delayed(const Duration(milliseconds: 120));
       }
 
-      await Future.delayed(const Duration(milliseconds: 120));
+      return StageResult.success;
     }
-
-    return StageResult.success;
-  }
 
 
   bool _isDarkShape(Component c) {
@@ -1375,6 +1314,7 @@ class OneSecondGame extends FlameGame
 
 
   void _initOrder() {
+    print("[ORDER] order reset");
     _orderedShapes = children
         .whereType<OrderableShape>()
         // RectangleShape는 슬라이스 전용 순서(_orderedRects)로 관리, 여기설 제외
@@ -1446,7 +1386,7 @@ class OneSecondGame extends FlameGame
     final double maxCenterY = playMaxY - actShapePadding;
 
     print(
-      "my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding",
+      "[COORDINATE] my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding",
     );
 
     // 3) 에디터 좌표 정상화
