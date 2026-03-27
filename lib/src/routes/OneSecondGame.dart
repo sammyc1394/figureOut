@@ -1723,7 +1723,7 @@ class OneSecondGame extends FlameGame
         removeAll(children.where((c) => c is AftermathScreen).toList());
 
         final isLastStage = _selectedStageIndex >= maxStageIndex - 1;
-        final isLastMission = _selectedMissionIndex >= maxMissionIndex - 1;
+        final isLastMission = _selectedMissionIndex >= maxMissionIndex;
 
         if (isLastStage && isLastMission) {
           print("All stages cleared → go to menu");
