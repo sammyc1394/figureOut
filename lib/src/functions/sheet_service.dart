@@ -66,54 +66,66 @@ class SheetService {
           missions: currentMissionMap!,
           missionTimeLimits: timeLimitMap!,
           missionTitle: missionTitleMap!,
+          missionIsBoss: {},
         );
         stages.add(currentStage);
         continue;
       }
-      if (cell != null && cell.startsWith('m')) {
-        // 미션 번호 갱신만
-        final missionMatch = RegExp(r'm(\d+)').firstMatch(cell);
-        if (missionMatch != null) {
-          currentMission = int.parse(missionMatch.group(1)!);
+      if (cell != null && (cell.startsWith('m') || cell.startsWith('b'))) {
 
-          if (currentStage != null) {
-            final msnTitle = _safeGet(cells, 1);
-            if(msnTitle != null) {
-              currentStage!.missionTitle[currentMission] = msnTitle;
-            }
-            final timeFromJ = _safeGet(cells, 8); // J
-            final parsed = double.tryParse(timeFromJ);
-            print("timeFromJ = $timeFromJ");
-            if (parsed != null) {
-              currentStage!.missionTimeLimits[currentMission] = parsed;
-            }
+        // 🔥 mission 번호 결정
+        if (cell.startsWith('m')) {
+          final missionMatch = RegExp(r'm(\d+)').firstMatch(cell);
+          if (missionMatch != null) {
+            currentMission = int.parse(missionMatch.group(1)!);
           }
-
-          if (currentStage != null && !firstMissionHeaderSeen) {
-            firstMissionHeaderSeen = true;
-
-            final msnTitle = _safeGet(cells, 1);
-            final rewardFromM = _safeGet(cells, 7); // H
-            final timeFromM = _safeGet(cells, 8); // I
-
-            print("rewardFromM = $rewardFromM, timeFromM = $timeFromM");
-
-            if ((currentStage!.reward.isEmpty) && rewardFromM.isNotEmpty) {
-              currentStage!.reward = rewardFromM;
-            }
-            if ((currentStage!.timeLimit.isEmpty) && timeFromM.isNotEmpty) {
-              currentStage!.timeLimit = timeFromM;
-            }
-            if((currentStage!.missionTitle.isEmpty) && msnTitle.isNotEmpty) {
-              currentStage!.missionTitle[currentMission!] = msnTitle;
-            }
-
-            print(
-              '[STAGE "${currentStage!.missionTitle}"] '
-              'reward="${currentStage!.reward}", timeLimit="${currentStage!.timeLimit}"',
-            );
+        } else if (cell.startsWith('b')) {
+          // 🔥 보스는 "다음 번호"로 붙인다
+          if (currentStage != null && currentStage.missions.isNotEmpty) {
+            currentMission =
+                currentStage.missions.keys.reduce((a, b) => a > b ? a : b) + 1;
+          } else {
+            currentMission = 1;
           }
         }
+
+        if (currentMission != null && currentStage != null) {
+          final msnTitle = _safeGet(cells, 1);
+
+          if (msnTitle.isNotEmpty) {
+            currentStage.missionTitle[currentMission!] = msnTitle;
+          }
+
+          final timeFromJ = _safeGet(cells, 8);
+          final parsed = double.tryParse(timeFromJ);
+
+          if (parsed != null) {
+            currentStage.missionTimeLimits[currentMission!] = parsed;
+          }
+
+          // 🔥 핵심: Boss 여부 저장
+          if (cell.startsWith('b')) {
+            currentStage.missionIsBoss[currentMission!] = true;
+          } else {
+            currentStage.missionIsBoss[currentMission!] = false;
+          }
+        }
+
+        if (currentStage != null && !firstMissionHeaderSeen) {
+          firstMissionHeaderSeen = true;
+
+          final rewardFromM = _safeGet(cells, 7);
+          final timeFromM = _safeGet(cells, 8);
+
+          if (currentStage.reward.isEmpty && rewardFromM.isNotEmpty) {
+            currentStage.reward = rewardFromM;
+          }
+
+          if (currentStage.timeLimit.isEmpty && timeFromM.isNotEmpty) {
+            currentStage.timeLimit = timeFromM;
+          }
+        }
+
         continue;
       }
 
@@ -254,6 +266,8 @@ class StageData {
   final Map<int, double> missionTimeLimits;
   final Map<int, String> missionTitle;
 
+  Map<int, bool> missionIsBoss;
+
   StageData({
     required this.name,
     required this.reward,
@@ -261,11 +275,12 @@ class StageData {
     required this.missions,
     required this.missionTimeLimits,
     required this.missionTitle,
+    required this.missionIsBoss,
   });
 
   @override
   String toString() {
-    return '[$name, reward: $reward, missions: ${missions.keys}, missionTitle: $missionTitle, missionTimeLimits: $missionTimeLimits]';
+    return '[$name, reward: $reward, missions: ${missions.keys}, missionTitle: $missionTitle, missionTimeLimits: $missionTimeLimits, missionIsBoss: $missionIsBoss]';
   }
 }
 

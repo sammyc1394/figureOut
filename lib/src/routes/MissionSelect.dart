@@ -9,24 +9,25 @@ class MissionSelectScreen extends StatefulWidget {
   final List<StageData> stages;
   final int stageIndex;
 
-  const MissionSelectScreen({super.key, required this.stages, required this.stageIndex});
-
-  @override
-  State<MissionSelectScreen> createState() => _MissionSelectScreenState();
-}
-
-class _MissionSelectScreenState extends State<MissionSelectScreen> {
-  int? selectedIndex;
-
-  final List<Map<String, dynamic>> missions = List.generate(12, (index) {
-    return {
-      "name": "Stage ${index + 1}",
-      "difficulty": (index % 3) + 1, // 1~3 반복
-    };
+  const MissionSelectScreen({
+    super.key,
+    required this.stages,
+    required this.stageIndex,
   });
 
-  final String defaultMsn = "assets/menu/mission/Mission_default_empty.svg";
-  final String selectedMsn = "assets/menu/mission/Mission_selected_empty.svg";
+  @override
+  State<MissionSelectScreen> createState() =>
+      _MissionSelectScreenState();
+}
+
+class _MissionSelectScreenState
+    extends State<MissionSelectScreen> {
+  int? selectedIndex;
+
+  final String defaultMsn =
+      "assets/menu/mission/Mission_default_empty.svg";
+  final String selectedMsn =
+      "assets/menu/mission/Mission_selected_empty.svg";
 
   String _difficultyStars(int level) {
     switch (level) {
@@ -41,16 +42,19 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     }
   }
 
-  /// 각 미션 포스트잇의 기울기 (자연스럽게 랜덤한 느낌)
   double _rotationAngleFor(int index) {
-    final angles = [-0.06, 0.04, -0.03, 0.05, -0.05, 0.03, -0.04, 0.06, -0.02, 0.04, -0.05, 0.02];
+    final angles = [
+      -0.06, 0.04, -0.03, 0.05,
+      -0.05, 0.03, -0.04, 0.06,
+      -0.02, 0.04, -0.05, 0.02
+    ];
     return angles[index % angles.length];
   }
 
   @override
   Widget build(BuildContext context) {
     final stages = widget.stages;
-    final stage = widget.stages[widget.stageIndex];
+    final stage = stages[widget.stageIndex];
     final missions = stage.missions;
 
     return Scaffold(
@@ -60,8 +64,10 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
         children: [
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 24, vertical: 16),
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
@@ -69,43 +75,66 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
               ),
               itemCount: missions.length,
               itemBuilder: (context, index) {
-                final mission = missions[index];
                 final isSelected = selectedIndex == index;
                 final rotationAngle = _rotationAngleFor(index);
 
+                /// 🔥 핵심: Boss 판별
+                final isBossMission =
+                    stage.missionIsBoss[index + 1] ?? false;
+
+                /// 🔥 락 (원하면 조건 바꿔)
+                final isLocked = isBossMission;
+
                 return GestureDetector(
-                  onTap: () async {
-                    setState(() {
-                      selectedIndex = index;
-                    });
+                  onTap: isLocked
+                      ? null
+                      : () async {
+                          setState(() {
+                            selectedIndex = index;
+                          });
 
-                    await Future.delayed(const Duration(milliseconds: 800));
+                          await Future.delayed(
+                              const Duration(milliseconds: 800));
 
-                    if (!mounted) return; // 위젯이 사라졌을 때 예외 방지
+                          if (!mounted) return;
 
-                    context.push('/game', extra: {
-                      "stages": widget.stages,
-                      "stageIndex": widget.stageIndex,
-                      "missionIndex": index,
-                    });
-                  },
+                          context.push('/game', extra: {
+                            "stages": widget.stages,
+                            "stageIndex": widget.stageIndex,
+                            "missionIndex": index,
+                          });
+                        },
                   child: Transform.rotate(
                     angle: rotationAngle,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // 포스트잇 배경
-                        SvgPicture.asset(
-                          isSelected ? selectedMsn : defaultMsn,
-                          width: 100,
-                          height: 100,
+                        /// 🎨 회색 처리
+                        ColorFiltered(
+                          colorFilter: isLocked
+                              ? const ColorFilter.matrix([
+                                  0.3, 0.3, 0.3, 0, 0,
+                                  0.3, 0.3, 0.3, 0, 0,
+                                  0.3, 0.3, 0.3, 0, 0,
+                                  0,   0,   0,   1, 0,
+                                ])
+                              : const ColorFilter.mode(
+                                  Colors.transparent,
+                                  BlendMode.multiply),
+                          child: SvgPicture.asset(
+                            isSelected ? selectedMsn : defaultMsn,
+                            width: 100,
+                            height: 100,
+                          ),
                         ),
 
-                        // 스테이지 번호
+                        /// 🔥 Boss or 번호
                         Positioned(
                           top: 28,
                           child: Text(
-                            "${index + 1}",
+                            isBossMission
+                                ? "Boss"
+                                : "${index + 1}",
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w600,
@@ -115,10 +144,25 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                           ),
                         ),
 
-                        // 난이도 별
+                        /// ⭐ 별 (보스는 제거)
+                        // if (!isBossMission)
                         Positioned(
                           bottom: 10,
-                          child: SvgPicture.asset(
+                          child: isBossMission
+                        ? Transform.translate(
+                            offset: const Offset(0, -4), // 위로 6px
+                            child: SvgPicture.asset(
+                              "assets/menu/mission/lock.svg",
+                              width: 40,
+                              height: 40,
+                              
+                              colorFilter: const ColorFilter.mode(
+                                Colors.black54,
+                                BlendMode.srcIn,
+                              ),
+                            )
+                        )
+                        : SvgPicture.asset(
                             _difficultyStars(1),
                             width: 50,
                             height: 20,
@@ -132,17 +176,17 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
             ),
           ),
 
-          // 하단 버튼 영역
           Padding(
-            padding: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+            padding: const EdgeInsets.only(
+                bottom: 24, left: 24, right: 24),
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // 뒤로가기 버튼
                 Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
-                    onTap: () => context.push('/stages', extra: stages),
+                    onTap: () =>
+                        context.push('/stages', extra: stages),
                     child: SvgPicture.asset(
                       "assets/menu/common/Arrow_prev.svg",
                       width: 40,
@@ -150,7 +194,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                     ),
                   ),
                 ),
-                ],
+              ],
             ),
           ),
         ],
