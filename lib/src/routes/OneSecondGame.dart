@@ -1729,8 +1729,8 @@ class OneSecondGame extends FlameGame
           print("All stages cleared → go to menu");
 
           rootNavigatorKey.currentContext!.go(
-            '/missions',
-            extra: {"stages": stages, "index": 0},
+            '/stages',
+            extra: stages,
           );
 
           return;
