@@ -42,6 +42,7 @@ import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OneSecondGame extends FlameGame
     with DragCallbacks, CollisionCallbacks, TapCallbacks {
@@ -1232,6 +1233,28 @@ class OneSecondGame extends FlameGame
     return false;
   }
 
+  Future<void> _markMissionCleared(int stageIndex, int missionNo) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final key = 'stage_${stageIndex}_mission_${missionNo}_cleared';
+    
+    print("SAVE KEY: $key");
+    
+    await prefs.setBool(
+      'stage_${stageIndex}_mission_${missionNo}_cleared',
+      true,
+    );
+  }
+
+  Future<void> _saveMissionProgressIfNeeded(StageResult result) async {
+    if (result != StageResult.success) return;
+
+    await _markMissionCleared(
+      _selectedStageIndex,
+      _selectedMissionIndex,
+    );
+  }
+
   bool _hasAnyActiveVisualEffectsInTree() {
     bool found = false;
 
@@ -1671,12 +1694,13 @@ class OneSecondGame extends FlameGame
     }
   }
 
-  void showAftermathScreen(
+  Future<void> showAftermathScreen(
     StageResult result,
     int starCount,
     int stgIndex,
     int msnIndex,
-  ) {
+  ) async {
+    print("RESULT = $result");
     if (_isPausedGlobally){
       _pendingResult=result;
       return;
@@ -1688,6 +1712,12 @@ class OneSecondGame extends FlameGame
     if (result == StageResult.success) {
       _stopEnemyBehaviors();
       _clearAllShapes();
+      await _markMissionCleared(
+        _selectedStageIndex,
+        _selectedMissionIndex,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 100));
     }
 
     final stage = _allStages[_selectedStageIndex];
