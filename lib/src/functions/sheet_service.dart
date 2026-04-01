@@ -214,7 +214,14 @@ class SheetService {
       throw FormatException('Invalid order format-parts: $shape');
     }
 
-    final OEParse = parts[1].split('(');
+    String orderRDcheck;
+    if(parts[1].startsWith("RD")) {
+      orderRDcheck = resolveRD(parts[1]);
+    } else {
+      orderRDcheck = parts[1];
+    }
+
+    final OEParse = orderRDcheck.split('(');
 
     final order = int.tryParse(OEParse[0]);
     if (order == null) {
