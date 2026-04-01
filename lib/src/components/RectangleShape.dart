@@ -275,6 +275,8 @@ class RectangleShape extends PositionComponent
   @override
   void update(double dt) {
     super.update(dt);
+
+    if ((attackTime ?? 0) <= 0) return;
     if (isPaused) return;
     if (isDark) return;
     if (!isAttackable) return;
