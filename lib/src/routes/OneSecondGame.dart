@@ -1,3 +1,4 @@
+import 'package:figureout/src/behaviors/BCommand.dart';
 import 'package:figureout/src/behaviors/MCommand.dart';
 import 'package:figureout/src/behaviors/ZCommand.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
@@ -1140,6 +1141,25 @@ class OneSecondGame extends FlameGame
       );
     }
 
+    final bMatch = RegExp(
+      r'B\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+    ).firstMatch(raw);
+
+    if (bMatch != null) {
+      final x0 = double.parse(bMatch.group(1)!);
+      final y0 = double.parse(bMatch.group(2)!);
+      final speed = double.parse(bMatch.group(3)!);
+
+      return BCommand(
+        startEditor: Vector2(x0, y0),
+        directionWorld: actPosition, // 이미 toPlayArea 끝난 월드 좌표
+        speed: speed,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+        playAreaRect: () => playArea.toRect(),
+      );
+    }
+
     return null;
   }
 
@@ -1641,6 +1661,12 @@ class OneSecondGame extends FlameGame
     int msnIndex,
   ) async {
     print("RESULT = $result");
+
+    for (final shape in children.whereType<PositionComponent>()) {
+      for (final b in shape.children.whereType<BounceMoveComponent>()) {
+        b.removeFromParent();
+      }
+    }
     if (_isPausedGlobally){
       _pendingResult=result;
       return;
@@ -2527,6 +2553,12 @@ bool _isStraightLine(List<Vector2> path) {
       }
     }
 
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final b in c.children.whereType<BounceMoveComponent>()) {
+        b.isPaused = true;
+      }
+    }
+
     pausedScreen = PausedScreen(
       screenSize: size,
       onResume: () {
@@ -2577,6 +2609,12 @@ bool _isStraightLine(List<Vector2> path) {
       o.resume();
     }
   }
+
+  for (final c in children.whereType<PositionComponent>()) {
+      for (final b in c.children.whereType<BounceMoveComponent>()) {
+        b.isPaused = false;
+      }
+    }
 
   // 3️⃣ pending 결과 있으면 → 결과창 띄우고 return
   if (_pendingResult != null) {
