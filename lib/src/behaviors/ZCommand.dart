@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:figureout/src/behaviors/shapeBehavior.dart';
+import 'package:figureout/src/functions/DepthAware.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/animation.dart';
 
@@ -55,11 +58,15 @@ class ZCommand implements ShapeBehavior {
     if (zLines.isEmpty) return;
 
     final zReg = RegExp(
-      r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
+      r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(?:(-?\d+(?:\.\d+)?)\s*,\s*)?(\d+(?:\.\d+)?)\s*\)$',
     );
 
-    Future<void> moveLinear(Vector2 target, double speed) async {
+    Future<void> moveLinear(Vector2 target, double speed, {double? priorityValue}) async {
       if (!shape.isMounted) return;
+
+      if (priorityValue != null) {
+        shape.priority = priorityValue.toInt();
+      }
 
       for (final e in List.of(shape.children.whereType<Effect>())) {
         e.removeFromParent();
@@ -93,6 +100,7 @@ class ZCommand implements ShapeBehavior {
     Future<void> runOnce() async {
       final List<Vector2> visited = [];
       final List<double> speeds = [];
+      final List<double?> priorities = [];
 
       for (final z in zLines) {
         if (!shape.isMounted) return;
@@ -102,7 +110,15 @@ class ZCommand implements ShapeBehavior {
 
         final zx = double.parse(m.group(1)!);
         final zy = double.parse(m.group(2)!);
-        final speed = double.parse(m.group(3)!);
+        double? zz;
+        double speed;
+
+        if (m.group(3) != null) {
+          zz = double.parse(m.group(3)!);
+          speed = double.parse(m.group(4)!);
+        } else {
+          speed = double.parse(m.group(4)!);
+        }
 
         final target = toPlayArea(
           flipY(Vector2(zx, zy)),
@@ -112,8 +128,13 @@ class ZCommand implements ShapeBehavior {
 
         visited.add(target.clone());
         speeds.add(speed);
+        priorities.add(zz);
 
-        await moveLinear(target, speed);
+        await moveLinear(target, speed, priorityValue: zz);
+
+        if (shape is DepthAware) {
+          (shape as DepthAware).updateVisualsByPriority();
+        }
       }
 
       if (!shape.isMounted) return;

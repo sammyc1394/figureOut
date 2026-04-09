@@ -26,8 +26,9 @@ class SheetService {
   String get range => 'B2:J'; // Start from row 5, columns C~J
 
   Future<List<StageData>> fetchData() async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
     final uri = Uri.parse(
-      'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encodedSheetName!$range?key=$apiKey',
+      'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encodedSheetName!$range?key=$apiKey&t=$timestamp',
     );
     print('Fetching data from: $uri');
     print('uri host: ${uri.host}');
@@ -70,9 +71,9 @@ class SheetService {
           name: stgTitle,
           reward: rewardFromS,
           timeLimit: timeFromS,
-          missions: currentMissionMap!,
-          missionTimeLimits: timeLimitMap!,
-          missionTitle: missionTitleMap!,
+          missions: currentMissionMap,
+          missionTimeLimits: timeLimitMap,
+          missionTitle: missionTitleMap,
           missionIsBoss: {},
         );
         stages.add(currentStage);
@@ -101,21 +102,21 @@ class SheetService {
           final msnTitle = _safeGet(cells, 1);
 
           if (msnTitle.isNotEmpty) {
-            currentStage.missionTitle[currentMission!] = msnTitle;
+            currentStage.missionTitle[currentMission] = msnTitle;
           }
 
           final timeFromJ = _safeGet(cells, 8);
           final parsed = double.tryParse(timeFromJ);
 
           if (parsed != null) {
-            currentStage.missionTimeLimits[currentMission!] = parsed;
+            currentStage.missionTimeLimits[currentMission] = parsed;
           }
 
           // 핵심: Boss 여부 저장
           if (cell.startsWith('b') || cell.startsWith('B')) {
             currentStage.missionIsBoss[currentMission!] = true;
           } else {
-            currentStage.missionIsBoss[currentMission!] = false;
+            currentStage.missionIsBoss[currentMission] = false;
           }
         }
 
@@ -202,7 +203,7 @@ class SheetService {
         darkYN: darkYN,
       );
 
-      currentMissionMap!.putIfAbsent(currentMission!, () => []).add(enemy);
+      currentMissionMap!.putIfAbsent(currentMission, () => []).add(enemy);
       // );
     }
 

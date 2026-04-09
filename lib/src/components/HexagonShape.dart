@@ -4,8 +4,11 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'dart:ui';
 import 'dart:math' as math;
 
+import '../functions/DepthAware.dart';
+import '../functions/OrderableShape.dart';
 import '../effect/AttackExplosionEffect.dart';
 
 enum HexagonState {
@@ -15,7 +18,7 @@ enum HexagonState {
 }
 
 class HexagonShape extends PositionComponent
-    with DragCallbacks, TapCallbacks, UserRemovable {
+    with DragCallbacks, TapCallbacks, UserRemovable, DepthAware {
 
   double dragScale = 1.0;
   double autoScale = 1.0;
@@ -31,6 +34,7 @@ class HexagonShape extends PositionComponent
   final double? attackTime;
   final VoidCallback? onExplode;
   final int? order;
+  final BlendMode blendMode;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -70,6 +74,34 @@ class HexagonShape extends PositionComponent
 
   double _blinkAlpha = 1.0;
 
+  @override
+  void updateVisualsByRank(double rank) {
+    const targetOpacity = 1.0;
+    final darkness = rank;
+
+    final filter = ColorFilter.matrix([
+      darkness, 0, 0, 0, 0,
+      0, darkness, 0, 0, 0,
+      0, 0, darkness, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+
+    svg.paint.blendMode = BlendMode.srcOver;
+    svg.paint.colorFilter = filter;
+    if (attackTime != null) {
+      _png.paint.blendMode = BlendMode.srcOver;
+      _png.paint.colorFilter = filter;
+    }
+    
+    _opacity = targetOpacity;
+    svg.opacity = _blinkAlpha * _opacity;
+  }
+
+  @override
+  void updateVisualsByPriority() {
+    updateVisualsByRank(0.0);
+  }
+
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
     svg.opacity = _blinkAlpha * _opacity;
@@ -84,6 +116,7 @@ class HexagonShape extends PositionComponent
     this.onExplode,
     Vector2? customSize,
     this.order,
+    this.blendMode = BlendMode.srcOver,
   }) : super(
           position: position,
           size: customSize ?? Vector2.all(100),
@@ -118,6 +151,7 @@ class HexagonShape extends PositionComponent
         position: size / 2,
       )
         ..opacity = 0.8
+        ..paint.blendMode = blendMode
         ..paint.colorFilter = ColorFilter.mode(baseColor, BlendMode.srcATop);
       add(_png);
     }
@@ -131,6 +165,8 @@ class HexagonShape extends PositionComponent
 
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+
+    updateVisualsByPriority();
   }
 
   Path _buildHexagonPath(Size s) {
@@ -186,6 +222,7 @@ class HexagonShape extends PositionComponent
 
   @override
   void onTapDown(TapDownEvent event) {
+    event.continuePropagation = false;
     if (isDark) onForbiddenTouch?.call();
   }
 

@@ -8,12 +8,13 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
+import '../functions/DepthAware.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, DepthAware {
 
   int energy;
   bool _isLongPressing = false;
@@ -26,6 +27,7 @@ class PentagonShape extends PositionComponent
   final double? attackTime;
   final VoidCallback? onExplode;
   final int? order;
+  final BlendMode blendMode;
 
   bool isPaused = false;
 
@@ -40,6 +42,37 @@ class PentagonShape extends PositionComponent
   double _blinkAlpha = 1.0;
 
   bool get _usesPngLayer => (attackTime ?? 0) > 0;
+
+  @override
+  void updateVisualsByRank(double rank) {
+    const targetOpacity = 1.0;
+    final darkness = rank;
+
+    final filter = ColorFilter.matrix([
+      darkness, 0, 0, 0, 0,
+      0, darkness, 0, 0, 0,
+      0, 0, darkness, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+
+    svg.paint.blendMode = BlendMode.srcOver;
+    _png.paint.blendMode = BlendMode.srcOver;
+    svg.paint.colorFilter = filter;
+    _png.paint.colorFilter = filter;
+
+    if (_usesPngLayer) {
+      svg.opacity = 0;
+      _png.opacity = _blinkAlpha * targetOpacity;
+    } else {
+      svg.opacity = _blinkAlpha * targetOpacity;
+      _png.opacity = 0;
+    }
+  }
+
+  @override
+  void updateVisualsByPriority() {
+    updateVisualsByRank(0.0);
+  }
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
@@ -117,6 +150,7 @@ class PentagonShape extends PositionComponent
     this.onExplode,
     Vector2? customSize,
     this.order,
+    this.blendMode = BlendMode.srcOver,
   }) : super(
           position: position,
           size: customSize ?? Vector2.all(100),
@@ -154,7 +188,8 @@ class PentagonShape extends PositionComponent
       size: size,
       anchor: Anchor.center,
       position: size / 2,
-    )..opacity = 0;
+    )..opacity = 0
+     ..paint.blendMode = blendMode;
 
     add(_png);
 
@@ -171,6 +206,8 @@ class PentagonShape extends PositionComponent
 
     _perimeter =
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+
+    updateVisualsByPriority();
   }
 
   // ===============================
@@ -347,8 +384,11 @@ class PentagonShape extends PositionComponent
         c.dy + sin(a) * r,
       );
 
-      if (i == 0) path.moveTo(p.dx, p.dy);
-      else path.lineTo(p.dx, p.dy);
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
     }
 
     path.close();
@@ -416,8 +456,11 @@ class PentagonShape extends PositionComponent
         c.dy + sin(a) * rr,
       );
 
-      if (i == 0) path.moveTo(p.dx, p.dy);
-      else path.lineTo(p.dx, p.dy);
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
     }
 
     path.close();
@@ -460,6 +503,7 @@ class PentagonShape extends PositionComponent
 
   @override
   void onTapDown(TapDownEvent e) {
+    e.continuePropagation = false;
     if (isDark) onForbiddenTouch?.call();
   }
 
