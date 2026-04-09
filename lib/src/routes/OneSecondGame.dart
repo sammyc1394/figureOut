@@ -2101,10 +2101,13 @@ bool _isStraightLine(List<Vector2> path) {
       // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
       final overlappingShapes = <PositionComponent>[];
       for (final comp in children.whereType<PositionComponent>()) {
+        bool isDarkRect = comp is RectangleShape && comp.isDark;
+
         if (comp is CircleShape ||
             comp is TriangleShape ||
             comp is PentagonShape ||
-            comp is HexagonShape) {
+            comp is HexagonShape ||
+            isDarkRect) {
           if (_doesPathTouchComponent(comp, judgePath)) {
             overlappingShapes.add(comp);
           }
@@ -2241,14 +2244,17 @@ bool _isStraightLine(List<Vector2> path) {
     final touchedOtherShapes = <PositionComponent>[];
 
     for (final comp in children.whereType<PositionComponent>()) {
-      if (comp is TriangleShape) {
+      bool isDarkTriangle = comp is TriangleShape && comp.isDark;
+
+      if (comp is TriangleShape && !isDarkTriangle) {
         if (comp.isFullyEnclosedByUserPath(judgePath)) {
           enclosedTriangles.add(comp);
         }
       } else if (comp is CircleShape ||
           comp is RectangleShape ||
           comp is PentagonShape ||
-          comp is HexagonShape) {
+          comp is HexagonShape ||
+          isDarkTriangle) {
 
         final enclosed = _isComponentEnclosed(comp, judgePath);
         final touched = _doesPathTouchComponent(comp, judgePath);
