@@ -9,14 +9,14 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
-
+import '../functions/DepthAware.dart';
 import '../effect/AttackExplosionEffect.dart';
-
 import '../config.dart';
+import '../functions/DepthAware.dart';
 import '../functions/OrderableShape.dart';
 
 class RectangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable
+    with TapCallbacks, UserRemovable, DepthAware
     implements OrderableShape {
   int count = 0;
 
@@ -46,7 +46,9 @@ class RectangleShape extends PositionComponent
 
   final double? attackTime;
   final VoidCallback? onExplode;
+  @override
   final int? order;
+  final BlendMode blendMode;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -81,6 +83,7 @@ class RectangleShape extends PositionComponent
     this.order,
     this.onRemoved,
     this.onInteracted,
+    this.blendMode = BlendMode.srcOver,
   }) : super(
           position: position,
           size: customSize ?? Vector2(40, 80),
@@ -99,6 +102,38 @@ class RectangleShape extends PositionComponent
     for (final slice in _baseSlices) {
       slice.opacity = value;
     }
+  }
+
+  @override
+  void updateVisualsByRank(double rank) {
+    const targetOpacity = 1.0;
+    final darkness = rank;
+
+    final filter = ColorFilter.matrix([
+      darkness, 0, 0, 0, 0,
+      0, darkness, 0, 0, 0,
+      0, 0, darkness, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+
+    _pngAttack.paint.blendMode = BlendMode.srcOver;
+    _pngAttack.paint.colorFilter = filter;
+    for (final slice in _baseSlices) {
+      slice.paint.blendMode = BlendMode.srcOver;
+      slice.paint.colorFilter = filter;
+    }
+
+    // Mix depth opacity
+    if (_usesPngLayer) {
+      _pngAttack.opacity = _blinkAlpha * targetOpacity;
+    } else {
+      _setBaseSlicesOpacity(_blinkAlpha * targetOpacity);
+    }
+  }
+
+  @override
+  void updateVisualsByPriority() {
+    updateVisualsByRank(0.0);
   }
 
   void setBlinkAlpha(double alpha) {
@@ -231,6 +266,13 @@ class RectangleShape extends PositionComponent
       paint: _makeCrispPaint(),
     )..opacity = 0.0;
     add(_pngAttack);
+
+    for (final slice in _baseSlices) {
+      slice.paint.blendMode = blendMode;
+    }
+    _pngAttack.paint.blendMode = blendMode;
+
+    updateVisualsByPriority();
 
     if (order != null) {
       _addOrderBadge(order!);
@@ -408,6 +450,7 @@ class RectangleShape extends PositionComponent
 
   @override
   void onTapDown(TapDownEvent event) {
+    event.continuePropagation = false;
     if (isDark) {
       onForbiddenTouch?.call();
     }

@@ -6,11 +6,12 @@ import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
+import '../functions/DepthAware.dart';
 import 'package:flutter/material.dart';
 
 import '../effect/AttackExplosionEffect.dart';
 
-class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
+class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, DepthAware {
   late final SvgComponent svg;
   int energy = 0;
   late final SpriteComponent _png;
@@ -20,6 +21,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   final double? attackTime;
   final VoidCallback? onExplode;
   final int? order;
+  final BlendMode blendMode;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -27,6 +29,33 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   bool isPaused = false;
 
   double _blinkAlpha = 1.0;
+
+  @override
+  void updateVisualsByRank(double rank) {
+    const targetOpacity = 1.0;
+    final darkness = rank;
+
+    final filter = ColorFilter.matrix([
+      darkness, 0, 0, 0, 0,
+      0, darkness, 0, 0, 0,
+      0, 0, darkness, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+
+    svg.paint.blendMode = BlendMode.srcOver;
+    _png.paint.blendMode = BlendMode.srcOver;
+    svg.paint.colorFilter = filter;
+    _png.paint.colorFilter = filter;
+
+    // Mix depth opacity
+    svg.opacity = _blinkAlpha * targetOpacity;
+    _png.opacity = _blinkAlpha * targetOpacity;
+  }
+
+  @override
+  void updateVisualsByPriority() {
+    updateVisualsByRank(0.0);
+  }
 
   void setBlinkAlpha(double alpha){
     if (_isDisappearing) return;
@@ -75,6 +104,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     this.onExplode,
     Vector2? customSize,
     this.order,
+    this.blendMode = BlendMode.srcOver,
   }) : super(
           position: position,
           size: customSize ?? Vector2.all(70),
@@ -108,6 +138,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
     );
     _png.opacity = 0;
     add(_png);
+
+    svg.paint.blendMode = blendMode;
+    _png.paint.blendMode = blendMode;
+
+    updateVisualsByPriority();
 
     if ((attackTime ?? 0) > 0) {
       svg.opacity = 0;
@@ -305,5 +340,13 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
       ..lineTo(0, h)
       ..lineTo(w, h)
       ..close();
+  }
+  @override
+  void onTapDown(TapDownEvent event) {
+    event.continuePropagation = false;
+    if (isDark) {
+      onForbiddenTouch?.call();
+      return;
+    }
   }
 }

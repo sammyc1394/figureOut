@@ -9,6 +9,7 @@ import 'dart:ui';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/routes/AftermathScreen.dart';
 import 'package:flame/collisions.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
@@ -16,7 +17,6 @@ import 'package:flame/game.dart';
 import 'package:figureout/src/temp/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'package:flame/events.dart';
 
 import 'package:figureout/main.dart';
 
@@ -42,6 +42,7 @@ import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
+import '../functions/DepthAware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OneSecondGame extends FlameGame
@@ -142,6 +143,50 @@ class OneSecondGame extends FlameGame
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
 
+  int _globalSpawnCounter = 100;
+  void _syncRelativeDepthVisuals() {
+    final depthShapes = children.whereType<DepthAware>().toList();
+    if (depthShapes.isEmpty) return;
+
+    // Sort by priority: Bottom (lowest) to Top (highest)
+    // Later spawned shapes have higher priority
+    depthShapes.sort((a, b) => a.priority.compareTo(b.priority));
+
+    final n = depthShapes.length;
+    // We sort bottom-to-top (priority increasing)
+    depthShapes.sort((a, b) => a.priority.compareTo(b.priority));
+
+    for (int i = 0; i < n; i++) {
+        final shapeA = depthShapes[i];
+        int overlapsOnTop = 0;
+
+        // Check only shapes ABOVE shapeA (index > i) that physically overlap
+        for (int j = i + 1; j < n; j++) {
+            final shapeB = depthShapes[j];
+            if (shapeB.toRect().overlaps(shapeA.toRect())) {
+                overlapsOnTop++;
+            }
+        }
+
+        // Rank calculation: Subtle 0.05 decrease per overlapping layer on top.
+        // Clamped at 0.85 (min darkness).
+        final double rank = (1.0 - (overlapsOnTop * 0.05)).clamp(0.85, 1.0);
+        shapeA.updateVisualsByRank(rank);
+    }
+  }
+
+  @override
+  void onChildrenChanged(Component child, ChildrenChangeType type) {
+    super.onChildrenChanged(child, type);
+    if (child is DepthAware) {
+      _syncRelativeDepthVisuals();
+    }
+    // 새 컴포넌트가 추가될 때마다 현재 디버그 상태를 그대로 적용
+    if (type == ChildrenChangeType.added) {
+      _applyDebugToTree(child, debugMode);
+    }
+  }
+
   //toggle debug
   int _debugTapCount = 0;
   double _lastTapTime = 0;
@@ -166,14 +211,6 @@ class OneSecondGame extends FlameGame
     }
   }
 
-  @override
-  void onChildrenChanged(Component child, ChildrenChangeType type) {
-    super.onChildrenChanged(child, type);
-    // 새 컴포넌트가 추가될 때마다 현재 디버그 상태를 그대로 적용
-    if (type == ChildrenChangeType.added) {
-      _applyDebugToTree(child, debugMode);
-    }
-  }
 
   @override
   Future<void> onLoad() async {
@@ -399,7 +436,7 @@ class OneSecondGame extends FlameGame
       return;
     }
 
-    removeAll(children.where((c) => c is AftermathScreen).toList());
+    removeAll(children.whereType<AftermathScreen>().toList());
 
     Future.microtask(() async{
       // if (_isPausedGlobally){
@@ -454,7 +491,7 @@ class OneSecondGame extends FlameGame
       r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
     );
 
-    Future<void> _moveLinear(Vector2 target, double speed) async {
+    Future<void> moveLinear(Vector2 target, double speed) async {
       if (!shape.isMounted) return;
 
       // 기존 이펙트 제거
@@ -511,7 +548,7 @@ class OneSecondGame extends FlameGame
         visited.add(target.clone());
         speeds.add(speed);
 
-        await _moveLinear(target, speed);
+        await moveLinear(target, speed);
       }
 
       if (!shape.isMounted) return;
@@ -525,7 +562,7 @@ class OneSecondGame extends FlameGame
           final Vector2 backTarget = (i == 0) ? spawnPosition : visited[i - 1];
           final double backSpeed = speeds[i] > 0 ? speeds[i] : 1.0;
 
-          await _moveLinear(backTarget, backSpeed);
+          await moveLinear(backTarget, backSpeed);
         }
         return;
       }
@@ -539,7 +576,7 @@ class OneSecondGame extends FlameGame
       final double lastSpeed =
           speeds.isNotEmpty && speeds.last > 0 ? speeds.last : 1.0;
 
-      await _moveLinear(spawnPosition, lastSpeed);
+      await moveLinear(spawnPosition, lastSpeed);
     }
 
     // "Back이 있으면 Repeat가 없어도 왕복 반복"이 되어야 함
@@ -559,6 +596,7 @@ class OneSecondGame extends FlameGame
     _timerPaused = false;
     _isTimeOver = false;
     _timerEndedNotified = false;
+    _globalSpawnCounter = 100;
 
     for (final b in blinkingMap.values) {
       b.removeFromParent();
@@ -681,7 +719,7 @@ class OneSecondGame extends FlameGame
     print('mission length = ${stage.missions.length}');
 
     final enemies = stage.missions[missionIndex]!;
-    print("enemy data = ${enemies}");
+    print("enemy data = $enemies");
 
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
@@ -914,13 +952,25 @@ class OneSecondGame extends FlameGame
     if (!enemy.isDark) {
       currentWave.add(shape);
     }
+
+    _updateShapeVisualsByPriority(shape as PositionComponent);
+  }
+
+  void _updateShapeVisualsByPriority(PositionComponent shape) {
+    if (shape is DepthAware) {
+      (shape as DepthAware).updateVisualsByPriority();
+    }
+  }
+
+  void _applyBlendModeToShape(PositionComponent shape, BlendMode mode) {
+    // Deprecated: handled by DepthAware
   }
 
   PositionComponent _createShapeFromPrepared(PreparedEnemy enemy) {
     PositionComponent? shape;
 
     double tp = enemy.attackDamage ?? 5;
-    void Function()? penalty = () => applyTimePenalty(tp.abs());
+    penalty() => applyTimePenalty(tp.abs());
 
     bool isAttackable = false;
     if (enemy.attackTime != null) isAttackable = true;
@@ -992,6 +1042,10 @@ class OneSecondGame extends FlameGame
         throw Exception("Unknown shapeType");
     }
 
+    if (shape is DepthAware) {
+        shape.priority = _globalSpawnCounter++;
+    }
+    _syncRelativeDepthVisuals();
     return shape;
   }
 
@@ -1066,7 +1120,7 @@ class OneSecondGame extends FlameGame
       );
     }
 
-    Rect _timerRectWorld() => timerBar.toRect();
+    Rect timerRectWorld() => timerBar.toRect();
 
     final drMatch = RegExp(
       r'DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
@@ -1081,7 +1135,7 @@ class OneSecondGame extends FlameGame
         visibleDuration: a,
         invisibleDuration: b,
         isRandomRespawn: true,
-        timerRectWorld: _timerRectWorld,
+        timerRectWorld: timerRectWorld,
         gameSize: size,
         blinkingMap: blinkingMap,
       );
@@ -1101,7 +1155,7 @@ class OneSecondGame extends FlameGame
         visibleDuration: a,
         invisibleDuration: b,
         isRandomRespawn: false,
-        timerRectWorld: _timerRectWorld,
+        timerRectWorld: timerRectWorld,
         gameSize: size,
         blinkingMap: blinkingMap,
       );
@@ -1288,7 +1342,7 @@ class OneSecondGame extends FlameGame
     if (c.order == null) return true;
 
     // 1) order 퍼즐인지 아닌지 판단
-    print('[GAME] order shape YN(_hasOrder) = ${_hasOrder}');
+    print('[GAME] order shape YN(_hasOrder) = $_hasOrder');
 
     // 만약 모든 순서 도형을 제거한 상태라면 남은 도형 자유 터치 가능
     if (_currentOrderIndex >= _orderedShapes.length) {
@@ -1510,7 +1564,7 @@ class OneSecondGame extends FlameGame
     blinkingMap.clear();
 
     // 결과 화면도 제거
-    removeAll(children.where((c) => c is AftermathScreen).toList());
+    removeAll(children.whereType<AftermathScreen>().toList());
 
     children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
       blinking.removeFromParent();
@@ -1535,14 +1589,14 @@ class OneSecondGame extends FlameGame
 
     // 화면에 남은 도형이 완전히 제거될 때까지 대기 (최대 1.5초 안전망)
     final deadline = DateTime.now().add(const Duration(milliseconds: 1500));
-    bool _hasShapes() => children.any((c) =>
+    bool hasShapes() => children.any((c) =>
         c is CircleShape ||
         c is RectangleShape ||
         c is PentagonShape ||
         c is TriangleShape ||
         c is HexagonShape ||
         c is AftermathScreen);
-    while (_hasShapes() && DateTime.now().isBefore(deadline)) {
+    while (hasShapes() && DateTime.now().isBefore(deadline)) {
       await Future.delayed(const Duration(milliseconds: 50));
     }
     print('[REFRESH] All shapes cleared. Proceeding with fetch.');
@@ -1674,11 +1728,11 @@ class OneSecondGame extends FlameGame
       screenSize: size,
       onContinue: () {
         print('[AFTERMATH] Continue pressed.');
-        removeAll(children.where((c) => c is AftermathScreen).toList());
+        removeAll(children.whereType<AftermathScreen>().toList());
         _resumeFromFailure();
       },
       onRetry: () {
-        removeAll(children.where((c) => c is AftermathScreen).toList());
+        removeAll(children.whereType<AftermathScreen>().toList());
 
         _isContinuing = false;              
         _lastRoundStartIndex = 0;           
@@ -1690,7 +1744,7 @@ class OneSecondGame extends FlameGame
       },
       onPlay: () {
         // play next stage
-        removeAll(children.where((c) => c is AftermathScreen).toList());
+        removeAll(children.whereType<AftermathScreen>().toList());
 
         final isLastStage = _selectedStageIndex >= maxStageIndex - 1;
         final isLastMission = _selectedMissionIndex >= maxMissionIndex;
@@ -1723,7 +1777,7 @@ class OneSecondGame extends FlameGame
             "stage index = $_selectedStageIndex, mission index = $_selectedMissionIndex",
           );
           print("playing next stage/mission");
-          removeAll(children.where((c) => c is AftermathScreen).toList());
+          removeAll(children.whereType<AftermathScreen>().toList());
           runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
         } else {
           print("No more stages left!");
@@ -1731,7 +1785,7 @@ class OneSecondGame extends FlameGame
       },
       onMenu: () {
         print("Go to menu screen");
-        removeAll(children.where((c) => c is AftermathScreen).toList());
+        removeAll(children.whereType<AftermathScreen>().toList());
 
         rootNavigatorKey.currentContext!.push(
           '/missions',
@@ -1747,7 +1801,7 @@ class OneSecondGame extends FlameGame
     print('[RESUME] Resuming failed mission from last round...');
 
     // Remove aftermath screen
-    removeAll(children.where((c) => c is AftermathScreen).toList());
+    removeAll(children.whereType<AftermathScreen>().toList());
 
     _isTimeOver = false;
     _timerPaused = false;
@@ -2537,7 +2591,7 @@ bool _isStraightLine(List<Vector2> path) {
         onRefresh();
       },
       onMenu: () {
-        removeAll(children.where((c) => c is AftermathScreen).toList());
+        removeAll(children.whereType<AftermathScreen>().toList());
         //TODO : 다른 화면들처럼 go_router 사용할수는 없나?
         rootNavigatorKey.currentContext!.push(
           '/missions',
