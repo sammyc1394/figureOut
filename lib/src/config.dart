@@ -32,4 +32,16 @@ const fallbackFontFamily = ['Gaegu'];
 enum shapes { Circle, Rectangel, Pentagon, Triangle, Hexagon }
 enum StageResult { success, fail, cancelled }
 
+enum URDField {
+  shape, size, order, energy,
+  positionX, positionY,
+  movementSpeed, movementRadius, movementAsec, movementBsec,
+  attackSecond, attackDamage,
+}
+enum MovementValueType {
+  positionSpeed, // (x, y, speed)
+  speedRadius,   // (speed, radius)
+  secPair,       // (aSec, bSec)
+}
+
 late LocalizationService i18n;

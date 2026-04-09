@@ -1,3 +1,4 @@
+import 'package:figureout/src/behaviors/BCommand.dart';
 import 'package:figureout/src/behaviors/MCommand.dart';
 import 'package:figureout/src/behaviors/ZCommand.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
@@ -1194,6 +1195,25 @@ class OneSecondGame extends FlameGame
       );
     }
 
+    final bMatch = RegExp(
+      r'B\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+    ).firstMatch(raw);
+
+    if (bMatch != null) {
+      final x0 = double.parse(bMatch.group(1)!);
+      final y0 = double.parse(bMatch.group(2)!);
+      final speed = double.parse(bMatch.group(3)!);
+
+      return BCommand(
+        startEditor: Vector2(x0, y0),
+        directionWorld: actPosition, // 이미 toPlayArea 끝난 월드 좌표
+        speed: speed,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+        playAreaRect: () => playArea.toRect(),
+      );
+    }
+
     return null;
   }
 
@@ -1695,6 +1715,12 @@ class OneSecondGame extends FlameGame
     int msnIndex,
   ) async {
     print("RESULT = $result");
+
+    for (final shape in children.whereType<PositionComponent>()) {
+      for (final b in shape.children.whereType<BounceMoveComponent>()) {
+        b.removeFromParent();
+      }
+    }
     if (_isPausedGlobally){
       _pendingResult=result;
       return;
@@ -2129,10 +2155,13 @@ bool _isStraightLine(List<Vector2> path) {
       // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
       final overlappingShapes = <PositionComponent>[];
       for (final comp in children.whereType<PositionComponent>()) {
+        bool isDarkRect = comp is RectangleShape && comp.isDark;
+
         if (comp is CircleShape ||
             comp is TriangleShape ||
             comp is PentagonShape ||
-            comp is HexagonShape) {
+            comp is HexagonShape ||
+            isDarkRect) {
           if (_doesPathTouchComponent(comp, judgePath)) {
             overlappingShapes.add(comp);
           }
@@ -2269,14 +2298,17 @@ bool _isStraightLine(List<Vector2> path) {
     final touchedOtherShapes = <PositionComponent>[];
 
     for (final comp in children.whereType<PositionComponent>()) {
-      if (comp is TriangleShape) {
+      bool isDarkTriangle = comp is TriangleShape && comp.isDark;
+
+      if (comp is TriangleShape && !isDarkTriangle) {
         if (comp.isFullyEnclosedByUserPath(judgePath)) {
           enclosedTriangles.add(comp);
         }
       } else if (comp is CircleShape ||
           comp is RectangleShape ||
           comp is PentagonShape ||
-          comp is HexagonShape) {
+          comp is HexagonShape ||
+          isDarkTriangle) {
 
         final enclosed = _isComponentEnclosed(comp, judgePath);
         final touched = _doesPathTouchComponent(comp, judgePath);
@@ -2581,6 +2613,12 @@ bool _isStraightLine(List<Vector2> path) {
       }
     }
 
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final b in c.children.whereType<BounceMoveComponent>()) {
+        b.isPaused = true;
+      }
+    }
+
     pausedScreen = PausedScreen(
       screenSize: size,
       onResume: () {
@@ -2631,6 +2669,12 @@ bool _isStraightLine(List<Vector2> path) {
       o.resume();
     }
   }
+
+  for (final c in children.whereType<PositionComponent>()) {
+      for (final b in c.children.whereType<BounceMoveComponent>()) {
+        b.isPaused = false;
+      }
+    }
 
   // 3️⃣ pending 결과 있으면 → 결과창 띄우고 return
   if (_pendingResult != null) {

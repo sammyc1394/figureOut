@@ -1,4 +1,5 @@
 
+import 'package:figureout/src/functions/logger_service.dart';
 import 'package:flame/flame.dart';
 import 'dart:ui';
 
@@ -57,7 +58,6 @@ void main() async {
     debugPrint(e.toString());
   }
 
-
   i18n = LocalizationService(
     locale,
     translations,
@@ -67,7 +67,19 @@ void main() async {
     DeviceOrientation.portraitUp, // Lock to portrait orientation
   ]);
 
-  
+  // 로그 초기화
+  final apiKey = dotenv.env['GOOGLESHEETAPIKEY'];
+  final sheetId = dotenv.env['GOOGLESHEETID'];
+
+  if (apiKey == null || sheetId == null) {
+    throw Exception('ENV 값이 없습니다.');
+  }
+
+  await LoggerService.instance.init(
+    apiKey: apiKey,
+    sheetId: sheetId,
+  );
+
   Flame.device.fullScreen();
 
   WidgetsFlutterBinding.ensureInitialized();
