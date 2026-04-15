@@ -88,6 +88,9 @@ class OneSecondGame extends FlameGame
   late int maxMissionIndex;
   late int maxStageIndex;
 
+  // for Refresh
+  Completer<void>? _refreshCompleter;
+
   final SheetService sheetService = SheetService();
 
   //timer data
@@ -621,6 +624,10 @@ class OneSecondGame extends FlameGame
   // runStageWithAftermath -> runSingleMissions
   // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
   Future<void> runStageWithAftermath(int stageIndex, int missionIndex) async {
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+    }
+
     print("stage index = $stageIndex, mission index = $missionIndex");
     // if (_isPausedGlobally) return;
     if (_isMissionRunning) {
@@ -671,6 +678,11 @@ class OneSecondGame extends FlameGame
     int missionIndex,{
     int startIndex = 0,
   }) async {
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+    }
+
+
     // 게임 시작전 토큰확인
     int runId = _runToken;
 
@@ -1569,60 +1581,56 @@ class OneSecondGame extends FlameGame
   }
 
   Future<void> onRefresh() async {
-    _isContinuing = false;
-    _lastRoundStartIndex = 0;           
-    if (_isPausedGlobally) return;
-    print("Refreshing Game...");
-
-    // refresh 이후 기존에 돌고있던 runSingleMission 취소 위함
-    _isMissionRunning = false; // 이전 미션 강제 종료 허용
-    _runToken++;
-
-    userPath.clear();
-    currentCircleCenter = null;
-    currentCircleRadius = null;
-    blinkingMap.clear();
-
-    // 결과 화면도 제거
-    removeAll(children.whereType<AftermathScreen>().toList());
-
-    children.whereType<BlinkingBehaviorComponent>().forEach((blinking) {
-      blinking.removeFromParent();
-    });
-
-    // Remove all existing shapes (but keep the refresh button)
-    children.whereType<CircleShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<RectangleShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<PentagonShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<TriangleShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-    children.whereType<HexagonShape>().forEach((shape) {
-      shape.removeFromParent();
-    });
-
-    // 화면에 남은 도형이 완전히 제거될 때까지 대기 (최대 1.5초 안전망)
-    final deadline = DateTime.now().add(const Duration(milliseconds: 1500));
-    bool hasShapes() => children.any((c) =>
-        c is CircleShape ||
-        c is RectangleShape ||
-        c is PentagonShape ||
-        c is TriangleShape ||
-        c is HexagonShape ||
-        c is AftermathScreen);
-    while (hasShapes() && DateTime.now().isBefore(deadline)) {
-      await Future.delayed(const Duration(milliseconds: 50));
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+      return;
     }
-    print('[REFRESH] All shapes cleared. Proceeding with fetch.');
 
-    print("run fetch data....");
+    _refreshCompleter = Completer<void>();
     try {
+      _isContinuing = false;
+      _lastRoundStartIndex = 0;
+
+      if (_isPausedGlobally) return;
+
+      print("Refreshing Game...");
+
+      // refresh 이후 기존에 돌고있던 runSingleMission 취소 위함
+      _isMissionRunning = false; // 이전 미션 강제 종료 허용
+      _runToken++;
+
+      userPath.clear();
+      currentCircleCenter = null;
+      currentCircleRadius = null;
+      blinkingMap.clear();
+
+      // 결과 화면도 제거
+      removeAll(children.whereType<AftermathScreen>().toList());
+
+      children.whereType<BlinkingBehaviorComponent>()
+          .forEach((b) => b.removeFromParent());
+
+      children.whereType<CircleShape>().forEach((s) => s.removeFromParent());
+      children.whereType<RectangleShape>().forEach((s) => s.removeFromParent());
+      children.whereType<PentagonShape>().forEach((s) => s.removeFromParent());
+      children.whereType<TriangleShape>().forEach((s) => s.removeFromParent());
+      children.whereType<HexagonShape>().forEach((s) => s.removeFromParent());
+
+      // 화면에 남은 도형이 완전히 제거될 때까지 대기 (최대 1.5초 안전망)
+      final deadline = DateTime.now().add(const Duration(milliseconds: 1500));
+      bool hasShapes() => children.any((c) =>
+          c is CircleShape ||
+          c is RectangleShape ||
+          c is PentagonShape ||
+          c is TriangleShape ||
+          c is HexagonShape ||
+          c is AftermathScreen);
+
+      while (hasShapes() && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      print('[REFRESH] All shapes cleared. Proceeding with fetch.');
+
       final newStages = await sheetService.fetchData();
       if (newStages.isEmpty) {
         print("새로 불러온 데이터가 비어있음");
@@ -1637,10 +1645,15 @@ class OneSecondGame extends FlameGame
       
       print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
 
+      _refreshCompleter?.complete();
+      _refreshCompleter = null;
+
       // 동일 스테이지 / 미션으로 재시작
       runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-    } catch (e) {
-      print("데이터 새로고침 실패: $e");
+    } catch (e, st) {
+      _refreshCompleter?.completeError(e, st);
+      _refreshCompleter = null;
+      rethrow;
     }
   }
 
@@ -1757,17 +1770,18 @@ class OneSecondGame extends FlameGame
         removeAll(children.whereType<AftermathScreen>().toList());
         _resumeFromFailure();
       },
-      onRetry: () {
-        removeAll(children.whereType<AftermathScreen>().toList());
-
-        _isContinuing = false;              
-        _lastRoundStartIndex = 0;           
-
-        _isMissionRunning = false;
-        _runToken++;
-
-        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-      },
+      onRetry: onRefresh,
+      //     () {
+      //   removeAll(children.whereType<AftermathScreen>().toList());
+      //
+      //   _isContinuing = false;
+      //   _lastRoundStartIndex = 0;
+      //
+      //   _isMissionRunning = false;
+      //   _runToken++;
+      //
+      //   runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+      // },
       onPlay: () {
         // play next stage
         removeAll(children.whereType<AftermathScreen>().toList());
