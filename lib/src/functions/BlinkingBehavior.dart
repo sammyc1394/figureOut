@@ -68,9 +68,13 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
     super.update(dt);
 
     if (shape is UserRemovable && (shape as UserRemovable).wasRemovedByUser) {
-      // 사용자가 삼각형을 제거한 경우 깜빡임 종료
-      shape.removeFromParent();
-      removeFromParent(); // 깜빡임 종료
+
+      // 애니메이션 끝난 뒤에만 정리
+      if (shape.isMounted) {
+        return;
+      }
+
+      removeFromParent();
       return;
     }
     _timer += dt;

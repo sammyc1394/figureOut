@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:figureout/src/routes/OneSecondGame.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -162,6 +163,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     _isDisappearing = true;
     wasRemovedByUser = true;
+
+    final parentGame = findGame();
+    if (parentGame is OneSecondGame) {
+      parentGame.blinkingMap.remove(this);
+    }
 
     _disappearTime = 0.0;
     _startScale = scale.clone();
