@@ -33,7 +33,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   @override
   void updateVisualsByRank(double rank) {
-    const targetOpacity = 1.0;
+    // const targetOpacity = 1.0;
     final darkness = rank;
 
     final filter = ColorFilter.matrix([
@@ -49,8 +49,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     _png.paint.colorFilter = filter;
 
     // Mix depth opacity
-    svg.opacity = _blinkAlpha * targetOpacity;
-    _png.opacity = _blinkAlpha * targetOpacity;
+    // svg.opacity = _blinkAlpha * targetOpacity;
+    // _png.opacity = _blinkAlpha * targetOpacity;
+    final bool usePng = (attackTime ?? 0) > 0;
+    svg.opacity = usePng ? 0.0 : _blinkAlpha;
+    _png.opacity = usePng ? _blinkAlpha : 0.0;
   }
 
   @override
@@ -109,7 +112,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   }) : super(
           position: position,
           size: customSize ?? Vector2.all(70),
-          anchor: Anchor.center,
+          anchor: Anchor(0.5, 0.65),
         );
 
   @override
@@ -145,10 +148,10 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     updateVisualsByPriority();
 
-    if ((attackTime ?? 0) > 0) {
-      svg.opacity = 0;
-      _png.opacity = 1;
-    }
+    // if ((attackTime ?? 0) > 0) {
+    //   svg.opacity = 0;
+    //   _png.opacity = 1;
+    // }
 
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =
@@ -280,14 +283,20 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   Path _buildTrianglePath(Size s) {
     final inset = _attackPaint.strokeWidth / 2;
-    final cx = s.width / 2;
-    final cy = s.height / 2;
-    final r = (s.width / 2) - inset;
+    // SVG viewBox 96×86 기준 삼각형 꼭짓점
+    // top: (48, 3.5), bottomLeft: (2.1, 78.5), bottomRight: (93.9, 78.5)
+    const double svgW = 96, svgH = 86;
+
+    final topX   = s.width  * (48.0  / svgW);
+    final topY   = s.height * (3.5   / svgH) + inset;
+    final botY   = s.height * (78.5  / svgH) - inset;
+    final leftX  = s.width  * (2.1   / svgW) + inset;
+    final rightX = s.width  * (93.9  / svgW) - inset;
 
     return Path()
-      ..moveTo(cx, cy - r)
-      ..lineTo(cx - r, cy + r)
-      ..lineTo(cx + r, cy + r)
+      ..moveTo(topX,  topY)
+      ..lineTo(leftX, botY)
+      ..lineTo(rightX, botY)
       ..close();
   }
 
@@ -340,13 +349,15 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   Path _buildExplosionTrianglePath() {
     final w = size.x;
     final h = size.y;
+    const double svgW = 96, svgH = 86;
 
     return Path()
-      ..moveTo(w / 2, 0)
-      ..lineTo(0, h)
-      ..lineTo(w, h)
+      ..moveTo(w * (48.0  / svgW), h * (3.5  / svgH))
+      ..lineTo(w * (2.1   / svgW), h * (78.5 / svgH))
+      ..lineTo(w * (93.9  / svgW), h * (78.5 / svgH))
       ..close();
   }
+  
   @override
   void onTapDown(TapDownEvent event) {
     event.continuePropagation = false;
