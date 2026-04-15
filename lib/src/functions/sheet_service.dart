@@ -26,188 +26,185 @@ class SheetService {
   String get range => 'B2:J'; // Start from row 5, columns C~J
 
   Future<List<StageData>> fetchData() async {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final uri = Uri.parse(
-      'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encodedSheetName!$range?key=$apiKey&t=$timestamp',
-    );
-    print('Fetching data from: $uri');
-    print('uri host: ${uri.host}');
+    final allStages = <StageData>[];
 
-    final res = await http.get(uri);
+    final sheetNames = await fetchSheetNames();
 
-    print("res.statusCode = ${res.statusCode}");
-    if (res.statusCode != 200) {
-      throw Exception('Sheet fetch failed: ${res.statusCode}');
-    }
+    for (final name in sheetNames) {
+      if (!(name.startsWith('Stage') || name.startsWith('Stages'))) continue;
 
-    final data = jsonDecode(res.body);
-    final values = (data['values'] as List).cast<List<dynamic>>();
+      final encoded = Uri.encodeComponent(name);
 
-    print("value size = ${values.length}");
-    final List<StageData> stages = [];
-    StageData? currentStage;
-    int? currentMission;
-    bool firstMissionHeaderSeen = false;
+      final uri = Uri.parse(
+        'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encoded!$range?key=$apiKey',
+      );
 
-    Map<int, List<EnemyData>>? currentMissionMap;
-    Map<int, double> timeLimitMap;
-    Map<int, String>? missionTitleMap;
-
-    for (var row in values) {
-      final cells = row.map((e) => (e ?? '').toString().trim()).toList();
-      final String? cell = row.isNotEmpty ? row[0]?.toString().trim() : null;
-      if (cell != null && (cell.startsWith('s') || cell.startsWith('S'))) {
-        firstMissionHeaderSeen = false;
-        final stgTitle = _safeGet(cells, 2);
-        final rewardFromS = _safeGet(cells, 7); // I
-        final timeFromS = _safeGet(cells, 8); // J
-
-        print("rewardFromS = $rewardFromS, timeFromS = $timeFromS");
-
-        currentMissionMap = {};
-        timeLimitMap = {};
-        missionTitleMap = {};
-        currentStage = StageData(
-          name: stgTitle,
-          reward: rewardFromS,
-          timeLimit: timeFromS,
-          missions: currentMissionMap,
-          missionTimeLimits: timeLimitMap,
-          missionTitle: missionTitleMap,
-          missionIsBoss: {},
-        );
-        stages.add(currentStage);
-        continue;
-      }
-      if (cell != null && (cell.startsWith('m') || cell.startsWith('M')
-          || cell.startsWith('b') || cell.startsWith('B'))) {
-
-        // 🔥 mission 번호 결정
-        if (cell.startsWith('m') || cell.startsWith('M')) {
-          final missionMatch = RegExp(r'm(\d+)').firstMatch(cell);
-          if (missionMatch != null) {
-            currentMission = int.parse(missionMatch.group(1)!);
-          }
-        } else if (cell.startsWith('b') || cell.startsWith('B')) {
-          // 🔥 보스는 "다음 번호"로 붙인다
-          if (currentStage != null && currentStage.missions.isNotEmpty) {
-            currentMission =
-                currentStage.missions.keys.reduce((a, b) => a > b ? a : b) + 1;
-          } else {
-            currentMission = 1;
-          }
-        }
-
-        if (currentMission != null && currentStage != null) {
-          final msnTitle = _safeGet(cells, 1);
-
-          if (msnTitle.isNotEmpty) {
-            currentStage.missionTitle[currentMission] = msnTitle;
-          }
-
-          final timeFromJ = _safeGet(cells, 8);
-          final parsed = double.tryParse(timeFromJ);
-
-          if (parsed != null) {
-            currentStage.missionTimeLimits[currentMission] = parsed;
-          }
-
-          // 핵심: Boss 여부 저장
-          if (cell.startsWith('b') || cell.startsWith('B')) {
-            currentStage.missionIsBoss[currentMission!] = true;
-          } else {
-            currentStage.missionIsBoss[currentMission] = false;
-          }
-        }
-
-        if (currentStage != null && !firstMissionHeaderSeen) {
-          firstMissionHeaderSeen = true;
-
-          final rewardFromM = _safeGet(cells, 7);
-          final timeFromM = _safeGet(cells, 8);
-
-          if (currentStage.reward.isEmpty && rewardFromM.isNotEmpty) {
-            currentStage.reward = rewardFromM;
-          }
-
-          if (currentStage.timeLimit.isEmpty && timeFromM.isNotEmpty) {
-            currentStage.timeLimit = timeFromM;
-          }
-        }
-
-        continue;
+      final res = await http.get(uri);
+      if (res.statusCode != 200) {
+        throw Exception('Sheet fetch failed: ${res.statusCode}');
       }
 
-      if (currentStage == null || currentMission == null) continue;
+      final data = jsonDecode(res.body);
+      final values = (data['values'] as List).cast<List<dynamic>>();
 
-      final String command = row.length > 2
-          ? row[2]?.toString().trim() ?? ''
-          : '';
+      // ⭐ 시트마다 URD 초기화
+      _urdPools.clear();
 
-      if (command.isEmpty) continue;
+      // ⭐ 기존 파싱 로직 그대로 복붙 시작
+      final List<StageData> stages = [];
+      StageData? currentStage;
+      int? currentMission;
+      bool firstMissionHeaderSeen = false;
 
-      if(row[1]?.toString().trim() == "1") continue;
+      Map<int, List<EnemyData>>? currentMissionMap;
+      Map<int, double> timeLimitMap;
+      Map<int, String>? missionTitleMap;
 
-      final String rawShape = row.length > 3
-          ? row[3]?.toString().trim() ?? ''
-          : '';
-      final shape = resolveShape(rawShape);
-      print("[DATA] rawShape = $rawShape, shape = $shape");
-      final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1,);
-      final bool darkYN = (energy == -1);
-      final String attackRaw= row.length > 4
-          ? row[4]?.toString().trim() ?? ''
-          : '';
-      final String movement = row.length > 5
-          ? row[5]?.toString().trim() ?? ''
-          : '';
-      final resolvedMovement = resolveMovement(movement);
-      final String position = row.length > 6
-          ? row[6]?.toString().trim() ?? ''
-          : '';
-      final missionMatch = RegExp(
-        r'm(\d+)',
-      ).firstMatch(row[0]?.toString() ?? '');
+      for (var row in values) {
+        final cells = row.map((e) => (e ?? '').toString().trim()).toList();
+        final String? cell = row.isNotEmpty ? row[0]?.toString().trim() : null;
 
-      final int mission = currentMission ?? 1;
+        if (cell != null && (cell.startsWith('s') || cell.startsWith('S'))) {
+          firstMissionHeaderSeen = false;
 
-      // RD parsing
-      final resolvedAttackRaw = resolveAttack(attackRaw);
-      final resolvedPosition = resolvePosition(position);
+          final stgTitle = _safeGet(cells, 2);
+          final rewardFromS = _safeGet(cells, 7);
+          final timeFromS = _safeGet(cells, 8);
 
-      final int? order = parseOrder(shape);
+          currentMissionMap = {};
+          timeLimitMap = {};
+          missionTitleMap = {};
 
-      double? attackSeconds;
-      double? attackDamage;
+          currentStage = StageData(
+            name: stgTitle,
+            reward: rewardFromS,
+            timeLimit: timeFromS,
+            missions: currentMissionMap,
+            missionTimeLimits: timeLimitMap,
+            missionTitle: missionTitleMap,
+            missionIsBoss: {},
+          );
 
-      final attackMatch =
+          stages.add(currentStage);
+          continue;
+        }
+
+        if (cell != null &&
+            (cell.startsWith('m') ||
+                cell.startsWith('M') ||
+                cell.startsWith('b') ||
+                cell.startsWith('B'))) {
+
+          if (cell.toLowerCase().startsWith('m')) {
+            final match = RegExp(r'm(\d+)').firstMatch(cell);
+            if (match != null) {
+              currentMission = int.parse(match.group(1)!);
+            }
+          } else {
+            if (currentStage != null && currentStage.missions.isNotEmpty) {
+              currentMission =
+                  currentStage.missions.keys.reduce((a, b) => a > b ? a : b) + 1;
+            } else {
+              currentMission = 1;
+            }
+          }
+
+          if (currentMission != null && currentStage != null) {
+            final msnTitle = _safeGet(cells, 1);
+            if (msnTitle.isNotEmpty) {
+              currentStage.missionTitle[currentMission] = msnTitle;
+            }
+
+            final timeFromJ = _safeGet(cells, 8);
+            final parsed = double.tryParse(timeFromJ);
+            if (parsed != null) {
+              currentStage.missionTimeLimits[currentMission] = parsed;
+            }
+
+            currentStage.missionIsBoss[currentMission] =
+                cell.toLowerCase().startsWith('b');
+          }
+
+          continue;
+        }
+
+        if (currentStage == null || currentMission == null) continue;
+
+        final command = _safeGet(cells, 2);
+        if (command.isEmpty) continue;
+        if (_safeGet(cells, 1) == "1") continue;
+
+        final rawShape = _safeGet(cells, 3);
+        final shape = resolveShape(normalizeShape(rawShape));
+
+        final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1);
+        final darkYN = (energy == -1);
+
+        final attackRaw = _safeGet(cells, 4);
+        final movement = _safeGet(cells, 5);
+        final resolvedMovement = resolveMovement(movement);
+
+        final position = _safeGet(cells, 6);
+
+        final resolvedAttackRaw = resolveAttack(attackRaw);
+        final resolvedPosition = resolvePosition(position);
+
+        final order = parseOrder(shape);
+
+        double? attackSeconds;
+        double? attackDamage;
+
+        final attackMatch =
         RegExp(r'\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)')
             .firstMatch(resolvedAttackRaw);
 
-      if (attackMatch != null) {
+        if (attackMatch != null) {
+          attackSeconds = double.tryParse(attackMatch.group(1)!);
+          attackDamage = double.tryParse(attackMatch.group(2)!);
+        }
 
-        attackSeconds = double.tryParse(attackMatch.group(1)!);
-        attackDamage  = double.tryParse(attackMatch.group(2)!);
+        final enemy = EnemyData(
+          command: command,
+          shape: shape,
+          movement: resolvedMovement,
+          position: resolvedPosition,
+          mission: currentMission,
+          attackSeconds: attackSeconds,
+          attackDamage: attackDamage,
+          order: order,
+          energy: energy,
+          darkYN: darkYN,
+        );
+
+        currentMissionMap!
+            .putIfAbsent(currentMission, () => [])
+            .add(enemy);
       }
 
-      final enemy = EnemyData(
-        command: command,
-        shape: shape,
-        movement: resolvedMovement,
-        position: resolvedPosition,
-        mission: currentMission ??= 1,
-        attackSeconds: attackSeconds,
-        attackDamage: attackDamage,
-        order: order,
-        energy: energy,
-        darkYN: darkYN,
-      );
-
-      currentMissionMap!.putIfAbsent(currentMission, () => []).add(enemy);
-      // );
+      // ⭐ 합치기
+      allStages.addAll(stages);
     }
 
-    return stages;
+    return allStages;
+  }
+
+  Future<List<String>> fetchSheetNames() async {
+    final uri = Uri.parse(
+      'https://sheets.googleapis.com/v4/spreadsheets/$sheetId?key=$apiKey',
+    );
+
+    final res = await http.get(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception('Sheet meta fetch failed: ${res.statusCode}');
+    }
+
+    final data = jsonDecode(res.body);
+    final sheets = data['sheets'] as List;
+
+    return sheets
+        .map((s) => s['properties']['title'] as String)
+        .toList();
   }
 
   String _safeGet(List<String> cells, int index) {
@@ -215,8 +212,12 @@ class SheetService {
     return '';
   }
 
+  String normalizeShape(String raw) {
+    return raw.replaceAll(RegExp(r'\s+'), '');
+  }
+
   int? parseOrder(String shape) {
-    print("[ORDER] shape = $shape");
+    // print("[ORDER] shape = $shape");
     if (!shape.contains('_')) return null;
 
     final parts = shape.split('_');
@@ -244,10 +245,7 @@ class SheetService {
   }
 
   String resolveRandom(String str, URDField field) {
-    print("[DATA] resolveRandom start = $str");
-
     if (!str.contains('RD')) {
-      print("[DATA] nothing to resolve = $str");
       return str;
     }
 
@@ -261,13 +259,13 @@ class SheetService {
         if (type == 'RD') {
           final value = _random.nextDouble() * (max - min) + min;
           final truncated = value.truncate();
-          print("[DATA][RD] $truncated");
+          // print("[DATA][RD] $truncated");
           return truncated.toString();
         }
 
         if (type == 'URD') {
           final value = _getURD(field, min.toInt(), max.toInt());
-          print("[DATA][URD] $value (field: $field)");
+          // print("[DATA][URD] $value (field: $field)");
           return value.toString();
         }
 
@@ -326,11 +324,12 @@ class SheetService {
   }
 
   String resolveShape(String rawShape) {
-    print("[DATA] resolveShape start");
+    // print("[DATA] resolveShape start");
+    rawShape = rawShape.replaceAll(RegExp(r'\s+'), '');
     // 1. shape 이름 분리
     final underscoreIndex = rawShape.indexOf('_');
     if (underscoreIndex == -1) {
-      print("[DATA] underscoreIndex = ${underscoreIndex}");
+      // print("[DATA] underscoreIndex = ${underscoreIndex}");
       return resolveRandom(rawShape, URDField.shape);
     }
 
@@ -357,7 +356,7 @@ class SheetService {
         ? '${resolvedBase}_$order($energy)'
         : '${resolvedBase}_$order';
 
-    print("[DATA] shape parse = $ret");
+    // print("[DATA] shape parse = $ret");
     return ret;
   }
 
