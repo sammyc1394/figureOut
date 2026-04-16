@@ -66,7 +66,7 @@ class RectangleShape extends PositionComponent
     ..color = const Color(0xFF7CA6FF);
 
   final Color dangerColor = const Color(0xFFEE0505);
-  final Color baseColor = const Color(0xFF7CA6FF);
+  final Color baseColor = const Color(0xFF345983);
 
   // Keep SVG source only for sliced-piece effect.
   late final Svg _sourceSvg;

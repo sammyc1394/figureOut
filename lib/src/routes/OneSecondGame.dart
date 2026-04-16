@@ -2658,11 +2658,11 @@ bool _isStraightLine(List<Vector2> path) {
   void resumeGame() {
   print("resumed");
 
-  // 1️⃣ pause 상태 먼저 해제
+  // pause 상태 먼저 해제
   _isPausedGlobally = false;
   _timerPaused = true; // 결과창 뜰 동안 타이머는 멈춤 유지
 
-  // 2️⃣ pause UI 제거
+  // pause UI 제거
   if (pausedScreen != null) {
     pausedScreen!.removeFromParent();
     pausedScreen = null;

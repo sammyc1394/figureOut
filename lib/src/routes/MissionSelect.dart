@@ -110,7 +110,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   Widget build(BuildContext context) {
     if (!isLoaded) {
       return const Scaffold(
-        backgroundColor: Color(0xFFFDFBF5),
+        backgroundColor: Color(0xFFE4DFCB),
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -122,7 +122,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     final missionNumbers = missions.keys.toList()..sort();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF5),
+      backgroundColor: const Color(0xFFE4DFCB),
       appBar: const Menuappbar(),
       body: Column(
         children: [
