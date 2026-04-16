@@ -118,7 +118,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF5),
+      backgroundColor: const Color(0xFFE4DFCB),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque, // 빈 영역 터치도 인식
         onTap: () {
