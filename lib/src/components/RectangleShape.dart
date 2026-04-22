@@ -133,7 +133,7 @@ class RectangleShape extends PositionComponent
 
   @override
   void updateVisualsByPriority() {
-    updateVisualsByRank(0.0);
+    updateVisualsByRank(1.0);
   }
 
   void setBlinkAlpha(double alpha) {

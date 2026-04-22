@@ -75,7 +75,7 @@ class CircleShape extends PositionComponent
   void updateVisualsByPriority() {
     // This is now legacy; OneSecondGame calls updateVisualsByRank instead.
     // Default to rank 0 (intense) if unsure.
-    updateVisualsByRank(0.0);
+    updateVisualsByRank(1.0);
   }
 
   void setBlinkAlpha(double alpha) {
