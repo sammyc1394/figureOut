@@ -5,6 +5,7 @@ import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
@@ -92,6 +93,7 @@ class PentagonShape extends PositionComponent
 
   double _pressElapsed = 0.0;
   static const double _pressTick = 1.0;
+  Vector2? _frozenPosition;
 
   // ===============================
   // PULSE
@@ -217,7 +219,16 @@ class PentagonShape extends PositionComponent
   @override
   void update(double dt) {
 
+    if (_isLongPressing && _frozenPosition != null) {
+      position.setFrom(_frozenPosition!);
+    }
+
     super.update(dt);
+
+    if (_isLongPressing && _frozenPosition != null) {
+      position.setFrom(_frozenPosition!);
+    }
+
 
     if (isPaused) return;
 
@@ -518,7 +529,10 @@ class PentagonShape extends PositionComponent
     }
 
     _isLongPressing = true;
+    _frozenPosition = position.clone();
 
+    children.whereType<Effect>().forEach((effect) => effect.pause());
+    
     _myBlinking()?.isPaused = true;
 
     _pulseThicknessT = 0.0;
@@ -530,7 +544,7 @@ class PentagonShape extends PositionComponent
   void onTapUp(TapUpEvent e) {
 
     _isLongPressing = false;
-
+    _frozenPosition = null;
     _myBlinking()?.isPaused = false;
   }
 
