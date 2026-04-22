@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config.dart';
 import 'menuAppBar.dart';
 
 class MissionSelectScreen extends StatefulWidget {
@@ -110,7 +111,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   Widget build(BuildContext context) {
     if (!isLoaded) {
       return const Scaffold(
-        backgroundColor: Color(0xFFE4DFCB),
+        backgroundColor: Color(bgColor),
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -122,7 +123,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     final missionNumbers = missions.keys.toList()..sort();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE4DFCB),
+      backgroundColor: const Color(bgColor),
       appBar: const Menuappbar(),
       body: Column(
         children: [

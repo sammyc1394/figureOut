@@ -95,8 +95,11 @@ class SheetService {
                 cell.startsWith('b') ||
                 cell.startsWith('B'))) {
 
-          if (cell.toLowerCase().startsWith('m')) {
-            final match = RegExp(r'm(\d+)').firstMatch(cell);
+          // 대소문자 모두 허용
+          final lower = cell.toLowerCase();
+
+          if (lower.startsWith('m')) {
+            final match = RegExp(r'm(\d+)').firstMatch(lower);
             if (match != null) {
               currentMission = int.parse(match.group(1)!);
             }
@@ -122,7 +125,7 @@ class SheetService {
             }
 
             currentStage.missionIsBoss[currentMission] =
-                cell.toLowerCase().startsWith('b');
+                lower.startsWith('b');
           }
 
           continue;
@@ -181,7 +184,7 @@ class SheetService {
             .add(enemy);
       }
 
-      // ⭐ 합치기
+      // 합치기
       allStages.addAll(stages);
     }
 
@@ -340,12 +343,18 @@ class SheetService {
     final resolvedBase = resolveRandom(basePart, URDField.size);
 
     // 3. order + energy 분리
-    final match = RegExp(r'([^(]+)(\(([^)]+)\))?').firstMatch(restPart);
+    // print("[PARSE] rest part = $restPart");
+    final match = RegExp(r'\b(?:URD|RD)\(-?\d+,-?\d+\)')
+        .allMatches(restPart)
+        .map((m) => m.group(0)!)
+        .toList();
 
     if (match == null) return resolvedBase;
 
-    final orderRaw = match.group(1)!;       // RD(1,5)
-    final energyRaw = match.group(3);       // RD(1,5)
+    final orderRaw = match[0];
+    // if(orderRaw != null) print("[PARSE] order raw = $orderRaw");
+    final energyRaw = match.length > 1 ? match[1] : null;
+    // if(energyRaw != null) print("[PARSE] energy raw = $energyRaw");
 
     final order = resolveRandom(orderRaw, URDField.order);
     final energy = energyRaw != null
