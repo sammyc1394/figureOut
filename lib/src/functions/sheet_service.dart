@@ -15,8 +15,8 @@ class SheetService {
   final Map<URDField, Map<String, List<int>>> _urdPools = {};
 
   SheetService()
-    : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
-      apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '' {
+      : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
+        apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '' {
     if (sheetId.isEmpty || apiKey.isEmpty) {
       throw Exception('Missing Google Sheet credentials in .env');
     }
@@ -139,7 +139,7 @@ class SheetService {
 
         final rawShape = _safeGet(cells, 3);
         final shape = resolveShape(normalizeShape(rawShape));
-
+        final order = parseOrder(shape);
         final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1);
         final darkYN = (energy == -1);
 
@@ -151,8 +151,6 @@ class SheetService {
 
         final resolvedAttackRaw = resolveAttack(attackRaw);
         final resolvedPosition = resolvePosition(position);
-
-        final order = parseOrder(shape);
 
         double? attackSeconds;
         double? attackDamage;
@@ -220,34 +218,37 @@ class SheetService {
   }
 
   int? parseOrder(String shape) {
-    // print("[ORDER] shape = $shape");
+    print("[ORDER] before parse order = $shape");
     if (!shape.contains('_')) return null;
 
-    final parts = shape.split('_');
-    if (parts.length != 2) {
-      // print('parts length = ${parts.length}');
-      throw FormatException('Invalid order format-parts: $shape');
+    final rest = shape.substring(shape.indexOf('_') + 1);
+
+    final rdRegex = RegExp(r'\b(?:URD|RD)\(\s*-?\d+\s*,\s*-?\d+\s*\)');
+
+    final match = rdRegex.firstMatch(rest);
+
+    if (match != null) {
+      final orderRaw = match.group(0)!;
+      final resolved = resolveRandom(orderRaw, URDField.order);
+      final ret = int.tryParse(resolved);
+      print("[ORDER] order parse done = $ret - $orderRaw");
+      return ret;
     }
 
-    String orderRDcheck;
-    if(parts[1].startsWith("RD") || parts[1].startsWith("URD")) {
-      orderRDcheck = resolveRandom(parts[1], URDField.order);
-    } else {
-      orderRDcheck = parts[1];
+    // RD/URD 없으면 일반 숫자 처리
+    final numberMatch = RegExp(r'-?\d+').firstMatch(rest);
+    if (numberMatch != null) {
+      final ret = int.tryParse(numberMatch.group(0)!);
+      print("[ORDER] order parse done = $ret");
+      return ret;
     }
 
-    final OEParse = orderRDcheck.split('(');
 
-    final order = int.tryParse(OEParse[0]);
-    if (order == null) {
-      throw FormatException('Invalid order value in-order: $shape');
-    }
-
-    // print("shape $shape order = $order");
-    return order;
+    return null;
   }
 
   String resolveRandom(String str, URDField field) {
+    // print("[RD] resolve random start = $str");
     if (!str.contains('RD')) {
       return str;
     }
@@ -327,45 +328,26 @@ class SheetService {
   }
 
   String resolveShape(String rawShape) {
-    // print("[DATA] resolveShape start");
     rawShape = rawShape.replaceAll(RegExp(r'\s+'), '');
-    // 1. shape 이름 분리
+
     final underscoreIndex = rawShape.indexOf('_');
+
+    // order/energy 없는 케이스
     if (underscoreIndex == -1) {
-      // print("[DATA] underscoreIndex = ${underscoreIndex}");
       return resolveRandom(rawShape, URDField.shape);
     }
 
-    final basePart = rawShape.substring(0, underscoreIndex); // CircleRD(1,5)
-    final restPart = rawShape.substring(underscoreIndex + 1); // RD(1,5)(RD(1,5))
+    final basePart = rawShape.substring(0, underscoreIndex);
+    final restPart = rawShape.substring(underscoreIndex + 1);
 
-    // 2. size 처리 (basePart 안)
+    // shape + size만 처리
     final resolvedBase = resolveRandom(basePart, URDField.size);
 
-    // 3. order + energy 분리
-    // print("[PARSE] rest part = $restPart");
-    final match = RegExp(r'\b(?:URD|RD)\(-?\d+,-?\d+\)')
-        .allMatches(restPart)
-        .map((m) => m.group(0)!)
-        .toList();
+    // 나머지는 건드리지 않고 그대로 유지
+    final ret = '${resolvedBase}_$restPart';
 
-    if (match == null) return resolvedBase;
-
-    final orderRaw = match[0];
-    // if(orderRaw != null) print("[PARSE] order raw = $orderRaw");
-    final energyRaw = match.length > 1 ? match[1] : null;
-    // if(energyRaw != null) print("[PARSE] energy raw = $energyRaw");
-
-    final order = resolveRandom(orderRaw, URDField.order);
-    final energy = energyRaw != null
-        ? resolveRandom(energyRaw, URDField.energy)
-        : null;
-
-    final ret = energy != null
-        ? '${resolvedBase}_$order($energy)'
-        : '${resolvedBase}_$order';
-
-    // print("[DATA] shape parse = $ret");
+    // print("[DATA] shape resolve = $ret");
+    return ret;
     return ret;
   }
 
@@ -477,21 +459,48 @@ class SheetService {
 
   // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
   int _parseEnergy(String s, int def) {
-    final start = s.indexOf('(');
+    // print("[ENERGY] energy parse start = $s");
+    // 1. 마지막 ')' 위치 찾기
     final end = s.lastIndexOf(')');
+    if (end == -1) return def;
 
-    if (start == -1 || end == -1 || end <= start) {
-      return def;
+    // 2. 해당 ')'에 대응하는 '(' 찾기 (뒤에서부터)
+    int depth = 0;
+    int start = -1;
+
+    for (int i = end; i >= 0; i--) {
+      if (s[i] == ')') depth++;
+      else if (s[i] == '(') {
+        depth--;
+        if (depth == 0) {
+          start = i;
+          break;
+        }
+      }
     }
 
-    final rawValue = s.substring(start + 1, end).trim();
+    if (start == -1) return def;
 
-    if (rawValue.startsWith('RD')) {
-      final resolved = resolveRandom(rawValue,URDField.energy);
-      return int.tryParse(resolved) ?? def;
+    // 3. 괄호 안 내용 추출
+    final inner = s.substring(start + 1, end).trim();
+
+    // 4. RD / URD 처리
+    if (inner.contains('RD')) {
+      final resolved = resolveRandom(inner, URDField.energy);
+      final ret = int.tryParse(resolved) ?? def;
+      // print("[ENERGY] energy parse = $ret - RD");
+      return ret;
     }
 
-    return int.tryParse(rawValue) ?? def;
+    // 5. 일반 숫자 처리 (공백/소수 대응)
+    final numberMatch = RegExp(r'-?\d+').firstMatch(inner);
+    if (numberMatch != null) {
+      final ret = int.tryParse(numberMatch.group(0)!) ?? def;
+      // print("[ENERGY] energy parse = $ret");
+      return ret;
+    }
+
+    return def;
   }
 }
 
