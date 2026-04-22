@@ -58,7 +58,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   @override
   void updateVisualsByPriority() {
-    updateVisualsByRank(0.0);
+    updateVisualsByRank(1.0);
   }
 
   void setBlinkAlpha(double alpha){
