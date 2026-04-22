@@ -112,7 +112,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   }) : super(
           position: position,
           size: customSize ?? Vector2.all(70),
-          anchor: Anchor(0.5, 0.65),
+          anchor: Anchor(0.5, 0.62),
         );
 
   @override
@@ -127,7 +127,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       svg: svgData,
       size: size,
       anchor: Anchor.center,
-      position: size / 2,
+      position: Vector2(size.x / 2, size.y / 2-1 ),
     );
     add(svg);
 
@@ -138,7 +138,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       sprite: Sprite(img),
       size: size,
       anchor: Anchor.center,
-      position: size / 2,
+      position: Vector2(size.x / 2, size.y / 2-1 ),
     );
     _png.opacity = 0;
     add(_png);
