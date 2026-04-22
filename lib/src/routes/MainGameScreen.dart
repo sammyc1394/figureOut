@@ -5,6 +5,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config.dart';
 import '../functions/sheet_service.dart';
 
 class MainGameScreen extends StatefulWidget {
@@ -63,12 +64,12 @@ class _MainGameScreenState extends State<MainGameScreen> {
     return PopScope(
       canPop: false,
       child: ColoredBox(
-        color: const Color(0xFFE4DFCB), // 배경 색
+        color: const Color(bgColor), // 배경 색
         child: GameWidget(
           game: oneSec,
           // Flame의 캔버스에 덮이는 배경 지정
           backgroundBuilder: (context) =>
-              Container(color: const Color(0xFFE4DFCB)),
+              Container(color: const Color(bgColor)),
         ),
       ),
     );
