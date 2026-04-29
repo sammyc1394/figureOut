@@ -2315,6 +2315,7 @@ bool _isStraightLine(List<Vector2> path) {
       bool isDarkTriangle = comp is TriangleShape && comp.isDark;
 
       if (comp is TriangleShape && !isDarkTriangle) {
+        // 일반 삼각형만 제거 대상
         if (comp.isFullyEnclosedByUserPath(judgePath)) {
           enclosedTriangles.add(comp);
         }
@@ -2324,10 +2325,14 @@ bool _isStraightLine(List<Vector2> path) {
           comp is HexagonShape ||
           isDarkTriangle) {
 
+        // 삼각형 외 모든 게임 도형 + dark 삼각형 → 원 안에 있으면 막기
+        // Pentagon/Hexagon처럼 큰 도형은 꼭짓점이 원 밖에 나와 enclosed가 false일 수 있으므로
+        // 중심점이 원 안에 있는지도 추가로 체크
         final enclosed = _isComponentEnclosed(comp, judgePath);
         final touched = _doesPathTouchComponent(comp, judgePath);
+        final centerInside = _isPointInPolygon(comp.absoluteCenter, judgePath);
 
-        if (enclosed || touched) {
+        if (enclosed || touched || centerInside) {
           touchedOtherShapes.add(comp);
         }
       }
