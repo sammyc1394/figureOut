@@ -516,6 +516,10 @@ class PentagonShape extends PositionComponent
   void onTapDown(TapDownEvent e) {
     e.continuePropagation = false;
     if (isDark) onForbiddenTouch?.call();
+
+    _frozenPosition = position.clone();
+    children.whereType<Effect>().forEach((effect) => effect.pause());
+    _myBlinking()?.isPaused = true;
   }
 
   @override
@@ -529,15 +533,17 @@ class PentagonShape extends PositionComponent
     }
 
     _isLongPressing = true;
-    _frozenPosition = position.clone();
-
-    children.whereType<Effect>().forEach((effect) => effect.pause());
-    
-    _myBlinking()?.isPaused = true;
 
     _pulseThicknessT = 0.0;
     _pulsePhase = 0.0;
     _pressElapsed = 0.0;
+
+    energy--;
+    if (energy <= 0) {
+      wasRemovedByUser = true;
+      removeFromParent();
+      return;
+    }
   }
 
   @override
