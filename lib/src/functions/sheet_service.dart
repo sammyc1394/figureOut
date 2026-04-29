@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -11,8 +10,6 @@ class SheetService {
   final String sheetId;
   final String apiKey;
   final math.Random _random = math.Random();
-
-  final Map<URDField, Map<String, List<int>>> _urdPools = {};
 
   SheetService()
       : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
@@ -26,167 +23,173 @@ class SheetService {
   String get range => 'B2:J'; // Start from row 5, columns C~J
 
   Future<List<StageData>> fetchData() async {
-    final allStages = <StageData>[];
-
     final sheetNames = await fetchSheetNames();
 
-    for (final name in sheetNames) {
-      if (!(name.startsWith('Stage') || name.startsWith('Stages'))) continue;
+    final futures = sheetNames
+        .where((name) => name.startsWith('Stage') || name.startsWith('Stages'))
+        .map((name) => _fetchSingleSheet(name))
+        .toList();
 
-      final encoded = Uri.encodeComponent(name);
+    final results = await Future.wait(futures);
 
-      final uri = Uri.parse(
-        'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encoded!$range?key=$apiKey',
-      );
+    return results.expand((e) => e).toList();
+  }
 
-      final res = await http.get(uri);
-      if (res.statusCode != 200) {
-        throw Exception('Sheet fetch failed: ${res.statusCode}');
-      }
+  Future<List<StageData>> _fetchSingleSheet(String name) async {
+    final encoded = Uri.encodeComponent(name);
 
-      final data = jsonDecode(res.body);
-      final values = (data['values'] as List).cast<List<dynamic>>();
+    final uri = Uri.parse(
+      'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encoded!$range?key=$apiKey',
+    );
 
-      // ⭐ 시트마다 URD 초기화
-      _urdPools.clear();
-
-      // ⭐ 기존 파싱 로직 그대로 복붙 시작
-      final List<StageData> stages = [];
-      StageData? currentStage;
-      int? currentMission;
-      bool firstMissionHeaderSeen = false;
-
-      Map<int, List<EnemyData>>? currentMissionMap;
-      Map<int, double> timeLimitMap;
-      Map<int, String>? missionTitleMap;
-
-      for (var row in values) {
-        final cells = row.map((e) => (e ?? '').toString().trim()).toList();
-        final String? cell = row.isNotEmpty ? row[0]?.toString().trim() : null;
-
-        if (cell != null && (cell.startsWith('s') || cell.startsWith('S'))) {
-          firstMissionHeaderSeen = false;
-
-          final stgTitle = _safeGet(cells, 2);
-          final rewardFromS = _safeGet(cells, 7);
-          final timeFromS = _safeGet(cells, 8);
-
-          currentMissionMap = {};
-          timeLimitMap = {};
-          missionTitleMap = {};
-
-          currentStage = StageData(
-            name: stgTitle,
-            reward: rewardFromS,
-            timeLimit: timeFromS,
-            missions: currentMissionMap,
-            missionTimeLimits: timeLimitMap,
-            missionTitle: missionTitleMap,
-            missionIsBoss: {},
-          );
-
-          stages.add(currentStage);
-          continue;
-        }
-
-        if (cell != null &&
-            (cell.startsWith('m') ||
-                cell.startsWith('M') ||
-                cell.startsWith('b') ||
-                cell.startsWith('B'))) {
-
-          // 대소문자 모두 허용
-          final lower = cell.toLowerCase();
-
-          if (lower.startsWith('m')) {
-            final match = RegExp(r'm(\d+)').firstMatch(lower);
-            if (match != null) {
-              currentMission = int.parse(match.group(1)!);
-            }
-          } else {
-            if (currentStage != null && currentStage.missions.isNotEmpty) {
-              currentMission =
-                  currentStage.missions.keys.reduce((a, b) => a > b ? a : b) + 1;
-            } else {
-              currentMission = 1;
-            }
-          }
-
-          if (currentMission != null && currentStage != null) {
-            final msnTitle = _safeGet(cells, 1);
-            if (msnTitle.isNotEmpty) {
-              currentStage.missionTitle[currentMission] = msnTitle;
-            }
-
-            final timeFromJ = _safeGet(cells, 8);
-            final parsed = double.tryParse(timeFromJ);
-            if (parsed != null) {
-              currentStage.missionTimeLimits[currentMission] = parsed;
-            }
-
-            currentStage.missionIsBoss[currentMission] =
-                lower.startsWith('b');
-          }
-
-          continue;
-        }
-
-        if (currentStage == null || currentMission == null) continue;
-
-        final command = _safeGet(cells, 2);
-        if (command.isEmpty) continue;
-        if (_safeGet(cells, 1) == "1") continue;
-
-        final rawShape = _safeGet(cells, 3);
-        final shape = resolveShape(normalizeShape(rawShape));
-        final order = parseOrder(shape);
-        final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1);
-        final darkYN = (energy == -1);
-
-        final attackRaw = _safeGet(cells, 4);
-        final movement = _safeGet(cells, 5);
-        final resolvedMovement = resolveMovement(movement);
-
-        final position = _safeGet(cells, 6);
-
-        final resolvedAttackRaw = resolveAttack(attackRaw);
-        final resolvedPosition = resolvePosition(position);
-
-        double? attackSeconds;
-        double? attackDamage;
-
-        final attackMatch =
-        RegExp(r'\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)')
-            .firstMatch(resolvedAttackRaw);
-
-        if (attackMatch != null) {
-          attackSeconds = double.tryParse(attackMatch.group(1)!);
-          attackDamage = double.tryParse(attackMatch.group(2)!);
-        }
-
-        final enemy = EnemyData(
-          command: command,
-          shape: shape,
-          movement: resolvedMovement,
-          position: resolvedPosition,
-          mission: currentMission,
-          attackSeconds: attackSeconds,
-          attackDamage: attackDamage,
-          order: order,
-          energy: energy,
-          darkYN: darkYN,
-        );
-
-        currentMissionMap!
-            .putIfAbsent(currentMission, () => [])
-            .add(enemy);
-      }
-
-      // 합치기
-      allStages.addAll(stages);
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Sheet fetch failed: ${res.statusCode}');
     }
 
-    return allStages;
+    final data = jsonDecode(res.body);
+    final values = (data['values'] as List).cast<List<dynamic>>();
+
+    final List<StageData> stages = [];
+
+    StageData? currentStage;
+    int? currentMission;
+
+    Map<int, List<EnemyData>>? currentMissionMap;
+    Map<int, double> timeLimitMap = {};
+    Map<int, String>? missionTitleMap;
+
+    // URD Context (mission별로 분리)
+    Map<int, URDContext> missionContexts = {};
+
+    for (var row in values) {
+      final cells = row.map((e) => (e ?? '').toString().trim()).toList();
+      final String? cell = row.isNotEmpty ? row[0]?.toString().trim() : null;
+
+      // ===== Stage 시작 =====
+      if (cell != null && (cell.startsWith('s') || cell.startsWith('S'))) {
+        final stgTitle = _safeGet(cells, 2);
+        final rewardFromS = _safeGet(cells, 7);
+        final timeFromS = _safeGet(cells, 8);
+
+        currentMissionMap = {};
+        timeLimitMap = {};
+        missionTitleMap = {};
+
+        currentStage = StageData(
+          name: stgTitle,
+          reward: rewardFromS,
+          timeLimit: timeFromS,
+          missions: currentMissionMap,
+          missionTimeLimits: timeLimitMap,
+          missionTitle: missionTitleMap,
+          missionIsBoss: {},
+        );
+
+        stages.add(currentStage);
+        continue;
+      }
+
+      // ===== Mission 시작 =====
+      if (cell != null &&
+          (cell.startsWith('m') ||
+              cell.startsWith('M') ||
+              cell.startsWith('b') ||
+              cell.startsWith('B'))) {
+
+        final lower = cell.toLowerCase();
+
+        if (lower.startsWith('m')) {
+          final match = RegExp(r'm(\d+)').firstMatch(lower);
+          if (match != null) {
+            currentMission = int.parse(match.group(1)!);
+          }
+        } else {
+          if (currentStage != null && currentStage.missions.isNotEmpty) {
+            currentMission =
+                currentStage.missions.keys.reduce((a, b) => a > b ? a : b) + 1;
+          } else {
+            currentMission = 1;
+          }
+        }
+
+        if (currentMission != null && currentStage != null) {
+          missionContexts.putIfAbsent(currentMission, () => URDContext());
+
+          final msnTitle = _safeGet(cells, 1);
+          if (msnTitle.isNotEmpty) {
+            currentStage.missionTitle[currentMission] = msnTitle;
+          }
+
+          final timeFromJ = _safeGet(cells, 8);
+          final parsed = double.tryParse(timeFromJ);
+          if (parsed != null) {
+            currentStage.missionTimeLimits[currentMission] = parsed;
+          }
+
+          currentStage.missionIsBoss[currentMission] =
+              lower.startsWith('b');
+        }
+
+        continue;
+      }
+
+      if (currentStage == null || currentMission == null) continue;
+
+      final ctx = missionContexts[currentMission]!;
+
+      final command = _safeGet(cells, 2);
+      if (command.isEmpty) continue;
+      if (_safeGet(cells, 1) == "1") continue;
+
+      final rawShape = _safeGet(cells, 3);
+      final shape = resolveShape(normalizeShape(rawShape), ctx);
+
+      final order = parseOrder(shape, ctx);
+      final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1, ctx);
+
+      final darkYN = (energy == -1);
+
+      final attackRaw = _safeGet(cells, 4);
+      final movement = _safeGet(cells, 5);
+      final resolvedMovement = resolveMovement(movement, ctx);
+
+      final position = _safeGet(cells, 6);
+
+      final resolvedAttackRaw = resolveAttack(attackRaw, ctx);
+      final resolvedPosition = resolvePosition(position, ctx);
+
+      double? attackSeconds;
+      double? attackDamage;
+
+      final attackMatch =
+      RegExp(r'\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)')
+          .firstMatch(resolvedAttackRaw);
+
+      if (attackMatch != null) {
+        attackSeconds = double.tryParse(attackMatch.group(1)!);
+        attackDamage = double.tryParse(attackMatch.group(2)!);
+      }
+
+      final enemy = EnemyData(
+        command: command,
+        shape: shape,
+        movement: resolvedMovement,
+        position: resolvedPosition,
+        mission: currentMission,
+        attackSeconds: attackSeconds,
+        attackDamage: attackDamage,
+        order: order,
+        energy: energy,
+        darkYN: darkYN,
+      );
+
+      currentMissionMap!
+          .putIfAbsent(currentMission, () => [])
+          .add(enemy);
+    }
+
+    return stages;
   }
 
   Future<List<String>> fetchSheetNames() async {
@@ -217,7 +220,7 @@ class SheetService {
     return raw.replaceAll(RegExp(r'\s+'), '');
   }
 
-  int? parseOrder(String shape) {
+  int? parseOrder(String shape, URDContext ctx) {
     print("[ORDER] before parse order = $shape");
     if (!shape.contains('_')) return null;
 
@@ -229,7 +232,7 @@ class SheetService {
 
     if (match != null) {
       final orderRaw = match.group(0)!;
-      final resolved = resolveRandom(orderRaw, URDField.order);
+      final resolved = resolveRandom(orderRaw, URDField.order, ctx);
       final ret = int.tryParse(resolved);
       print("[ORDER] order parse done = $ret - $orderRaw");
       return ret;
@@ -247,30 +250,23 @@ class SheetService {
     return null;
   }
 
-  String resolveRandom(String str, URDField field) {
-    // print("[RD] resolve random start = $str");
-    if (!str.contains('RD')) {
-      return str;
-    }
+  String resolveRandom(String str, URDField field, URDContext ctx) {
+    if (!str.contains('RD')) return str;
 
     return str.replaceAllMapped(
       RegExp(r'(URD|RD)\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)'),
           (match) {
-        final type = match.group(1); // RD or URD
+        final type = match.group(1);
         final min = double.parse(match.group(2)!);
         final max = double.parse(match.group(3)!);
 
         if (type == 'RD') {
           final value = _random.nextDouble() * (max - min) + min;
-          final truncated = value.truncate();
-          // print("[DATA][RD] $truncated");
-          return truncated.toString();
+          return value.truncate().toString();
         }
 
         if (type == 'URD') {
-          final value = _getURD(field, min.toInt(), max.toInt());
-          // print("[DATA][URD] $value (field: $field)");
-          return value.toString();
+          return _getURD(field, min.toInt(), max.toInt(), ctx).toString();
         }
 
         return match.group(0)!;
@@ -278,17 +274,17 @@ class SheetService {
     );
   }
 
-  int _getURD(URDField field, int min, int max) {
+  int _getURD(URDField field, int min, int max, URDContext ctx) {
     final rangeKey = '$min,$max';
 
-    _urdPools.putIfAbsent(field, () => {});
-    _urdPools[field]!.putIfAbsent(rangeKey, () {
+    ctx.pools.putIfAbsent(field, () => {});
+    ctx.pools[field]!.putIfAbsent(rangeKey, () {
       final list = List.generate(max - min + 1, (i) => min + i);
       list.shuffle(_random);
       return list;
     });
 
-    final pool = _urdPools[field]![rangeKey]!;
+    final pool = ctx.pools[field]![rangeKey]!;
 
     if (pool.isEmpty) {
       throw Exception('URD exhausted: $field ($rangeKey)');
@@ -297,51 +293,51 @@ class SheetService {
     return pool.removeLast();
   }
 
-  String resolvePosition(String str) {
+  String resolvePosition(String str, URDContext ctx) {
     return str.replaceAllMapped(
       RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
           (match) {
         final xRaw = match.group(1)!.trim();
         final yRaw = match.group(2)!.trim();
 
-        final x = resolveRandom(xRaw, URDField.positionX);
-        final y = resolveRandom(yRaw, URDField.positionY);
+        final x = resolveRandom(xRaw, URDField.positionX, ctx);
+        final y = resolveRandom(yRaw, URDField.positionY, ctx);
 
         return '($x,$y)';
       },
     );
   }
 
-  String resolveAttack(String str) {
+  String resolveAttack(String str, URDContext ctx) {
     return str.replaceAllMapped(
       RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
           (match) {
         final secRaw = match.group(1)!.trim();
         final damageRaw = match.group(2)!.trim();
 
-        final sec = resolveRandom(secRaw, URDField.attackSecond);
-        final damage = resolveRandom(damageRaw, URDField.attackDamage);
+        final sec = resolveRandom(secRaw, URDField.attackSecond, ctx);
+        final damage = resolveRandom(damageRaw, URDField.attackDamage, ctx);
 
         return '($sec,$damage)';
       },
     );
   }
 
-  String resolveShape(String rawShape) {
+  String resolveShape(String rawShape, URDContext ctx) {
     rawShape = rawShape.replaceAll(RegExp(r'\s+'), '');
 
     final underscoreIndex = rawShape.indexOf('_');
 
     // order/energy 없는 케이스
     if (underscoreIndex == -1) {
-      return resolveRandom(rawShape, URDField.shape);
+      return resolveRandom(rawShape, URDField.shape, ctx);
     }
 
     final basePart = rawShape.substring(0, underscoreIndex);
     final restPart = rawShape.substring(underscoreIndex + 1);
 
     // shape + size만 처리
-    final resolvedBase = resolveRandom(basePart, URDField.size);
+    final resolvedBase = resolveRandom(basePart, URDField.size, ctx);
 
     // 나머지는 건드리지 않고 그대로 유지
     final ret = '${resolvedBase}_$restPart';
@@ -351,7 +347,7 @@ class SheetService {
     return ret;
   }
 
-  String resolveMovement(String movement) {
+  String resolveMovement(String movement, URDContext ctx) {
     if(movement == '') {
       return '';
     }
@@ -362,7 +358,7 @@ class SheetService {
       final prefix = getMovementPrefix(cmd);
       final type = detectMovementTypeFromPrefix(prefix);
 
-      final resolvedCmd = resolveMovementByType(cmd, type);
+      final resolvedCmd = resolveMovementByType(cmd, type, ctx);
 
       return resolvedCmd;
     }).toList();
@@ -370,15 +366,15 @@ class SheetService {
     return resolved.join(', ');
   }
 
-  String resolveMovementByType(String cmd, MovementValueType type) {
+  String resolveMovementByType(String cmd, MovementValueType type, URDContext ctx) {
     switch (type) {
       case MovementValueType.positionSpeed:
         return cmd.replaceAllMapped(
           RegExp(r'\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
               (match) {
-            final x = resolveRandom(match.group(1)!, URDField.positionX);
-            final y = resolveRandom(match.group(2)!, URDField.positionY);
-            final s = resolveRandom(match.group(3)!, URDField.movementSpeed);
+            final x = resolveRandom(match.group(1)!, URDField.positionX, ctx);
+            final y = resolveRandom(match.group(2)!, URDField.positionY, ctx);
+            final s = resolveRandom(match.group(3)!, URDField.movementSpeed, ctx);
             return '(${x},${y},${s})';
           },
         );
@@ -387,8 +383,8 @@ class SheetService {
         return cmd.replaceAllMapped(
           RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
               (match) {
-            final r = resolveRandom(match.group(1)!, URDField.movementRadius);
-            final s = resolveRandom(match.group(2)!, URDField.movementSpeed);
+            final r = resolveRandom(match.group(1)!, URDField.movementRadius, ctx);
+            final s = resolveRandom(match.group(2)!, URDField.movementSpeed, ctx);
             return '(${r},${s})';
           },
         );
@@ -397,8 +393,8 @@ class SheetService {
         return cmd.replaceAllMapped(
           RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
               (match) {
-            final a = resolveRandom(match.group(1)!, URDField.movementAsec);
-            final b = resolveRandom(match.group(2)!, URDField.movementBsec);
+            final a = resolveRandom(match.group(1)!, URDField.movementAsec, ctx);
+            final b = resolveRandom(match.group(2)!, URDField.movementBsec, ctx);
             return '(${a},${b})';
           },
         );
@@ -458,7 +454,7 @@ class SheetService {
   }
 
   // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
-  int _parseEnergy(String s, int def) {
+  int _parseEnergy(String s, int def, URDContext ctx) {
     // print("[ENERGY] energy parse start = $s");
     // 1. 마지막 ')' 위치 찾기
     final end = s.lastIndexOf(')');
@@ -486,7 +482,7 @@ class SheetService {
 
     // 4. RD / URD 처리
     if (inner.contains('RD')) {
-      final resolved = resolveRandom(inner, URDField.energy);
+      final resolved = resolveRandom(inner, URDField.energy, ctx);
       final ret = int.tryParse(resolved) ?? def;
       // print("[ENERGY] energy parse = $ret - RD");
       return ret;
@@ -559,4 +555,8 @@ class EnemyData {
   String toString() {
     return '[$command, $shape, $energy, $darkYN, $movement, $position, attack=($attackSeconds, $attackDamage), order=($order)]';
   }
+}
+
+class URDContext {
+  final Map<URDField, Map<String, List<int>>> pools = {};
 }
