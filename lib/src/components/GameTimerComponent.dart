@@ -148,4 +148,43 @@ class GameTimerComponent extends PositionComponent {
       ),
     );
   }
+
+  /// 타이머 바 위 중앙에 데미지 숫자를 잠깐 표시합니다.
+  /// 예: -3s
+  void showDamageNumber(double damage) {
+    if (!_ready) return;
+
+    final damageText = TextComponent(
+      text: '-${damage.toStringAsFixed(0)}s',
+      anchor: Anchor.bottomCenter,
+      position: Vector2(size.x / 2, -4),
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontFamily: 'Moulpali',
+          fontSize: 18,
+          color: Colors.red,
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.black54,
+              offset: Offset(1, 1),
+              blurRadius: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    add(damageText);
+
+    // 1초 후 자동 제거
+    add(
+      TimerComponent(
+        period: 1.0,
+        onTick: () => damageText.removeFromParent(),
+        removeOnFinish: true,
+        repeat: false,
+      ),
+    );
+  }
 }

@@ -384,6 +384,7 @@ class OneSecondGame extends FlameGame
 
     updateTimerUI();
     timerBar.flashPenalty();
+    timerBar.showDamageNumber(seconds); // 데미지 숫자 타이머 바 위에 표시
     
     if (currentMissionTime <= 0 && !_timerEndedNotified) {
       _timerEndedNotified = true;
