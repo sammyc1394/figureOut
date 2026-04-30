@@ -155,9 +155,9 @@ class GameTimerComponent extends PositionComponent {
     if (!_ready) return;
 
     final damageText = TextComponent(
-      text: '-${damage.toStringAsFixed(0)}s',
-      anchor: Anchor.bottomCenter,
-      position: Vector2(size.x / 2, -4),
+      text: '-${damage.toStringAsFixed(0)}',
+      anchor: Anchor.bottomRight,
+      position: Vector2(size.x, -4),
       textRenderer: TextPaint(
         style: const TextStyle(
           fontFamily: 'Moulpali',
