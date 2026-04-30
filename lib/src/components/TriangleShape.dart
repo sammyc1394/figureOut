@@ -164,6 +164,12 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   void triggerDisappear() {
     if (_isDisappearing) return;
 
+    // 에너지가 남아있으면 1 깎고 리턴 (아직 살아있음)
+    if (energy > 1) {
+      energy--;
+      return;
+    }
+
     _isDisappearing = true;
     wasRemovedByUser = true;
 
@@ -269,6 +275,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   void render(Canvas canvas) {
     super.render(canvas);
 
+    // 에너지 숫자 표시 (일반 삼각형이고 energy >= 1이면)
+    if (!isDark && energy >= 1 && !_isDisappearing) {
+      _drawText(canvas, energy.toString());
+    }
+
     if ((attackTime ?? 0) > 0 && !_attackDone && !_isDisappearing) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
@@ -279,6 +290,30 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
     }
+  }
+
+  void _drawText(Canvas canvas, String text) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: baseColor.withValues(alpha: _blinkAlpha),
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // 삼각형 중심 약간 위쪽에 위치 (시각적 중심)
+    final offset = Offset(
+      (size.x - textPainter.width) / 2,
+      (size.y - textPainter.height) / 2 - 4,
+    );
+
+    canvas.save();
+    textPainter.paint(canvas, offset);
+    canvas.restore();
   }
 
   Path _buildTrianglePath(Size s) {

@@ -400,7 +400,7 @@ class RectangleShape extends PositionComponent
   }
 
   void _renderRectangleShape(Canvas canvas) {
-    if (!isDark && count > 1) {
+    if (!isDark && count >= 1) {
       _drawText(canvas, count.toString());
     }
   }
