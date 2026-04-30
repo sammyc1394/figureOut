@@ -119,16 +119,17 @@ class GameTimerComponent extends PositionComponent {
   
   void flashPenalty({double durationSec = 0.4}) {
     if (!_ready) return;
+
+    // 1) 타이머 텍스트 빨갛게 → durationSec 후 검정 복구
     timerText.textRenderer = TextPaint(
       style: const TextStyle(
         fontFamily: 'Moulpali',
         fontSize: 16,
         height: 21 / 16,
         letterSpacing: -0.32,
-        color: Colors.red, // 빨간색
+        color: Colors.red,
       ),
     );
-    // 일정 시간 뒤 검정으로 복구
     add(
       TimerComponent(
         period: durationSec,
@@ -147,6 +148,31 @@ class GameTimerComponent extends PositionComponent {
         repeat: false,
       ),
     );
+
+    // 2) 타이머 바 빨갛게 → 1초 후 원래 색으로 복구
+    //    이미 10초 이하(영구 빨간 상태)이면 건드리지 않음
+    if (bar != null && currentTime > 10.0 + _epsilon) {
+      bar!.paint = Paint()
+        ..colorFilter = const ColorFilter.mode(Colors.red, BlendMode.srcIn);
+      add(
+        TimerComponent(
+          period: 1.0,
+          onTick: () {
+            if (bar == null) return;
+            // 복구 시점에 여전히 10초 초과이면 초록으로, 이하이면 빨간 유지
+            if (currentTime <= 10.0 + _epsilon) {
+              bar!.paint = Paint()
+                ..colorFilter =
+                    const ColorFilter.mode(Colors.red, BlendMode.srcIn);
+            } else {
+              bar!.paint = Paint(); // 원본 초록 복구
+            }
+          },
+          removeOnFinish: true,
+          repeat: false,
+        ),
+      );
+    }
   }
 
   /// 타이머 바 위 중앙에 데미지 숫자를 잠깐 표시합니다.
@@ -156,8 +182,8 @@ class GameTimerComponent extends PositionComponent {
 
     final damageText = TextComponent(
       text: '-${damage.toStringAsFixed(0)}',
-      anchor: Anchor.bottomRight,
-      position: Vector2(size.x, -4),
+      anchor: Anchor.topRight,
+      position: Vector2(size.x - 5, -22),
       textRenderer: TextPaint(
         style: const TextStyle(
           fontFamily: 'Moulpali',
