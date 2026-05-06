@@ -18,6 +18,7 @@ class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, DepthAware {
 
   int energy;
+  TextComponent? _hpTextComponent;
   bool _isLongPressing = false;
 
   late final SvgComponent svg;
@@ -85,6 +86,10 @@ class PentagonShape extends PositionComponent
       svg.opacity = _blinkAlpha;
       _png.opacity = 0;
     }
+
+    _hpTextComponent?.textRenderer = TextPaint(
+      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
+    );
   }
 
   // ===============================
@@ -210,6 +215,19 @@ class PentagonShape extends PositionComponent
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
     updateVisualsByPriority();
+
+    if (!isDark && energy > 0) {
+      _hpTextComponent = TextComponent(
+        text: energy.toString(),
+        anchor: Anchor.topRight,
+        position: Vector2(size.x - 4, 4),
+        priority: 999,
+        textRenderer: TextPaint(
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+      );
+      add(_hpTextComponent!);
+    }
   }
 
   // ===============================
@@ -251,13 +269,12 @@ class PentagonShape extends PositionComponent
         energy--;
 
         if (energy <= 0) {
-
           wasRemovedByUser = true;
-
           removeFromParent();
-
           return;
         }
+
+        _hpTextComponent?.text = energy.toString();
       }
     } else {
 
@@ -366,16 +383,6 @@ class PentagonShape extends PositionComponent
       );
     }
 
-    if (!isDark && energy > 0) {
-
-      _drawText(
-        canvas,
-        energy.toString(),
-        _visualPentagonCenter,
-        20,
-        const Color(0xFFC100BA).withOpacity(_blinkAlpha),
-      );
-    }
   }
 
   // ===============================
@@ -544,6 +551,8 @@ class PentagonShape extends PositionComponent
       removeFromParent();
       return;
     }
+
+    _hpTextComponent?.text = energy.toString();
   }
 
   @override

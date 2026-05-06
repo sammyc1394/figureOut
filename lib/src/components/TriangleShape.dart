@@ -16,6 +16,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   late final SvgComponent svg;
   int energy = 0;
   late final SpriteComponent _png;
+  TextComponent? _hpTextComponent;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
@@ -68,6 +69,10 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     svg.opacity = _blinkAlpha;
     _png.opacity = _blinkAlpha;
+
+    _hpTextComponent?.textRenderer = TextPaint(
+      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
+    );
   }
 
   // ===== 사라짐 애니메이션 상태 (유저 제거용) =====
@@ -156,6 +161,19 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
+
+    if (!isDark && energy > 0) {
+      _hpTextComponent = TextComponent(
+        text: energy.toString(),
+        anchor: Anchor.topRight,
+        position: Vector2(size.x - 4, 4),
+        priority: 999,
+        textRenderer: TextPaint(
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+      );
+      add(_hpTextComponent!);
+    }
   }
 
   // ==========================================================
@@ -167,9 +185,12 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     // 에너지가 남아있으면 1 깎고 리턴 (아직 살아있음)
     if (energy > 1) {
       energy--;
+      _hpTextComponent?.text = energy.toString();
       return;
     }
 
+    _hpTextComponent?.removeFromParent();
+    _hpTextComponent = null;
     _isDisappearing = true;
     wasRemovedByUser = true;
 
@@ -275,11 +296,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // 에너지 숫자 표시 (일반 삼각형이고 energy >= 1이면)
-    if (!isDark && energy >= 1 && !_isDisappearing) {
-      _drawText(canvas, energy.toString());
-    }
-
     if ((attackTime ?? 0) > 0 && !_attackDone && !_isDisappearing) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
@@ -290,30 +306,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       final partial = _extractPartialPath(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
     }
-  }
-
-  void _drawText(Canvas canvas, String text) {
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: baseColor.withValues(alpha: _blinkAlpha),
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    // 삼각형 중심 약간 위쪽에 위치 (시각적 중심)
-    final offset = Offset(
-      (size.x - textPainter.width) / 2,
-      (size.y - textPainter.height) / 2 - 4,
-    );
-
-    canvas.save();
-    textPainter.paint(canvas, offset);
-    canvas.restore();
   }
 
   Path _buildTrianglePath(Size s) {
