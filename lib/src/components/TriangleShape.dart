@@ -162,7 +162,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
 
-    if (!isDark && energy > 0) {
+    if (!isDark && energy > 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.topRight,
@@ -185,7 +185,12 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     // 에너지가 남아있으면 1 깎고 리턴 (아직 살아있음)
     if (energy > 1) {
       energy--;
-      _hpTextComponent?.text = energy.toString();
+      if (energy > 1) {
+        _hpTextComponent?.text = energy.toString();
+      } else {
+        _hpTextComponent?.removeFromParent();
+        _hpTextComponent = null;
+      }
       return;
     }
 

@@ -173,7 +173,7 @@ class HexagonShape extends PositionComponent
 
     updateVisualsByPriority();
 
-    if (!isDark && energy > 0) {
+    if (!isDark && energy > 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.topRight,

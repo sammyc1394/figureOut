@@ -216,7 +216,7 @@ class PentagonShape extends PositionComponent
 
     updateVisualsByPriority();
 
-    if (!isDark && energy > 0) {
+    if (!isDark && energy > 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.topRight,
@@ -274,7 +274,12 @@ class PentagonShape extends PositionComponent
           return;
         }
 
-        _hpTextComponent?.text = energy.toString();
+        if (energy > 1) {
+          _hpTextComponent?.text = energy.toString();
+        } else {
+          _hpTextComponent?.removeFromParent();
+          _hpTextComponent = null;
+        }
       }
     } else {
 

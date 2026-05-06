@@ -289,7 +289,7 @@ class RectangleShape extends PositionComponent
       _addOrderBadge(order!);
     }
 
-    if (!isDark && count >= 1) {
+    if (!isDark && count > 1) {
       _hpTextComponent = TextComponent(
         text: count.toString(),
         anchor: Anchor.topRight,
@@ -804,7 +804,7 @@ class RectangleShape extends PositionComponent
     print("=== VALID MOVE ==============");
     count--;
 
-    if (count >= 1) {
+    if (count > 1) {
       _hpTextComponent?.text = count.toString();
     } else {
       _hpTextComponent?.removeFromParent();
