@@ -52,7 +52,6 @@ class CircleShape extends PositionComponent
   @override
   void updateVisualsByRank(double rank) {
     // Rank is now pre-calculated in OneSecondGame (1.0 = top/original, 0.4 = bottom/dark)
-    const targetOpacity = 1.0;
     final darkness = rank;
 
     final filter = ColorFilter.matrix([
@@ -67,8 +66,8 @@ class CircleShape extends PositionComponent
     _svg.paint.colorFilter = filter;
     _png.paint.colorFilter = filter;
 
-    _svg.opacity = _blinkAlpha * targetOpacity;
-    _png.opacity = _blinkAlpha * targetOpacity;
+    _svg.opacity = _blinkAlpha * rank;
+    _png.opacity = _blinkAlpha * rank;
   }
 
   @override

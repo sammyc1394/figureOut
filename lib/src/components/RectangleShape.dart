@@ -106,13 +106,10 @@ class RectangleShape extends PositionComponent
 
   @override
   void updateVisualsByRank(double rank) {
-    const targetOpacity = 1.0;
-    final darkness = rank;
-
     final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
+      rank, 0, 0, 0, 0,
+      0, rank, 0, 0, 0,
+      0, 0, rank, 0, 0,
       0, 0, 0, 1, 0,
     ]);
 
@@ -123,11 +120,10 @@ class RectangleShape extends PositionComponent
       slice.paint.colorFilter = filter;
     }
 
-    // Mix depth opacity
     if (_usesPngLayer) {
-      _pngAttack.opacity = _blinkAlpha * targetOpacity;
+      _pngAttack.opacity = _blinkAlpha * rank;
     } else {
-      _setBaseSlicesOpacity(_blinkAlpha * targetOpacity);
+      _setBaseSlicesOpacity(_blinkAlpha * rank);
     }
   }
 

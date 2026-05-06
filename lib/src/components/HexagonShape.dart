@@ -76,13 +76,10 @@ class HexagonShape extends PositionComponent
 
   @override
   void updateVisualsByRank(double rank) {
-    const targetOpacity = 1.0;
-    final darkness = rank;
-
     final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
+      rank, 0, 0, 0, 0,
+      0, rank, 0, 0, 0,
+      0, 0, rank, 0, 0,
       0, 0, 0, 1, 0,
     ]);
 
@@ -92,8 +89,8 @@ class HexagonShape extends PositionComponent
       _png.paint.blendMode = BlendMode.srcOver;
       _png.paint.colorFilter = filter;
     }
-    
-    _opacity = targetOpacity;
+
+    _opacity = rank;
     svg.opacity = _blinkAlpha * _opacity;
   }
 

@@ -52,8 +52,8 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     // svg.opacity = _blinkAlpha * targetOpacity;
     // _png.opacity = _blinkAlpha * targetOpacity;
     final bool usePng = (attackTime ?? 0) > 0;
-    svg.opacity = usePng ? 0.0 : _blinkAlpha;
-    _png.opacity = usePng ? _blinkAlpha : 0.0;
+    svg.opacity = usePng ? 0.0 : _blinkAlpha * rank;
+    _png.opacity = usePng ? _blinkAlpha * rank : 0.0;
   }
 
   @override

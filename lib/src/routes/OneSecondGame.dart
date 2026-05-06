@@ -172,9 +172,8 @@ class OneSecondGame extends FlameGame
             }
         }
 
-        // Rank calculation: Subtle 0.05 decrease per overlapping layer on top.
-        // Clamped at 0.85 (min darkness).
-        final double rank = (1.0 - (overlapsOnTop * 0.05)).clamp(0.85, 1.0);
+        // rank: 1.0 = 맨 위(완전 불투명), 0.45까지 감소 (겹칠수록 반투명)
+        final double rank = (1.0 - (overlapsOnTop * 0.25)).clamp(0.45, 1.0);
         shapeA.updateVisualsByRank(rank);
     }
   }
@@ -1679,12 +1678,20 @@ class OneSecondGame extends FlameGame
   }
 
   // timer update
+  double _depthSyncTimer = 0.0;
+
   @override
   void update(double dt) {
     super.update(dt);
 
     if (_isPausedGlobally) {
       return;
+    }
+
+    _depthSyncTimer += dt;
+    if (_depthSyncTimer >= 0.05) {
+      _depthSyncTimer = 0.0;
+      _syncRelativeDepthVisuals();
     }
 
     if (_timerPaused && !_isTimeOver) {

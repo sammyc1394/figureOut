@@ -46,7 +46,6 @@ class PentagonShape extends PositionComponent
 
   @override
   void updateVisualsByRank(double rank) {
-    const targetOpacity = 1.0;
     final darkness = rank;
 
     final filter = ColorFilter.matrix([
@@ -63,9 +62,9 @@ class PentagonShape extends PositionComponent
 
     if (_usesPngLayer) {
       svg.opacity = 0;
-      _png.opacity = _blinkAlpha * targetOpacity;
+      _png.opacity = _blinkAlpha * rank;
     } else {
-      svg.opacity = _blinkAlpha * targetOpacity;
+      svg.opacity = _blinkAlpha * rank;
       _png.opacity = 0;
     }
   }
