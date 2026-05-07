@@ -27,6 +27,7 @@ class HexagonShape extends PositionComponent
   late final SpriteComponent _png;
 
   int energy = 0;
+  TextComponent? _hpTextComponent;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
@@ -105,6 +106,10 @@ class HexagonShape extends PositionComponent
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
     svg.opacity = _blinkAlpha * _opacity;
+
+    _hpTextComponent?.textRenderer = TextPaint(
+      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
+    );
   }
 
   HexagonShape(
@@ -167,6 +172,19 @@ class HexagonShape extends PositionComponent
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
     updateVisualsByPriority();
+
+    if (!isDark && energy > 1) {
+      _hpTextComponent = TextComponent(
+        text: energy.toString(),
+        anchor: Anchor.topRight,
+        position: Vector2(size.x - 4, 4),
+        priority: 999,
+        textRenderer: TextPaint(
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+      );
+      add(_hpTextComponent!);
+    }
   }
 
   Path _buildHexagonPath(Size s) {
