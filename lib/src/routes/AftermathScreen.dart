@@ -328,12 +328,10 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
 
   String _addStars() {
     // temporary code while not scoring - if we starts scoring, will try sth else
-    if (starCount == 0) {
-      starCount = 3;
-    }
+    final effectiveStar = starCount == 0 ? 3 : starCount;
 
     String ret="menu/mission/";
-    switch (starCount) {
+    switch (effectiveStar) {
       case 1:
         ret += 'Star_1.svg';
         break;
