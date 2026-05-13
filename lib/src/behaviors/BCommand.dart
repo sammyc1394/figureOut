@@ -32,18 +32,22 @@ class BCommand implements ShapeBehavior {
     final shapePadding = math.max(halfWidth, halfHeight);
 
     // 시작점만 에디터 좌표 -> 월드 좌표 변환
-    final startWorld = toPlayArea(
-      flipY(startEditor),
-      shapePadding,
-      clampInside: true,
-    );
+    // final startWorld = toPlayArea(
+    //   flipY(startEditor),
+    //   shapePadding,
+    //   clampInside: true,
+    // );
 
     // 방향점은 이미 월드 좌표
-    final targetWorld = directionWorld.clone();
+    final targetWorld = toPlayArea(
+      flipY(startEditor),
+      shapePadding,
+      clampInside: false,
+    );
 
-    shape.position = startWorld;
+    // shape.position = startWorld;
 
-    Vector2 dir = targetWorld - startWorld;
+    Vector2 dir = targetWorld - directionWorld;
     if (dir.length2 == 0) {
       dir = Vector2(1, 0);
     } else {
