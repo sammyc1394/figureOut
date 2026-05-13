@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:figureout/src/effect/FallingClippedPiece.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
@@ -9,14 +8,12 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
-import '../functions/DepthAware.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../config.dart';
-import '../functions/DepthAware.dart';
 import '../functions/OrderableShape.dart';
 
 class RectangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, DepthAware
+    with TapCallbacks, UserRemovable
     implements OrderableShape {
   int count = 0;
 
@@ -103,34 +100,6 @@ class RectangleShape extends PositionComponent
     for (final slice in _baseSlices) {
       slice.opacity = value;
     }
-  }
-
-  @override
-  void updateVisualsByRank(double rank) {
-    final filter = ColorFilter.matrix([
-      rank, 0, 0, 0, 0,
-      0, rank, 0, 0, 0,
-      0, 0, rank, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    _pngAttack.paint.blendMode = BlendMode.srcOver;
-    _pngAttack.paint.colorFilter = filter;
-    for (final slice in _baseSlices) {
-      slice.paint.blendMode = BlendMode.srcOver;
-      slice.paint.colorFilter = filter;
-    }
-
-    if (_usesPngLayer) {
-      _pngAttack.opacity = _blinkAlpha * rank;
-    } else {
-      _setBaseSlicesOpacity(_blinkAlpha * rank);
-    }
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    updateVisualsByRank(1.0);
   }
 
   void setBlinkAlpha(double alpha) {
@@ -278,8 +247,6 @@ class RectangleShape extends PositionComponent
       slice.paint.blendMode = blendMode;
     }
     _pngAttack.paint.blendMode = blendMode;
-
-    updateVisualsByPriority();
 
     if (order != null) {
       _addOrderBadge(order!);

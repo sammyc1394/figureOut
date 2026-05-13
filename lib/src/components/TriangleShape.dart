@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/routes/OneSecondGame.dart';
@@ -7,12 +6,11 @@ import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
-import '../functions/DepthAware.dart';
 import 'package:flutter/material.dart';
 
 import '../effect/AttackExplosionEffect.dart';
 
-class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, DepthAware {
+class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   late final SvgComponent svg;
   int energy = 0;
   late final SpriteComponent _png;
@@ -31,36 +29,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   bool isPaused = false;
 
   double _blinkAlpha = 1.0;
-
-  @override
-  void updateVisualsByRank(double rank) {
-    // const targetOpacity = 1.0;
-    final darkness = rank;
-
-    final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    svg.paint.blendMode = BlendMode.srcOver;
-    _png.paint.blendMode = BlendMode.srcOver;
-    svg.paint.colorFilter = filter;
-    _png.paint.colorFilter = filter;
-
-    // Mix depth opacity
-    // svg.opacity = _blinkAlpha * targetOpacity;
-    // _png.opacity = _blinkAlpha * targetOpacity;
-    final bool usePng = (attackTime ?? 0) > 0;
-    svg.opacity = usePng ? 0.0 : _blinkAlpha * rank;
-    _png.opacity = usePng ? _blinkAlpha * rank : 0.0;
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    updateVisualsByRank(1.0);
-  }
 
   void setBlinkAlpha(double alpha){
     if (_isDisappearing) return;
@@ -150,8 +118,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     svg.paint.blendMode = blendMode;
     _png.paint.blendMode = blendMode;
-
-    updateVisualsByPriority();
 
     // if ((attackTime ?? 0) > 0) {
     //   svg.opacity = 0;

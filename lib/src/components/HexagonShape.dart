@@ -4,11 +4,8 @@ import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
-import 'dart:ui';
 import 'dart:math' as math;
 
-import '../functions/DepthAware.dart';
-import '../functions/OrderableShape.dart';
 import '../effect/AttackExplosionEffect.dart';
 
 enum HexagonState {
@@ -18,7 +15,7 @@ enum HexagonState {
 }
 
 class HexagonShape extends PositionComponent
-    with DragCallbacks, TapCallbacks, UserRemovable, DepthAware {
+    with DragCallbacks, TapCallbacks, UserRemovable {
 
   double dragScale = 1.0;
   double autoScale = 1.0;
@@ -74,31 +71,6 @@ class HexagonShape extends PositionComponent
   // ============================
 
   double _blinkAlpha = 1.0;
-
-  @override
-  void updateVisualsByRank(double rank) {
-    final filter = ColorFilter.matrix([
-      rank, 0, 0, 0, 0,
-      0, rank, 0, 0, 0,
-      0, 0, rank, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    svg.paint.blendMode = BlendMode.srcOver;
-    svg.paint.colorFilter = filter;
-    if (attackTime != null) {
-      _png.paint.blendMode = BlendMode.srcOver;
-      _png.paint.colorFilter = filter;
-    }
-
-    _opacity = rank;
-    svg.opacity = _blinkAlpha * _opacity;
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    updateVisualsByRank(1.0);
-  }
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
@@ -167,8 +139,6 @@ class HexagonShape extends PositionComponent
 
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
-
-    updateVisualsByPriority();
 
     if (!isDark && energy > 1) {
       _hpTextComponent = TextComponent(

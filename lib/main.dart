@@ -134,9 +134,9 @@ class figureoutMain extends StatelessWidget {
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       title: "figure out",
-      theme: new ThemeData(
+      theme: ThemeData(
         scaffoldBackgroundColor:Color(bgColor),
-        appBarTheme: new AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: Color(bgColor),
         ),
       ),

@@ -1,10 +1,7 @@
 import 'dart:async';
 
 import 'package:figureout/src/behaviors/shapeBehavior.dart';
-import 'package:figureout/src/functions/DepthAware.dart';
-import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/animation.dart';
 
@@ -131,10 +128,6 @@ class ZCommand implements ShapeBehavior {
         priorities.add(zz);
 
         await moveLinear(target, speed, priorityValue: zz);
-
-        if (shape is DepthAware) {
-          (shape as DepthAware).updateVisualsByPriority();
-        }
       }
 
       if (!shape.isMounted) return;

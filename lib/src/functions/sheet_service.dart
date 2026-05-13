@@ -375,7 +375,7 @@ class SheetService {
             final x = resolveRandom(match.group(1)!, URDField.positionX, ctx);
             final y = resolveRandom(match.group(2)!, URDField.positionY, ctx);
             final s = resolveRandom(match.group(3)!, URDField.movementSpeed, ctx);
-            return '(${x},${y},${s})';
+            return '($x,$y,$s)';
           },
         );
 
@@ -385,7 +385,7 @@ class SheetService {
               (match) {
             final r = resolveRandom(match.group(1)!, URDField.movementRadius, ctx);
             final s = resolveRandom(match.group(2)!, URDField.movementSpeed, ctx);
-            return '(${r},${s})';
+            return '($r,$s)';
           },
         );
 
@@ -395,7 +395,7 @@ class SheetService {
               (match) {
             final a = resolveRandom(match.group(1)!, URDField.movementAsec, ctx);
             final b = resolveRandom(match.group(2)!, URDField.movementBsec, ctx);
-            return '(${a},${b})';
+            return '($a,$b)';
           },
         );
     }
@@ -465,8 +465,9 @@ class SheetService {
     int start = -1;
 
     for (int i = end; i >= 0; i--) {
-      if (s[i] == ')') depth++;
-      else if (s[i] == '(') {
+      if (s[i] == ')') {
+        depth++;
+      } else if (s[i] == '(') {
         depth--;
         if (depth == 0) {
           start = i;

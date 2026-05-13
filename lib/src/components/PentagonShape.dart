@@ -9,13 +9,12 @@ import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
-import '../functions/DepthAware.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, DepthAware {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
 
   int energy;
   TextComponent? _hpTextComponent;
@@ -44,36 +43,6 @@ class PentagonShape extends PositionComponent
   double _blinkAlpha = 1.0;
 
   bool get _usesPngLayer => (attackTime ?? 0) > 0;
-
-  @override
-  void updateVisualsByRank(double rank) {
-    final darkness = rank;
-
-    final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    svg.paint.blendMode = BlendMode.srcOver;
-    _png.paint.blendMode = BlendMode.srcOver;
-    svg.paint.colorFilter = filter;
-    _png.paint.colorFilter = filter;
-
-    if (_usesPngLayer) {
-      svg.opacity = 0;
-      _png.opacity = _blinkAlpha * rank;
-    } else {
-      svg.opacity = _blinkAlpha * rank;
-      _png.opacity = 0;
-    }
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    updateVisualsByRank(1.0);
-  }
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
@@ -212,8 +181,6 @@ class PentagonShape extends PositionComponent
 
     _perimeter =
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
-
-    updateVisualsByPriority();
 
     if (!isDark && energy > 1) {
       _hpTextComponent = TextComponent(

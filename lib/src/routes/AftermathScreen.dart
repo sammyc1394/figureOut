@@ -111,7 +111,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
     background.add(banner);
 
     final titleText = TextComponent(
-      text: "S ${stgIndex + 1} - M $msnIndex: ${msnTitle}",
+      text: "S ${stgIndex + 1} - M $msnIndex: $msnTitle",
       textRenderer: TextPaint(
         style: TextStyle(
           fontFamily: appFontFamily,
@@ -243,7 +243,7 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       background.add(levelStatus);
 
       final levelLabel = TextComponent(
-        text: "S ${stgIndex + 1} - M ${msnIndex} : ${msnTitle}",
+        text: "S ${stgIndex + 1} - M $msnIndex : $msnTitle",
         textRenderer: TextPaint(
           style: TextStyle(
             fontFamily: appFontFamily,
