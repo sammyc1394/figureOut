@@ -33,6 +33,7 @@ class RectangleShape extends PositionComponent
   double _blinkAlpha = 1.0;
   CircleComponent? _orderBadgeBg;
   TextComponent? _orderBadgeText;
+  TextComponent? _hpTextComponent;
 
   bool isSliced = false;
   Vector2? sliceStart;
@@ -158,6 +159,16 @@ class RectangleShape extends PositionComponent
         ),
       );
     }
+
+    if (_hpTextComponent != null) {
+      _hpTextComponent!.textRenderer = TextPaint(
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.black.withValues(alpha: _blinkAlpha),
+        ),
+      );
+    }
   }
 
   @override
@@ -272,6 +283,23 @@ class RectangleShape extends PositionComponent
 
     if (order != null) {
       _addOrderBadge(order!);
+    }
+
+    if (!isDark && count > 1) {
+      _hpTextComponent = TextComponent(
+        text: count.toString(),
+        anchor: Anchor.topRight,
+        position: Vector2(size.x - 4, 4),
+        priority: 999,
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+      );
+      add(_hpTextComponent!);
     }
 
     if (_usesPngLayer) {
@@ -395,34 +423,8 @@ class RectangleShape extends PositionComponent
     _renderSliceLine(canvas);
   }
 
-  void _renderRectangleShape(Canvas canvas) {
-    if (!isDark && count >= 1) {
-      _drawText(canvas, count.toString());
-    }
-  }
+  void _renderRectangleShape(Canvas canvas) {}
 
-  void _drawText(Canvas canvas, String text) {
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: const Color(0xFF4680FF)
-              .withAlpha((_blinkAlpha * 255).toInt()),
-          fontSize: 20,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final offset = Offset(
-      (size.x - textPainter.width) / 2,
-      (size.y - textPainter.height) / 2,
-    );
-
-    canvas.save();
-    textPainter.paint(canvas, offset);
-    canvas.restore();
-  }
 
   void _renderSliceLine(Canvas canvas) {
     if (sliceStart != null && sliceEnd != null) {
@@ -797,6 +799,13 @@ class RectangleShape extends PositionComponent
   void applyValidInteraction() {
     print("=== VALID MOVE ==============");
     count--;
+
+    if (count > 1) {
+      _hpTextComponent?.text = count.toString();
+    } else {
+      _hpTextComponent?.removeFromParent();
+      _hpTextComponent = null;
+    }
 
     Future.delayed(const Duration(milliseconds: 1), () {
       isSliced = false;

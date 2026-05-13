@@ -31,6 +31,7 @@ class CircleShape extends PositionComponent
   final int? order;
 
   late PositionComponent _orderBadge;
+  TextComponent? _hpTextComponent;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -89,6 +90,10 @@ class CircleShape extends PositionComponent
     // if (_png.isMounted) {
       _png.opacity = _blinkAlpha;
     // }
+
+    _hpTextComponent?.textRenderer = TextPaint(
+      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
+    );
   }
 
   CircleShape(
@@ -157,6 +162,19 @@ class CircleShape extends PositionComponent
     if ((attackTime ?? 0) > 0) {
       _svg.opacity = 0;
       _png.opacity = 1;
+    }
+
+    if (!isDark && count > 1) {
+      _hpTextComponent = TextComponent(
+        text: count.toString(),
+        anchor: Anchor.topRight,
+        position: Vector2(size.x - 4, 4),
+        priority: 999,
+        textRenderer: TextPaint(
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+      );
+      add(_hpTextComponent!);
     }
   }
 
@@ -251,27 +269,6 @@ class CircleShape extends PositionComponent
       );
     }
 
-    if (!isDark && count > 0) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: count.toString(),
-          style: TextStyle(
-            color:
-                (_attackTimeCritical ? dangerColor : const Color(0xFFFF9D33)).withValues(alpha:_blinkAlpha),
-            fontSize: 20,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      tp.paint(
-        canvas,
-        Offset(
-          (size.x - tp.width) / 2,
-          (size.y - tp.height) / 2,
-        ),
-      );
-    }
   }
 
   Path _buildCirclePath() {
@@ -313,6 +310,13 @@ class CircleShape extends PositionComponent
 
   void applyValidInteraction() {
     count--;
+
+    if (count > 1) {
+      _hpTextComponent?.text = count.toString();
+    } else {
+      _hpTextComponent?.removeFromParent();
+      _hpTextComponent = null;
+    }
 
     if (count <= 0) {
       wasRemovedByUser = true;

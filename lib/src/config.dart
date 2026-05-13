@@ -28,7 +28,7 @@ const UIsidePadding = 10.0;
 String appFontFamily = 'Gaegu';
 const fallbackFontFamily = ['Gaegu'];
 
-const bgColor = 0xFFE4DFCB;
+const bgColor = 0xFFE4E0D3;
 
 // Enums
 enum shapes { Circle, Rectangel, Pentagon, Triangle, Hexagon }

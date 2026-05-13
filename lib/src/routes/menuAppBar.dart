@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,7 +43,8 @@ class _MenuappbarState extends State<Menuappbar> {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      elevation: 3,
+      backgroundColor: const Color(bgColor),
+      surfaceTintColor: Colors.transparent,
       centerTitle: true,
       leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
@@ -68,7 +68,8 @@ class _MenuappbarState extends State<Menuappbar> {
                         fontSize: 16
                       ),
                     ),
-                  ))
+                  ),
+              )
             ],
           )
       ),
@@ -82,7 +83,7 @@ class _MenuappbarState extends State<Menuappbar> {
                   onTap: () {
 
                   },
-                  child: SvgPicture.asset('assets/menu/common/Setting.svg'),
+                  child: SvgPicture.asset('assets/menu/common/Setting_blue.svg'),
                 )
               ],
             ),

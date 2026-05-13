@@ -261,12 +261,12 @@ class SheetService {
         final max = double.parse(match.group(3)!);
 
         if (type == 'RD') {
-          final value = _random.nextDouble() * (max - min) + min;
+          final value = _random.nextDouble() * ((max + 1) - min) + min;
           return value.truncate().toString();
         }
 
         if (type == 'URD') {
-          return _getURD(field, min.toInt(), max.toInt(), ctx).toString();
+          return _getURD(field, min.toInt(), (max.toInt() + 1), ctx).toString();
         }
 
         return match.group(0)!;

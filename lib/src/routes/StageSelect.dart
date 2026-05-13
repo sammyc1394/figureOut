@@ -21,10 +21,13 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
 
   // SVG 파일 목록 (assets 폴더에 미리 넣어야 함)
   final List<String> stagesSVG = [
-    "assets/menu/stage/Blue_Default.png",
-    "assets/menu/stage/Black_Default.png",
-    "assets/menu/stage/Pink_Default.png",
-    "assets/menu/stage/Orange_Default.png",
+    "assets/menu/stage/stage_1.png",
+    "assets/menu/stage/stage_2.png",
+    "assets/menu/stage/stage_3.png",
+    "assets/menu/stage/stage_4.png",
+    "assets/menu/stage/stage_5.png",
+    "assets/menu/stage/stage_6.png",
+    "assets/menu/stage/stage_7.png",
   ];
 
   @override
@@ -36,28 +39,22 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 16),
-          Text('Figure Out the Shapes!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w300,
-                letterSpacing: 0,
-                color: Colors.black,
-                fontFamily: appFontFamily,
-              )
-          ),
-          const SizedBox(height: 8),
-          CarouselSlider(
-            options: CarouselOptions(
-              height: 250,
-              enlargeCenterPage: true,   // 가운데 있는 아이템을 크게
-              enableInfiniteScroll: true,
-              autoPlay: false,           // 자동 슬라이드 원하면 true
-              onPageChanged: (index, reason) {
-                setState(() => _currentIndex = index);
-              },
-            ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 450,
+            child: CarouselSlider(
+                options: CarouselOptions(
+                  height: 450,
+                  viewportFraction: 0.48,
+                  enlargeCenterPage: true,
+                  enlargeFactor: 0.5,
+                  enableInfiniteScroll: false,
+                  padEnds: true,
+                  autoPlay: false,
+                  onPageChanged: (index, reason) {
+                    setState(() => _currentIndex = index);
+                  },
+                ),
             items: List.generate(stages.length, (index) {
               final svgPath = stagesSVG[index % stagesSVG.length];
               final stage = stages[index];
@@ -71,34 +68,72 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                         "index": _currentIndex,
                       });
                     },
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // 🎨 SVG 이미지
-                        Image.asset(
-                          svgPath,
-                          width: 200,
-                          height: 200,
-                        ),
-                        const SizedBox(height: 12),
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: index == _currentIndex ? 1.0 : 0.2,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 250),
+                        scale: index == _currentIndex ? 1.0 : 0.82,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
 
-                        // 🏷 Stage 이름
-                        Text(
-                          stage.name.isNotEmpty ?
-                          stage.name : 'Stage ${index + 1}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: appFontFamily,
-                          ),
+                            SizedBox(
+                              width: 220,
+                              height: 220,
+                              child: Center(
+                                child: Image.asset(
+                                  svgPath,
+                                  width: 220,
+                                  height: 220,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: index == _currentIndex ? 1.0 : 0.0,
+                              child: SizedBox(
+                                width: 150,
+                                height: 60,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+
+                                    Image.asset(
+                                      "assets/menu/stage/stage_name_outline.png",
+                                      fit: BoxFit.contain,
+                                    ),
+
+                                    Text(
+                                      stage.name.isNotEmpty
+                                          ? stage.name
+                                          : 'Stage ${index + 1}',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w500,
+                                        fontFamily: appFontFamily,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   );
                 },
               );
+
             })
           ),
+    ),
           const SizedBox(height: 20),
           // 기존 Row 전체를 이 코드로 교체
           Padding(

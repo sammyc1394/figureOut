@@ -55,3 +55,18 @@ assets/.env
 
 # Personal notes and README backup
 README_paul.md
+
+# Local platform directories (each dev manages their own)
+android/
+ios/
+linux/
+macos/
+web/
+windows/
+
+# Flutter local metadata
+.metadata
+analysis_options.yaml
+
+# Test directory (local only)
+test/

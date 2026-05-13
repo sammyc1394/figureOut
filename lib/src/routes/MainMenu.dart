@@ -6,6 +6,7 @@ import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config.dart';
+import '../effect/WigglyUnderlinePainter.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -69,11 +70,17 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   // 도형의 기본 위치값
   Alignment _baseAlignment(int index) {
     final alignments = [
-      const Alignment(-0.8, -0.5),
-      const Alignment(0.7, -0.45),
-      const Alignment(-0.6, 0.7),
-      const Alignment(0.8, 0.5),
-      const Alignment(0.0, -0.7),
+      const Alignment(-0.75, -0.78), // circle
+      const Alignment(0.78, -0.60),  // triangle
+      const Alignment(0.25, 0.25),   // hexagon
+      const Alignment(0.92, 0.72),   // rectangle
+      const Alignment(-0.92, 0.50),  // pentagon
+      // 잘린버전
+      // const Alignment(-0.82, -0.72), // circle
+      // const Alignment(0.92, -0.48),  // triangle
+      // const Alignment(0.32, 0.38),   // hexagon
+      // const Alignment(1.18, 0.78),   // rectangle (잘리게)
+      // const Alignment(-1.15, 0.68),  // pentagon (잘리게)
     ];
     return alignments[index % alignments.length];
   }
@@ -139,10 +146,19 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                     alignment: Alignment(base.x + dx, base.y + dy),
                     child: Opacity(
                       opacity: 0.9,
-                      child: SvgPicture.asset(
-                        shapes[index],
-                        width: 90,
-                        height: 90,
+                      child: Transform.rotate(
+                        angle: switch (index) {
+                          1 => 0.18, // triangle
+                          2 => 0.12,  // hexagon
+                          3 => 0.42, // rectangle
+                          4 => -0.35,  // pentagon
+                          _ => 0.0,   // circle
+                        },
+                        child: SvgPicture.asset(
+                          shapes[index],
+                          width: 90,
+                          height: 90,
+                        ),
                       ),
                     ),
                   );
@@ -153,42 +169,67 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 120),
+                const SizedBox(height: 100),
                 Text(
-                  'Figure Out',
+                  'Figure',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: appFontFamily,
-                    fontSize: 42,
-                    fontWeight: FontWeight.w300,
+                    fontSize: 80,
+                    fontWeight: FontWeight.w400,
                     color: Colors.black,
-                    letterSpacing: 0,
+                    height: 1.0,
                   ),
                 ),
-                Text(
-                  'the Shapes!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: appFontFamily,
-                    fontSize: 42,
-                    fontWeight: FontWeight.w300,
-                    color: Colors.black,
-                    letterSpacing: 0,
-                  ),
-                ),
-                const SizedBox(height : 100),
 
-                GestureDetector(
-                  onTap: () {
-                    _goToStages();
-                  },
-                  child: SvgPicture.asset(
-                    "assets/menu/common/Play_default.svg",
-                    width: 60,
-                    height: 60,
+                Transform.translate(
+                  offset: const Offset(0, -2), // 👉 핵심
+                  child: Text(
+                    'Out',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: appFontFamily,
+                      fontSize: 80,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                      height: 1.0,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
+
+                const SizedBox(height: 8),
+
+                // 밑줄
+                Transform.translate(
+                  offset: const Offset(15, 0),
+                  child: Column(
+                    children: [
+
+                      Transform.rotate(
+                        angle: -0.06,
+                        child: CustomPaint(
+                          size: const Size(220, 10),
+                          painter: WigglyUnderlinePainter(seed: 1),
+                        ),
+                      ),
+
+                      const SizedBox(height: 2),
+
+                      Transform.translate(
+                        offset: const Offset(5, 0),
+                        child: Transform.rotate(
+                          angle: -0.06,
+                          child: CustomPaint(
+                            size: const Size(220, 10),
+                            painter: WigglyUnderlinePainter(seed: 1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 150),
 
                 _isLoading
                     ? const CircularProgressIndicator() // 로딩 중이면 인디케이터 표시
@@ -197,6 +238,20 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                   iconSize: 40,
                   color: Colors.black87,
                   onPressed: _refreshData,
+                ),
+
+                const SizedBox(height: 20),
+
+                // Refresh 버튼 유지
+
+                Text(
+                  'Tap to enter',
+                  style: TextStyle(
+                    fontFamily: appFontFamily,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 32,
+                    color: Colors.black,
+                  ),
                 ),
 
               ],

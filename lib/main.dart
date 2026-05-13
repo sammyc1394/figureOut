@@ -135,9 +135,9 @@ class figureoutMain extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: "figure out",
       theme: new ThemeData(
-        scaffoldBackgroundColor:Color(0xFFEDEBE0),
+        scaffoldBackgroundColor:Color(bgColor),
         appBarTheme: new AppBarTheme(
-          backgroundColor: Color(0xFFEDEBE0),
+          backgroundColor: Color(bgColor),
         ),
       ),
     );
