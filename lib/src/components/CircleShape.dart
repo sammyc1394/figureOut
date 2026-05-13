@@ -7,11 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
+import '../functions/OverlapHighlightable.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/CircleDisappearEffect.dart';
 
 class CircleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, HasGameRef
+    with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable
     implements OrderableShape {
 
   int count;
@@ -47,6 +48,11 @@ class CircleShape extends PositionComponent
   final Color dangerColor = const Color(0xFFEE0505);
 
   double _blinkAlpha = 1.0;
+
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
@@ -215,6 +221,12 @@ class CircleShape extends PositionComponent
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+
+    if (isOverlapping) {
+      final center = Offset(size.x / 2, size.y / 2);
+      final radius = size.x * 0.48;
+      canvas.drawCircle(center, radius, _overlapOutlinePaint);
+    }
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =

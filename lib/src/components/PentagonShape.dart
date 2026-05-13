@@ -12,9 +12,10 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
+import '../functions/OverlapHighlightable.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame> {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable {
 
   int energy;
   TextComponent? _hpTextComponent;
@@ -41,6 +42,11 @@ class PentagonShape extends PositionComponent
   // ===============================
 
   double _blinkAlpha = 1.0;
+
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
 
   bool get _usesPngLayer => (attackTime ?? 0) > 0;
 
@@ -295,6 +301,10 @@ class PentagonShape extends PositionComponent
   void render(Canvas canvas) {
 
     super.render(canvas);
+
+    if (isOverlapping) {
+      canvas.drawPath(_pentagonPath, _overlapOutlinePaint);
+    }
 
     if (!isDark && _pulseThicknessT > 0.0) {
 

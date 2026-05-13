@@ -41,6 +41,7 @@ import '../behaviors/LCommand.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
+import '../functions/OverlapHighlightable.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -147,6 +148,28 @@ class OneSecondGame extends FlameGame
   double? currentCircleRadius;
 
   int _globalSpawnCounter = 100;
+
+  void _syncOverlapHighlight() {
+    final shapes = children.whereType<OverlapHighlightable>().toList();
+
+    // 일단 전부 꺼짐
+    for (final s in shapes) {
+      s.setOverlapping(false);
+    }
+
+    // 겹치는 쌍 찾아서 둘 다 켬
+    for (int i = 0; i < shapes.length; i++) {
+      for (int j = i + 1; j < shapes.length; j++) {
+        final a = shapes[i] as PositionComponent;
+        final b = shapes[j] as PositionComponent;
+        if (a.toRect().overlaps(b.toRect())) {
+          shapes[i].setOverlapping(true);
+          shapes[j].setOverlapping(true);
+        }
+      }
+    }
+  }
+
   @override
   void onChildrenChanged(Component child, ChildrenChangeType type) {
     super.onChildrenChanged(child, type);
@@ -1631,12 +1654,20 @@ class OneSecondGame extends FlameGame
     remainingTime = currentMissionTime; // Sync with legacy if needed
   }
 
+  double _overlapHighlightTimer = 0.0;
+
   @override
   void update(double dt) {
     super.update(dt);
 
     if (_isPausedGlobally) {
       return;
+    }
+
+    _overlapHighlightTimer += dt;
+    if (_overlapHighlightTimer >= 0.05) {
+      _overlapHighlightTimer = 0.0;
+      _syncOverlapHighlight();
     }
 
     if (_timerPaused && !_isTimeOver) {

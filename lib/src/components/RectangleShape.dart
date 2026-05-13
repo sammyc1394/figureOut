@@ -11,9 +11,10 @@ import 'package:flutter/material.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
+import '../functions/OverlapHighlightable.dart';
 
 class RectangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable
+    with TapCallbacks, UserRemovable, OverlapHighlightable
     implements OrderableShape {
   int count = 0;
 
@@ -65,6 +66,11 @@ class RectangleShape extends PositionComponent
 
   final Color dangerColor = const Color(0xFFEE0505);
   final Color baseColor = const Color(0xFF345983);
+
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
 
   // Keep SVG source only for sliced-piece effect.
   late final Svg _sourceSvg;
@@ -372,6 +378,10 @@ class RectangleShape extends PositionComponent
     super.render(canvas);
 
     _renderRectangleShape(canvas);
+
+    if (isOverlapping) {
+      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
+    }
 
     // perimeter timer
     if ((attackTime ?? 0) > 0 && !_attackDone) {

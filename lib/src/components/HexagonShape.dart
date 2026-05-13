@@ -7,6 +7,7 @@ import 'package:figureout/src/functions/UserRemovable.dart';
 import 'dart:math' as math;
 
 import '../effect/AttackExplosionEffect.dart';
+import '../functions/OverlapHighlightable.dart';
 
 enum HexagonState {
   normal,
@@ -15,7 +16,7 @@ enum HexagonState {
 }
 
 class HexagonShape extends PositionComponent
-    with DragCallbacks, TapCallbacks, UserRemovable {
+    with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable {
 
   double dragScale = 1.0;
   double autoScale = 1.0;
@@ -51,6 +52,11 @@ class HexagonShape extends PositionComponent
 
   final Color dangerColor = const Color(0xFFEE0505);
   final Color baseColor   = const Color(0xFF9BEE3B);
+
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
 
   HexagonState _state = HexagonState.normal;
 
@@ -350,6 +356,10 @@ class HexagonShape extends PositionComponent
   void render(Canvas canvas) {
 
     super.render(canvas);
+
+    if (isOverlapping) {
+      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
+    }
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
 

@@ -9,8 +9,9 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 import '../effect/AttackExplosionEffect.dart';
+import '../functions/OverlapHighlightable.dart';
 
-class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
+class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable {
   late final SvgComponent svg;
   int energy = 0;
   late final SpriteComponent _png;
@@ -29,6 +30,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   bool isPaused = false;
 
   double _blinkAlpha = 1.0;
+
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
 
   void setBlinkAlpha(double alpha){
     if (_isDisappearing) return;
@@ -266,6 +272,10 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+
+    if (isOverlapping) {
+      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
+    }
 
     if ((attackTime ?? 0) > 0 && !_attackDone && !_isDisappearing) {
       final ratio =
