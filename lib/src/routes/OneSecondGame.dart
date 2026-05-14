@@ -41,9 +41,9 @@ import '../behaviors/LCommand.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
+import '../functions/OverlapHighlightable.dart';
 import 'MissionSelect.dart';
 import 'PausedScreen.dart';
-import '../functions/DepthAware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OneSecondGame extends FlameGame
@@ -148,43 +148,31 @@ class OneSecondGame extends FlameGame
   double? currentCircleRadius;
 
   int _globalSpawnCounter = 100;
-  void _syncRelativeDepthVisuals() {
-    final depthShapes = children.whereType<DepthAware>().toList();
-    if (depthShapes.isEmpty) return;
 
-    // Sort by priority: Bottom (lowest) to Top (highest)
-    // Later spawned shapes have higher priority
-    depthShapes.sort((a, b) => a.priority.compareTo(b.priority));
+  void _syncOverlapHighlight() {
+    final shapes = children.whereType<OverlapHighlightable>().toList();
 
-    final n = depthShapes.length;
-    // We sort bottom-to-top (priority increasing)
-    depthShapes.sort((a, b) => a.priority.compareTo(b.priority));
+    // 일단 전부 꺼짐
+    for (final s in shapes) {
+      s.setOverlapping(false);
+    }
 
-    for (int i = 0; i < n; i++) {
-        final shapeA = depthShapes[i];
-        int overlapsOnTop = 0;
-
-        // Check only shapes ABOVE shapeA (index > i) that physically overlap
-        for (int j = i + 1; j < n; j++) {
-            final shapeB = depthShapes[j];
-            if (shapeB.toRect().overlaps(shapeA.toRect())) {
-                overlapsOnTop++;
-            }
+    // 겹치는 쌍 찾아서 둘 다 켬
+    for (int i = 0; i < shapes.length; i++) {
+      for (int j = i + 1; j < shapes.length; j++) {
+        final a = shapes[i] as PositionComponent;
+        final b = shapes[j] as PositionComponent;
+        if (a.toRect().overlaps(b.toRect())) {
+          shapes[i].setOverlapping(true);
+          shapes[j].setOverlapping(true);
         }
-
-        // Rank calculation: Subtle 0.05 decrease per overlapping layer on top.
-        // Clamped at 0.85 (min darkness).
-        final double rank = (1.0 - (overlapsOnTop * 0.05)).clamp(0.85, 1.0);
-        shapeA.updateVisualsByRank(rank);
+      }
     }
   }
 
   @override
   void onChildrenChanged(Component child, ChildrenChangeType type) {
     super.onChildrenChanged(child, type);
-    if (child is DepthAware) {
-      _syncRelativeDepthVisuals();
-    }
     // 새 컴포넌트가 추가될 때마다 현재 디버그 상태를 그대로 적용
     if (type == ChildrenChangeType.added) {
       _applyDebugToTree(child, debugMode);
@@ -967,18 +955,9 @@ class OneSecondGame extends FlameGame
       currentWave.add(shape);
     }
 
-    _updateShapeVisualsByPriority(shape as PositionComponent);
   }
 
-  void _updateShapeVisualsByPriority(PositionComponent shape) {
-    if (shape is DepthAware) {
-      (shape as DepthAware).updateVisualsByPriority();
-    }
-  }
-
-  void _applyBlendModeToShape(PositionComponent shape, BlendMode mode) {
-    // Deprecated: handled by DepthAware
-  }
+  void _applyBlendModeToShape(PositionComponent shape, BlendMode mode) {}
 
   PositionComponent _createShapeFromPrepared(PreparedEnemy enemy) {
     PositionComponent? shape;
@@ -1056,10 +1035,7 @@ class OneSecondGame extends FlameGame
         throw Exception("Unknown shapeType");
     }
 
-    if (shape is DepthAware) {
-        shape.priority = _globalSpawnCounter++;
-    }
-    _syncRelativeDepthVisuals();
+    shape.priority = _globalSpawnCounter++;
     return shape;
   }
 
@@ -1678,13 +1654,20 @@ class OneSecondGame extends FlameGame
     remainingTime = currentMissionTime; // Sync with legacy if needed
   }
 
-  // timer update
+  double _overlapHighlightTimer = 0.0;
+
   @override
   void update(double dt) {
     super.update(dt);
 
     if (_isPausedGlobally) {
       return;
+    }
+
+    _overlapHighlightTimer += dt;
+    if (_overlapHighlightTimer >= 0.05) {
+      _overlapHighlightTimer = 0.0;
+      _syncOverlapHighlight();
     }
 
     if (_timerPaused && !_isTimeOver) {

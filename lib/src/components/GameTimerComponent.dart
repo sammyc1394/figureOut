@@ -12,7 +12,7 @@ class GameTimerComponent extends PositionComponent {
   double totalTime;
   double currentTime;
 
-  String _currentFillAsset = 'TimerBar_green.svg';
+  final String _currentFillAsset = 'TimerBar_green.svg';
   bool _ready = false;
 
   static const double _epsilon = 1e-3;

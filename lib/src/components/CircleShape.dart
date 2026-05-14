@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'dart:ui';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -7,13 +6,13 @@ import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import '../config.dart';
-import '../functions/DepthAware.dart';
 import '../functions/OrderableShape.dart';
+import '../functions/OverlapHighlightable.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/CircleDisappearEffect.dart';
 
 class CircleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, HasGameRef, DepthAware
+    with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable
     implements OrderableShape {
 
   int count;
@@ -50,34 +49,10 @@ class CircleShape extends PositionComponent
 
   double _blinkAlpha = 1.0;
 
-  @override
-  void updateVisualsByRank(double rank) {
-    // Rank is now pre-calculated in OneSecondGame (1.0 = top/original, 0.4 = bottom/dark)
-    const targetOpacity = 1.0;
-    final darkness = rank;
-
-    final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    _svg.paint.blendMode = BlendMode.srcOver;
-    _png.paint.blendMode = BlendMode.srcOver;
-    _svg.paint.colorFilter = filter;
-    _png.paint.colorFilter = filter;
-
-    _svg.opacity = _blinkAlpha * targetOpacity;
-    _png.opacity = _blinkAlpha * targetOpacity;
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    // This is now legacy; OneSecondGame calls updateVisualsByRank instead.
-    // Default to rank 0 (intense) if unsure.
-    updateVisualsByRank(1.0);
-  }
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
@@ -153,8 +128,6 @@ class CircleShape extends PositionComponent
 
     _svg.paint.blendMode = blendMode;
     _png.paint.blendMode = blendMode;
-
-    updateVisualsByPriority();
 
     if (order != null) {
       _addOrderBadge(order!);
@@ -248,6 +221,12 @@ class CircleShape extends PositionComponent
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+
+    if (isOverlapping) {
+      final center = Offset(size.x / 2, size.y / 2);
+      final radius = size.x * 0.48;
+      canvas.drawCircle(center, radius, _overlapOutlinePaint);
+    }
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =

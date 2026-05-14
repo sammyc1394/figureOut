@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:figureout/src/effect/FallingClippedPiece.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
@@ -9,14 +8,13 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
-import '../functions/DepthAware.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../config.dart';
-import '../functions/DepthAware.dart';
 import '../functions/OrderableShape.dart';
+import '../functions/OverlapHighlightable.dart';
 
 class RectangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, DepthAware
+    with TapCallbacks, UserRemovable, OverlapHighlightable
     implements OrderableShape {
   int count = 0;
 
@@ -69,6 +67,11 @@ class RectangleShape extends PositionComponent
   final Color dangerColor = const Color(0xFFEE0505);
   final Color baseColor = const Color(0xFF345983);
 
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
+
   // Keep SVG source only for sliced-piece effect.
   late final Svg _sourceSvg;
 
@@ -103,38 +106,6 @@ class RectangleShape extends PositionComponent
     for (final slice in _baseSlices) {
       slice.opacity = value;
     }
-  }
-
-  @override
-  void updateVisualsByRank(double rank) {
-    const targetOpacity = 1.0;
-    final darkness = rank;
-
-    final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    _pngAttack.paint.blendMode = BlendMode.srcOver;
-    _pngAttack.paint.colorFilter = filter;
-    for (final slice in _baseSlices) {
-      slice.paint.blendMode = BlendMode.srcOver;
-      slice.paint.colorFilter = filter;
-    }
-
-    // Mix depth opacity
-    if (_usesPngLayer) {
-      _pngAttack.opacity = _blinkAlpha * targetOpacity;
-    } else {
-      _setBaseSlicesOpacity(_blinkAlpha * targetOpacity);
-    }
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    updateVisualsByRank(1.0);
   }
 
   void setBlinkAlpha(double alpha) {
@@ -283,8 +254,6 @@ class RectangleShape extends PositionComponent
     }
     _pngAttack.paint.blendMode = blendMode;
 
-    updateVisualsByPriority();
-
     if (order != null) {
       _addOrderBadge(order!);
     }
@@ -409,6 +378,10 @@ class RectangleShape extends PositionComponent
     super.render(canvas);
 
     _renderRectangleShape(canvas);
+
+    if (isOverlapping) {
+      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
+    }
 
     // perimeter timer
     if ((attackTime ?? 0) > 0 && !_attackDone) {

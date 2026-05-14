@@ -9,13 +9,13 @@ import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_svg/flame_svg.dart';
-import '../functions/DepthAware.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
+import '../functions/OverlapHighlightable.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, DepthAware {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable {
 
   int energy;
   TextComponent? _hpTextComponent;
@@ -43,38 +43,12 @@ class PentagonShape extends PositionComponent
 
   double _blinkAlpha = 1.0;
 
+  final Paint _overlapOutlinePaint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.0;
+
   bool get _usesPngLayer => (attackTime ?? 0) > 0;
-
-  @override
-  void updateVisualsByRank(double rank) {
-    const targetOpacity = 1.0;
-    final darkness = rank;
-
-    final filter = ColorFilter.matrix([
-      darkness, 0, 0, 0, 0,
-      0, darkness, 0, 0, 0,
-      0, 0, darkness, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    svg.paint.blendMode = BlendMode.srcOver;
-    _png.paint.blendMode = BlendMode.srcOver;
-    svg.paint.colorFilter = filter;
-    _png.paint.colorFilter = filter;
-
-    if (_usesPngLayer) {
-      svg.opacity = 0;
-      _png.opacity = _blinkAlpha * targetOpacity;
-    } else {
-      svg.opacity = _blinkAlpha * targetOpacity;
-      _png.opacity = 0;
-    }
-  }
-
-  @override
-  void updateVisualsByPriority() {
-    updateVisualsByRank(1.0);
-  }
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
@@ -214,8 +188,6 @@ class PentagonShape extends PositionComponent
     _perimeter =
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
-    updateVisualsByPriority();
-
     if (!isDark && energy > 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
@@ -329,6 +301,10 @@ class PentagonShape extends PositionComponent
   void render(Canvas canvas) {
 
     super.render(canvas);
+
+    if (isOverlapping) {
+      canvas.drawPath(_pentagonPath, _overlapOutlinePaint);
+    }
 
     if (!isDark && _pulseThicknessT > 0.0) {
 
