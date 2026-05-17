@@ -188,3 +188,12 @@ Suggested parser extraction targets:
 
 Do not remove temporary or backup files without confirming they are unused and
 getting explicit approval.
+
+## Agent Execution Rules
+
+- Normally only modify code.
+- Run `flutter/react build web` only when explicitly requested.
+- Run builds only when explicitly requested.
+- Avoid running `flutter/react clean` while the server is running.
+- Run Codex or Claude/Terminal with administrator privileges.
+- Do not run compilation, linting, Git commit/push, diff checks, tests, or deployment unless the user explicitly requests them.
