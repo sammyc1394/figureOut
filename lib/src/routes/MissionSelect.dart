@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import 'menuAppBar.dart';
+import 'route_args.dart';
 
 class MissionSelectScreen extends StatefulWidget {
   final List<StageData> stages;
@@ -50,7 +51,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     final stage = widget.stages[widget.stageIndex];
     final loaded = <int>{};
 
-    print('clearedMissions = $loaded');
+    debugPrint('clearedMissions = $loaded');
 
     for (final missionNo in stage.missions.keys) {
       final key =
@@ -165,11 +166,14 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
                           if (!mounted) return;
 
-                          context.push('/game', extra: {
-                            "stages": widget.stages,
-                            "stageIndex": widget.stageIndex,
-                            "missionIndex": missionNo - 1,
-                          }).then((_) {
+                          context.push(
+                            '/game',
+                            extra: GameRouteArgs(
+                              stages: widget.stages,
+                              stageIndex: widget.stageIndex,
+                              missionIndex: missionNo - 1,
+                            ),
+                          ).then((_) {
                             _loadMissionProgress();
                           });
                         },
@@ -277,3 +281,4 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     );
   }
 }
+

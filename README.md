@@ -13,7 +13,8 @@ The gameplay reference is the shared planning document:
 - Flame
 - GoRouter
 - Google Sheet based stage, mission, translation, and log data
-- SVG and image assets under `assets/`
+- Canvas-rendered gameplay shapes
+- SVG and image assets for menu and UI under `assets/`
 
 ## Run
 
@@ -55,6 +56,10 @@ supports it.
 ## Enemy Data
 
 Enemy syntax is defined by the planning document and Google Sheet data.
+The current Google Sheet uses the shape column for both enemies and wait rows.
+There is no separate `e` command column.
+In stage sheets, the parser expects the enemy/wait value in the Shape column
+immediately after the Stage/Mission marker column.
 
 Basic format:
 
@@ -126,6 +131,7 @@ Supported movement commands:
 
 - `Wait n`: wait `n` seconds before spawning the next enemy group
 - `Wait 0`: wait until all current non-dark enemies are defeated
+- `Wait` rows are written in the shape column.
 - Dark enemies with health `-1` do not block `Wait 0`
 
 ## UI Requirements
@@ -141,6 +147,7 @@ Supported movement commands:
 - Keep gameplay values in constants instead of magic numbers.
 - Preserve existing game logic unless a bug fix requires changing it.
 - Use Google Sheet data as the source of truth for stage and mission behavior.
+- Gameplay shapes are rendered directly with Flutter Canvas; keep UI/menu SVG assets where they are still referenced.
 - Do not delete unused code without explicit approval.
 
 ## Refactoring Roadmap
@@ -173,6 +180,5 @@ Suggested parser extraction targets:
 - `enemy_parser.dart`: enemy type, size, order, health, rectangle ratio and angle
 - `random_context.dart`: `RND` and `URND` resolution
 
-Do not remove `lib/src/temp/RefreshButton.dart` or
-`lib/src/components/Rectangle_backup.dart` without confirming they are unused and
+Do not remove temporary or backup files without confirming they are unused and
 getting explicit approval.

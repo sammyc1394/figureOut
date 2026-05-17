@@ -1,20 +1,18 @@
 import 'dart:math' as math;
 
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'package:figureout/src/routes/OneSecondGame.dart';
-import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 import '../effect/AttackExplosionEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import 'shape_path_utils.dart';
 
-class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable {
-  late final SvgComponent svg;
+class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
   int energy = 0;
-  late final SpriteComponent _png;
   TextComponent? _hpTextComponent;
 
   final bool isDark;
@@ -30,6 +28,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   bool isPaused = false;
 
   double _blinkAlpha = 1.0;
+  double _shapeOpacity = 1.0;
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
@@ -40,9 +39,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     if (_isDisappearing) return;
 
     _blinkAlpha = alpha.clamp(0.0, 1.0);
-
-    svg.opacity = _blinkAlpha;
-    _png.opacity = _blinkAlpha;
 
     _hpTextComponent?.textRenderer = TextPaint(
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
@@ -99,46 +95,15 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    final asset = isDark ? 'Triangle_dark.svg' : 'Triangle_basic.svg';
-    final svgData = await Svg.load(asset);
-
-    svg = SvgComponent(
-      svg: svgData,
-      size: size,
-      anchor: Anchor.center,
-      position: Vector2(size.x / 2, size.y / 2-1 ),
-    );
-    add(svg);
-
-    final images = Images(prefix: 'assets/');
-    final img = await images.load('shapes/Polygon.png');
-
-    _png = SpriteComponent(
-      sprite: Sprite(img),
-      size: size,
-      anchor: Anchor.center,
-      position: Vector2(size.x / 2, size.y / 2-1 ),
-    );
-    _png.opacity = 0;
-    add(_png);
-
-    svg.paint.blendMode = blendMode;
-    _png.paint.blendMode = blendMode;
-
-    // if ((attackTime ?? 0) > 0) {
-    //   svg.opacity = 0;
-    //   _png.opacity = 1;
-    // }
-
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
 
-    if (!isDark && energy > 1) {
+    if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
-        anchor: Anchor.topRight,
-        position: Vector2(size.x - 4, 4),
+        anchor: Anchor.center,
+        position: size / 2,
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -157,7 +122,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     // 에너지가 남아있으면 1 깎고 리턴 (아직 살아있음)
     if (energy > 1) {
       energy--;
-      if (energy > 1) {
+      if (energy >= 1) {
         _hpTextComponent?.text = energy.toString();
       } else {
         _hpTextComponent?.removeFromParent();
@@ -204,16 +169,16 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
         final eased = Curves.easeInCubic.transform(localT);
         final s = 1.0 - (1.0 - _minScale) * eased;
         scale = _startScale * s;
-        svg.opacity = 1.0;
+        _shapeOpacity = 1.0;
       } else if (t <= _holdEndT) {
         scale = _startScale * _minScale;
-        svg.opacity = 1.0;
+        _shapeOpacity = 1.0;
       } else {
         scale = _startScale * _minScale;
         final localT =
             ((t - _holdEndT) / (1.0 - _holdEndT)).clamp(0.0, 1.0);
         final eased = Curves.easeOutCubic.transform(localT);
-        svg.opacity = 1.0 - eased;
+        _shapeOpacity = 1.0 - eased;
       }
 
       if (t >= 1.0) {
@@ -253,13 +218,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       return;
     }
 
-    if (!_attackDone && _attackTimeHalfLeft) {
-      _png.paint = Paint()
-        ..colorFilter = ColorFilter.mode(
-          dangerColor,
-          BlendMode.srcIn,
-        );
-    }
   }
 
   bool get _attackTimeHalfLeft {
@@ -271,11 +229,46 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
+    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
+    final alpha = (_blinkAlpha * _shapeOpacity).clamp(0.0, 1.0);
 
-    if (isOverlapping) {
-      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
+    canvas.drawShadow(
+      _outlinePath,
+      Colors.black.withValues(alpha: 0.35),
+      6,
+      false,
+    );
+
+    canvas.drawPath(
+      _outlinePath,
+      Paint()
+        ..color = fillColor.withValues(alpha: alpha)
+        ..style = PaintingStyle.fill
+        ..blendMode = blendMode,
+    );
+
+    canvas.drawPath(
+      _outlinePath,
+      Paint()
+        ..color = fillColor.withValues(alpha: alpha * 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..blendMode = blendMode,
+    );
+
+    if (!_attackDone && _attackTimeHalfLeft) {
+      canvas.drawPath(
+        _outlinePath,
+        Paint()
+          ..color = dangerColor.withValues(alpha: alpha * 0.5)
+          ..style = PaintingStyle.fill
+          ..blendMode = BlendMode.srcATop,
+      );
     }
+
+    super.render(canvas);
 
     if ((attackTime ?? 0) > 0 && !_attackDone && !_isDisappearing) {
       final ratio =
@@ -284,7 +277,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       _attackPaint.color =
           (ratio <= 0.2 ? dangerColor : baseColor)
               .withValues(alpha: _blinkAlpha);
-      final partial = _extractPartialPath(_outlinePath, drawLen);
+      final partial = ShapePathUtils.extractPartial(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
     }
   }
@@ -306,19 +299,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       ..lineTo(leftX, botY)
       ..lineTo(rightX, botY)
       ..close();
-  }
-
-  Path _extractPartialPath(Path path, double length) {
-    final result = Path();
-    double remaining = length;
-
-    for (final metric in path.computeMetrics()) {
-      if (remaining <= 0) break;
-      final len = remaining.clamp(0.0, metric.length);
-      result.addPath(metric.extractPath(0, len), Offset.zero);
-      remaining -= len;
-    }
-    return result;
   }
 
   // ===== 기존 삼각형 판정 로직 유지 =====
@@ -375,3 +355,4 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     }
   }
 }
+

@@ -4,6 +4,7 @@ import 'package:figureout/src/behaviors/shapeBehavior.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter/foundation.dart';
 
 class LCommand implements ShapeBehavior {
   final String movementRaw;
@@ -33,7 +34,7 @@ class LCommand implements ShapeBehavior {
     ).firstMatch(raw);
 
     if (match == null) {
-      print('[LCommand] parse failed: $raw');
+      debugPrint('[LCommand] parse failed: $raw');
       return;
     }
 

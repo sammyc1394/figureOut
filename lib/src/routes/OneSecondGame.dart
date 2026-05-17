@@ -1,17 +1,11 @@
 import 'package:figureout/src/behaviors/BCommand.dart';
 import 'package:figureout/src/behaviors/MCommand.dart';
 import 'package:figureout/src/behaviors/ZCommand.dart';
-import 'package:figureout/src/routes/MainMenu.dart';
-import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:flame/components.dart';
 
 import 'dart:async';
-import 'dart:ui';
-import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/routes/AftermathScreen.dart';
 import 'package:flame/collisions.dart';
-import 'package:flame/cache.dart';
-import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
@@ -42,8 +36,8 @@ import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
-import 'MissionSelect.dart';
 import 'PausedScreen.dart';
+import 'route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OneSecondGame extends FlameGame
@@ -60,8 +54,6 @@ class OneSecondGame extends FlameGame
     required this.stageIndex,
     required this.missionIndex,
   });
-
-  final math.Random _random = math.Random();
 
   //Mission execution lock
   bool _isMissionRunning=false;
@@ -115,8 +107,6 @@ class OneSecondGame extends FlameGame
   double _lastRoundStartTime = 0.0;
   int _lastRoundStartIndex = 0;
   bool _isContinuing = false;
-
-  double get _minPlayY => (timerBar.position.y + timerBar.size.y + 8.0);
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
@@ -227,7 +217,7 @@ class OneSecondGame extends FlameGame
 
     if (size.x > rangeX) {
       double actualRatio = availWidth / availHeight;
-      print("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
+      debugPrint("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
       if (availWidth / availHeight > aspectRatio) {
         playHeight = availHeight;
         playWidth = playHeight * aspectRatio;
@@ -251,7 +241,7 @@ class OneSecondGame extends FlameGame
     double playCenterX = size.x / 2;
     double playCenterY = UItopPadding + (playHeight / 2);
 
-    // print('play area = ($playWidth, $playHeight)');
+    // debugPrint('play area = ($playWidth, $playHeight)');
     playArea = RectangleComponent(
       position: Vector2(playCenterX, playCenterY),
       size: Vector2(playWidth, playHeight),
@@ -265,7 +255,7 @@ class OneSecondGame extends FlameGame
     double playX = playArea.width;
     double playY = playArea.height;
 
-    print("playArea size = ($playX, $playY)");
+    debugPrint("playArea size = ($playX, $playY)");
     // 로그 e
 
     playAreaScaleX = playWidth / targetPlayWidth;
@@ -304,13 +294,13 @@ class OneSecondGame extends FlameGame
       _selectedMissionIndex = missionIndex + 1;
 
       if (_allStages.isNotEmpty) {
-        print('Fetched stages: ${_allStages.toString()}');
+        debugPrint('Fetched stages: ${_allStages.toString()}');
 
         _runToken++;
         runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       }
     } catch (e) {
-      print('Sheet fetch error: $e');
+      debugPrint('Sheet fetch error: $e');
     }
 
     debugMode = false;
@@ -323,13 +313,7 @@ class OneSecondGame extends FlameGame
 
   @override
   void onMount() {
-    // TODO: implement onMount
     super.onMount();
-
-    // _clearAllShapes();
-    // _spawnAllShapes();
-
-    toggleDebug();
   }
 
   @override
@@ -343,7 +327,7 @@ class OneSecondGame extends FlameGame
     // 오른쪽 위 구석 감지 (화면 폭/높이의 일부 영역)
     if (tapPos.x > size.x * 0.8 && tapPos.y < size.y * 0.2) {
       if (now - _lastTapTime < 1500) {
-        print('tapped');
+        debugPrint('tapped');
         _debugTapCount++;
       } else {
         _debugTapCount = 1;
@@ -359,7 +343,7 @@ class OneSecondGame extends FlameGame
     // 사각형 슬라이스 시작 위치 추가
     // userPath.clear();
     // userPath.add(event.canvasPosition);
-    // print("=== userPath start point added : ${userPath.first} ==========");
+    // debugPrint("=== userPath start point added : ${userPath.first} ==========");
   }
 
   //시간 패널티
@@ -446,144 +430,6 @@ class OneSecondGame extends FlameGame
     });
   }
 
-  Future<void> _runSequentialZMovement({
-    required PositionComponent shape,
-    required String movementRaw,
-  }) async {
-    // mount 보장
-    while (!shape.isMounted) {
-      await Future<void>.delayed(Duration.zero);
-    }
-
-    // 최초 스폰 위치 (Back 왕복/Repeat 시작점)
-    final Vector2 spawnPosition = shape.position.clone();
-
-    final lines = movementRaw
-        .split('\n')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    bool isRepeatLine(String s) {
-      final t = s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
-      return t == 'repeat';
-    }
-
-    bool isBackLine(String s) {
-      final t = s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
-      return t == 'back';
-    }
-
-    final bool hasRepeat = lines.any(isRepeatLine);
-    final bool hasBack = lines.any(isBackLine);
-
-    final zLines = lines.where((e) => e.startsWith('Z')).toList();
-    if (zLines.isEmpty) return;
-
-    final zReg = RegExp(
-      r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
-    );
-
-    Future<void> moveLinear(Vector2 target, double speed) async {
-      if (!shape.isMounted) return;
-
-      // 기존 이펙트 제거
-      for (final e in List.of(shape.children.whereType<Effect>())) {
-        e.removeFromParent();
-      }
-
-      final fromV = worldToVirtualPlay(shape.position);
-      final toV = worldToVirtualPlay(target);
-      final distV = fromV.distanceTo(toV);
-
-      if (speed <= 0 || distV <= 0) {
-        shape.position = target;
-        return;
-      }
-
-      final duration = distV / speed;
-      final completer = Completer<void>();
-
-      shape.add(
-        MoveEffect.to(
-          target,
-          EffectController(duration: duration, curve: Curves.linear),
-          onComplete: () {
-            if (!completer.isCompleted) completer.complete();
-          },
-        ),
-      );
-
-      await completer.future;
-    }
-
-    Future<void> runOnce() async {
-      final List<Vector2> visited = [];
-      final List<double> speeds = [];
-
-      // 1) Z 순차 이동 (Forward)
-      for (final z in zLines) {
-        if (!shape.isMounted) return;
-
-        final m = zReg.firstMatch(z);
-        if (m == null) continue;
-
-        final zx = double.parse(m.group(1)!);
-        final zy = double.parse(m.group(2)!);
-        final speed = double.parse(m.group(3)!);
-
-        final target = toPlayArea(
-          flipY(Vector2(zx, zy)),
-          shape.size.x / 2,
-          clampInside: true,
-        );
-
-        visited.add(target.clone());
-        speeds.add(speed);
-
-        await moveLinear(target, speed);
-      }
-
-      if (!shape.isMounted) return;
-
-      // 2) Back이 있으면: 역순으로 스폰까지 복귀 (그리고 여기서 끝)
-      //    (Back만 있어도 반복되어야 하므로, 반복 여부는 바깥 while에서 결정)
-      if (hasBack && visited.isNotEmpty) {
-        for (int i = visited.length - 1; i >= 0; i--) {
-          if (!shape.isMounted) return;
-
-          final Vector2 backTarget = (i == 0) ? spawnPosition : visited[i - 1];
-          final double backSpeed = speeds[i] > 0 ? speeds[i] : 1.0;
-
-          await moveLinear(backTarget, backSpeed);
-        }
-        return;
-      }
-
-      // 3) Back도 Repeat도 없으면: 마지막 Z 위치에서 멈춤 (스폰 복귀 금지)
-      if (!hasRepeat) {
-        return;
-      }
-
-      // 4) Repeat만 있으면: 다음 루프를 위해 스폰으로 복귀 후 반복
-      final double lastSpeed =
-          speeds.isNotEmpty && speeds.last > 0 ? speeds.last : 1.0;
-
-      await moveLinear(spawnPosition, lastSpeed);
-    }
-
-    // "Back이 있으면 Repeat가 없어도 왕복 반복"이 되어야 함
-    final bool loopForever = hasRepeat || hasBack;
-
-    if (loopForever) {
-      while (shape.isMounted) {
-        await runOnce();
-      }
-    } else {
-      await runOnce();
-    }
-  }
-
   void _hardResetMissionState() {
     _missionResolved = false;
     _timerPaused = false;
@@ -617,10 +463,10 @@ class OneSecondGame extends FlameGame
       await _refreshCompleter!.future;
     }
 
-    print("stage index = $stageIndex, mission index = $missionIndex");
+    debugPrint("stage index = $stageIndex, mission index = $missionIndex");
     // if (_isPausedGlobally) return;
     if (_isMissionRunning) {
-      print('[BLOCK] runStageWithAftermath ignored: mission already running');
+      debugPrint('[BLOCK] runStageWithAftermath ignored: mission already running');
       return;
     }
     _isMissionRunning = true;
@@ -684,7 +530,6 @@ class OneSecondGame extends FlameGame
     // 시간 데이터 분석
     double? missionSeconds = stage.missionTimeLimits[missionIndex];
 
-    String tl = stage.timeLimit;
     double? stageSeconds;
     if (missionSeconds == null) {
       stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
@@ -710,34 +555,33 @@ class OneSecondGame extends FlameGame
     if (timeToStart > 0) {
       startMissionTimer(timeToStart);
     } else {
-      print(
+      debugPrint(
         '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
       );
     }
 
     // 게임데이터 분석 시작
-    print('current stage index = $runId');
-    int stgLength = _allStages.length;
-    print('mission length = ${stage.missions.length}');
+    debugPrint('current stage index = $runId');
+    debugPrint('mission length = ${stage.missions.length}');
 
     final enemies = stage.missions[missionIndex]!;
-    print("enemy data = $enemies");
+    debugPrint("enemy data = $enemies");
 
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
     // final preparedEnemies = <PreparedEnemy>[];
 
-    print("[BEFORE LOOP] enemy processing start : ${enemies.length}");
+    debugPrint("[BEFORE LOOP] enemy processing start : ${enemies.length}");
     // 에너미 데이터
     // startIndex 를 굳이 파라미터에서 initialize 한 이유가 있나?
     for (int i = startIndex; i < enemies.length; i++) {
       final enemy = enemies[i];
 
       // run token 불일치시 취소
-      print("[TOKEN CHECK] runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
+      debugPrint("[TOKEN CHECK] runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
 
       if(runId != _runToken) {
-        print("[TOKEN CHECK] run token not matching, stage cancelled");
+        debugPrint("[TOKEN CHECK] run token not matching, stage cancelled");
         return StageResult.cancelled;
       }
 
@@ -754,7 +598,7 @@ class OneSecondGame extends FlameGame
 
       // wait 명령어 체크
       if (enemy.command == 'wait') {
-        print("[WAIT] processing wait command");
+        debugPrint("[WAIT] processing wait command");
         final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
 
         final duration = durationMatch != null
@@ -765,10 +609,11 @@ class OneSecondGame extends FlameGame
           // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
           await Future<void>.delayed(Duration.zero);
 
-          if (currentWave.isNotEmpty) {
+          final clearTargets = _currentClearTargets(currentWave);
+          if (clearTargets.isNotEmpty) {
             _initOrder();
-            await waitUntilMissionCleared(Set<Component>.from(currentWave));
-            print("current wave size : ${currentWave.length}");
+            await waitUntilMissionCleared(clearTargets);
+            debugPrint("current wave size : ${clearTargets.length}");
           }
 
           // 다크도형까지 제거위함
@@ -778,7 +623,7 @@ class OneSecondGame extends FlameGame
 
           currentWave.clear();
           spawnedThisMission.clear();
-          print("[WAIT] processing over");
+          debugPrint("[WAIT] processing over");
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
           await Future.delayed(
@@ -791,12 +636,12 @@ class OneSecondGame extends FlameGame
 
         // Update round start for continue feature
         _lastRoundStartIndex = i + 1;
-        print('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
+        debugPrint('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
         continue;
       }
 
       final spawnStart = DateTime.now();
-      print('[SPAWN START] index=$i time=${spawnStart.millisecondsSinceEpoch}');
+      debugPrint('[SPAWN START] index=$i time=${spawnStart.millisecondsSinceEpoch}');
 
       final prepared = buildPreparedEnemy(
         enemy: enemy,
@@ -807,7 +652,7 @@ class OneSecondGame extends FlameGame
 
       if (prepared == null) continue;
 
-      print("[PREPARED CHECK END] prepared size : (${prepared.customSize.x}, ${prepared.customSize.y})");
+      debugPrint("[PREPARED CHECK END] prepared size : (${prepared.customSize.x}, ${prepared.customSize.y})");
 
       await spawnPreparedEnemy(
         prepared,
@@ -815,15 +660,34 @@ class OneSecondGame extends FlameGame
         currentWave,
       );
 
-      await Future.delayed(Duration(milliseconds: 100));
-
       final loopEnd = DateTime.now();
-      print('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
+      debugPrint('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
     }
 
-    print("[AFTER LOOP] enemy processing over");
-    StageResult ret = await waitUntilMissionCleared(currentWave);
+    debugPrint("[AFTER LOOP] enemy processing over");
+    final finalWave = _currentClearTargets(currentWave);
+    StageResult ret = await waitUntilMissionCleared(finalWave);
     return ret;
+  }
+
+  Set<Component> _currentClearTargets(Set<Component> currentWave) {
+    return <Component>{
+      ...currentWave,
+      ..._mountedNonDarkShapes(),
+    };
+  }
+
+  Iterable<PositionComponent> _mountedNonDarkShapes() {
+    return children.whereType<PositionComponent>().where((c) {
+      if (c is CircleShape ||
+          c is RectangleShape ||
+          c is PentagonShape ||
+          c is TriangleShape ||
+          c is HexagonShape) {
+        return !_isDarkShape(c) && c.isMounted;
+      }
+      return false;
+    });
   }
 
   PreparedEnemy? buildPreparedEnemy({
@@ -835,12 +699,12 @@ class OneSecondGame extends FlameGame
     // 1. 도형 & 사이즈 파싱
     String shapeType = "";
     Vector2 size = Vector2.zero();
-    print("[PreparedEnemy] enemy name : ${enemy.shape}");
+    debugPrint("[PreparedEnemy] enemy name : ${enemy.shape}");
     if (enemy.shape.startsWith('Circle')) {
       final scale = _parseScale(enemy.shape);
       size = Vector2.all(80 * scale);
 
-      print("[PreparedEnemy] size = (${size.x}, ${size.y})");
+      debugPrint("[PreparedEnemy] size = (${size.x}, ${size.y})");
 
       shapeType = "Circle";
 
@@ -878,6 +742,11 @@ class OneSecondGame extends FlameGame
 
     }
 
+    if (shapeType.isEmpty) {
+      debugPrint('[PreparedEnemy] Unsupported shape skipped: ${enemy.shape}');
+      return null;
+    }
+
     // 2. 에너지 및 금지도형 파싱
     final energy = enemy.energy;
 
@@ -900,8 +769,6 @@ class OneSecondGame extends FlameGame
     final y = double.parse(posMatch.group(2)!);
 
     final halfSizeX = size.x / 2;
-    final halfSizeY = size.y / 2;
-
     Vector2 actPosition = toPlayArea(
       flipY(Vector2(x, y)),
       halfSizeX,
@@ -909,7 +776,7 @@ class OneSecondGame extends FlameGame
     );
 
     final localPos = worldToVirtualPlay(actPosition);
-    print('playLocal = (${localPos.x}, ${localPos.y})');
+    debugPrint('playLocal = (${localPos.x}, ${localPos.y})');
 
     // 6. behavior 파싱 (이미 만든 구조 활용)
     final behavior = checkBehavior(
@@ -956,8 +823,6 @@ class OneSecondGame extends FlameGame
     }
 
   }
-
-  void _applyBlendModeToShape(PositionComponent shape, BlendMode mode) {}
 
   PositionComponent _createShapeFromPrepared(PreparedEnemy enemy) {
     PositionComponent? shape;
@@ -1077,13 +942,13 @@ class OneSecondGame extends FlameGame
       Vector2 actPosition
       ) {
 
-    print("[Behavior check] parsing command into behavior");
+    debugPrint("[Behavior check] parsing command into behavior");
     final lMatch = RegExp(
       r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$'
     ).firstMatch(raw.trim());
 
     if (lMatch != null) {
-      print("[Behavior check] returning L command");
+      debugPrint("[Behavior check] returning L command");
 
       return LCommand(
         movementRaw: raw,
@@ -1097,7 +962,7 @@ class OneSecondGame extends FlameGame
     ).firstMatch(raw);
 
     if (cMatch != null) {
-      print("[Behavior check] returning c command");
+      debugPrint("[Behavior check] returning c command");
       final r = double.parse(cMatch.group(1)!);
       final s = double.parse(cMatch.group(2)!);
 
@@ -1117,7 +982,7 @@ class OneSecondGame extends FlameGame
     ).firstMatch(raw);
 
     if (drMatch != null) {
-      print("[Behavior check] returning dr command");
+      debugPrint("[Behavior check] returning dr command");
       final a = double.parse(drMatch.group(1)!);
       final b = double.parse(drMatch.group(2)!);
 
@@ -1136,7 +1001,7 @@ class OneSecondGame extends FlameGame
     ).firstMatch(raw);
 
     if (dMatch != null) {
-      print("[Behavior check] returning d command");
+      debugPrint("[Behavior check] returning d command");
 
       final a = double.parse(dMatch.group(1)!);
       final b = double.parse(dMatch.group(2)!);
@@ -1156,7 +1021,7 @@ class OneSecondGame extends FlameGame
     ).firstMatch(raw);
 
     if (mMatch != null) {
-      print("[Behavior check] returning m command");
+      debugPrint("[Behavior check] returning m command");
 
       final angle = double.parse(mMatch.group(1)!);
       final speed = double.parse(mMatch.group(2)!);
@@ -1174,7 +1039,7 @@ class OneSecondGame extends FlameGame
     }
 
     if (raw.contains('Z(')) {
-      print("[Behavior check] returning z command");
+      debugPrint("[Behavior check] returning z command");
 
       return ZCommand(
         movementRaw: raw,
@@ -1223,20 +1088,11 @@ class OneSecondGame extends FlameGame
 
     final key = 'stage_${stageIndex}_mission_${missionNo}_cleared';
     
-    print("SAVE KEY: $key");
+    debugPrint("SAVE KEY: $key");
     
     await prefs.setBool(
       'stage_${stageIndex}_mission_${missionNo}_cleared',
       true,
-    );
-  }
-
-  Future<void> _saveMissionProgressIfNeeded(StageResult result) async {
-    if (result != StageResult.success) return;
-
-    await _markMissionCleared(
-      _selectedStageIndex,
-      _selectedMissionIndex,
     );
   }
 
@@ -1284,13 +1140,13 @@ class OneSecondGame extends FlameGame
       // add 직후 같은 프레임 race 방지
       await Future<void>.delayed(Duration.zero);
 
-      print('[CLEAR CHECK] start wave size=${targets.length}');
+      debugPrint('[CLEAR CHECK] start wave size=${targets.length}');
 
       // to get log
       // 순서도형이 마지막에 오는 경우 아래 로그 찍으면 에러남
-      // print("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
-      // print("[CLEAR CHECK] parent = ${targets.first.parent}");
-      // print("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
+      // debugPrint("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
+      // debugPrint("[CLEAR CHECK] parent = ${targets.first.parent}");
+      // debugPrint("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
 
       while (true) {
       // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
@@ -1321,11 +1177,11 @@ class OneSecondGame extends FlameGame
         }).toList();
 
         if (remaining.isEmpty) {
-          print('Mission cleared');
+          debugPrint('Mission cleared');
           break;
         }
         // else {
-        //   print('Still left : ${remaining.length}');
+        //   debugPrint('Still left : ${remaining.length}');
         // }
 
         await Future.delayed(const Duration(milliseconds: 120));
@@ -1347,18 +1203,18 @@ class OneSecondGame extends FlameGame
   bool _onOrderInteracted(OrderableShape c) {
     // order 없는 도형은 항상 패스
 
-    print('[GAME] shape order YN(c.order == null) check = ${c.order == null}');
+    debugPrint('[GAME] shape order YN(c.order == null) check = ${c.order == null}');
     if (c.order == null) return true;
 
     // 1) order 퍼즐인지 아닌지 판단
-    print('[GAME] order shape YN(_hasOrder) = $_hasOrder');
+    debugPrint('[GAME] order shape YN(_hasOrder) = $_hasOrder');
 
     // 만약 모든 순서 도형을 제거한 상태라면 남은 도형 자유 터치 가능
     if (_currentOrderIndex >= _orderedShapes.length) {
       return true;
     }
 
-    print('[GAME] order shape YN (order from shape)= ${c.order == null}');
+    debugPrint('[GAME] order shape YN (order from shape)= ${c.order == null}');
 
     // 순서 도형이 남아있는데, 순서 없는 다른 도형을 눌렀다면 터치 금지 (패널티 처리 유도)
     if (c.order == null) return false;
@@ -1366,18 +1222,18 @@ class OneSecondGame extends FlameGame
     // 2) order 퍼즐이고 순서가 맞는지 판단
     final expected = _orderedShapes[_currentOrderIndex];
 
-    print('[GAME] shape input checking for validity. validity = ${identical(c, expected)}');
+    debugPrint('[GAME] shape input checking for validity. validity = ${identical(c, expected)}');
     return identical(c.order, expected.order);
   }
 
   void _onOrderedShapeRemoved() {
     _currentOrderIndex++;
-    print('[ORDER] next index = $_currentOrderIndex');
+    debugPrint('[ORDER] next index = $_currentOrderIndex');
   }
 
 
   void _initOrder() {
-    print("[ORDER] order reset");
+    debugPrint("[ORDER] order reset");
     _orderedShapes = children
         .whereType<OrderableShape>()
         // RectangleShape는 슬라이스 전용 순서(_orderedRects)로 관리, 여기설 제외
@@ -1448,7 +1304,7 @@ class OneSecondGame extends FlameGame
     final double minCenterY = playMinY + actShapePadding;
     final double maxCenterY = playMaxY - actShapePadding;
 
-    print(
+    debugPrint(
       "[COORDINATE] my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding",
     );
 
@@ -1481,7 +1337,7 @@ class OneSecondGame extends FlameGame
     }
 
     final virtual = worldToVirtualPlay(Vector2(playX, playY));
-    print(
+    debugPrint(
       "Max (x,y) = (${virtual.x.toStringAsFixed(1)}, ${virtual.y.toStringAsFixed(1)})",
     );
 
@@ -1551,9 +1407,9 @@ class OneSecondGame extends FlameGame
     debugMode = !debugMode; // Toggle debugMode
     _applyDebugToTree(this, debugMode);
     if (debugMode) {
-      print('Debug mode is now ON');
+      debugPrint('Debug mode is now ON');
     } else {
-      print('Debug mode is now OFF');
+      debugPrint('Debug mode is now OFF');
     }
   }
 
@@ -1570,7 +1426,7 @@ class OneSecondGame extends FlameGame
 
       if (_isPausedGlobally) return;
 
-      print("Refreshing Game...");
+      debugPrint("Refreshing Game...");
 
       // refresh 이후 기존에 돌고있던 runSingleMission 취소 위함
       _isMissionRunning = false; // 이전 미션 강제 종료 허용
@@ -1606,11 +1462,11 @@ class OneSecondGame extends FlameGame
       while (hasShapes() && DateTime.now().isBefore(deadline)) {
         await Future.delayed(const Duration(milliseconds: 50));
       }
-      print('[REFRESH] All shapes cleared. Proceeding with fetch.');
+      debugPrint('[REFRESH] All shapes cleared. Proceeding with fetch.');
 
       final newStages = await sheetService.fetchData();
       if (newStages.isEmpty) {
-        print("새로 불러온 데이터가 비어있음");
+        debugPrint("새로 불러온 데이터가 비어있음");
         return;
       }
 
@@ -1620,7 +1476,7 @@ class OneSecondGame extends FlameGame
       _stopEnemyBehaviors();
       _clearAllShapes();
       
-      print("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
+      debugPrint("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
 
       _refreshCompleter?.complete();
       _refreshCompleter = null;
@@ -1646,7 +1502,7 @@ class OneSecondGame extends FlameGame
 
     // NOTE: timerBar.totalTime is already set in runSingleMissions
     updateTimerUI();
-    print('[TIMER] startMissionTimer -> $seconds sec (Basis: ${timerBar.totalTime})');
+    debugPrint('[TIMER] startMissionTimer -> $seconds sec (Basis: ${timerBar.totalTime})');
   }
 
   void updateTimerUI() {
@@ -1683,7 +1539,7 @@ class OneSecondGame extends FlameGame
         if (currentMissionTime != _lastShownTime) {
           _lastShownTime = currentMissionTime;
           // 필요할 때만 로그
-          print('currentMissionTime: $currentMissionTime');
+          debugPrint('currentMissionTime: $currentMissionTime');
           updateTimerUI();
         }
 
@@ -1695,9 +1551,9 @@ class OneSecondGame extends FlameGame
           currentMissionTime = 0;
           updateTimerUI();
           // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
-          // print("Time's up!");
+          // debugPrint("Time's up!");
           if (!_isTimeOver) {
-            print('[UPDATE] Time is up → triggering _onTimeOver()');
+            debugPrint('[UPDATE] Time is up → triggering _onTimeOver()');
             _onTimeOver();
           }
         }
@@ -1711,7 +1567,7 @@ class OneSecondGame extends FlameGame
     int stgIndex,
     int msnIndex,
   ) async {
-    print("RESULT = $result");
+    debugPrint("RESULT = $result");
 
     for (final shape in children.whereType<PositionComponent>()) {
       for (final b in shape.children.whereType<BounceMoveComponent>()) {
@@ -1741,7 +1597,7 @@ class OneSecondGame extends FlameGame
     final int missionNo = _selectedMissionIndex; // 이미 1-based
     final String msnTitle = stage.missionTitle[missionNo] ?? '';
 
-    print("stage result is = $result");
+    debugPrint("stage result is = $result");
     final aftermath = AftermathScreen(
       result: result,
       starCount: starCount,
@@ -1750,7 +1606,7 @@ class OneSecondGame extends FlameGame
       msnTitle: msnTitle,
       screenSize: size,
       onContinue: () {
-        print('[AFTERMATH] Continue pressed.');
+        debugPrint('[AFTERMATH] Continue pressed.');
         removeAll(children.whereType<AftermathScreen>().toList());
         _resumeFromFailure();
       },
@@ -1774,7 +1630,7 @@ class OneSecondGame extends FlameGame
         final isLastMission = _selectedMissionIndex >= maxMissionIndex;
 
         if (isLastStage && isLastMission) {
-          print("All stages cleared → go to menu");
+          debugPrint("All stages cleared → go to menu");
 
           rootNavigatorKey.currentContext!.go(
             '/stages',
@@ -1790,39 +1646,42 @@ class OneSecondGame extends FlameGame
           if (_selectedMissionIndex < maxMissionIndex) {
             _selectedMissionIndex = _selectedMissionIndex + 1;
           } else {
-            print("last mission - move to next stage");
+            debugPrint("last mission - move to next stage");
             _selectedStageIndex = 0;
             _selectedMissionIndex = 0;
 
 
           }
 
-          print(
+          debugPrint(
             "stage index = $_selectedStageIndex, mission index = $_selectedMissionIndex",
           );
-          print("playing next stage/mission");
+          debugPrint("playing next stage/mission");
           removeAll(children.whereType<AftermathScreen>().toList());
           runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
         } else {
-          print("No more stages left!");
+          debugPrint("No more stages left!");
         }
       },
       onMenu: () {
-        print("Go to menu screen");
+        debugPrint("Go to menu screen");
         removeAll(children.whereType<AftermathScreen>().toList());
 
         rootNavigatorKey.currentContext!.push(
           '/missions',
-          extra: {"stages": stages, "index": _selectedStageIndex},
+          extra: MissionRouteArgs(
+            stages: stages,
+            stageIndex: _selectedStageIndex,
+          ),
         );
       },
-    );
-    print("aftermath Screen defined");
+    )..priority = 5000;
+    debugPrint("aftermath Screen defined");
     add(aftermath);
   }
 
   void _resumeFromFailure() {
-    print('[RESUME] Resuming failed mission from last round...');
+    debugPrint('[RESUME] Resuming failed mission from last round...');
 
     // Remove aftermath screen
     removeAll(children.whereType<AftermathScreen>().toList());
@@ -1844,7 +1703,7 @@ class OneSecondGame extends FlameGame
 
     // Restart mission from the last saved round index
     final stage = _allStages[_selectedStageIndex];
-    print('[RESUME] Restarting Stage $_selectedStageIndex, Mission $_selectedMissionIndex from index $_lastRoundStartIndex');
+    debugPrint('[RESUME] Restarting Stage $_selectedStageIndex, Mission $_selectedMissionIndex from index $_lastRoundStartIndex');
     
     runSingleMissions(
       stage,
@@ -1852,7 +1711,7 @@ class OneSecondGame extends FlameGame
       startIndex: _lastRoundStartIndex,
     ).then((result) {
       if (localToken != _runToken) {
-        print('[RESUME] outdated mission ignored');
+        debugPrint('[RESUME] outdated mission ignored');
         return;
       }
 
@@ -1875,21 +1734,7 @@ class OneSecondGame extends FlameGame
     return Vector2(point.x, -point.y);
   }
 
-  Vector2 _calculateCentroid(List<Vector2> points) {
-    final sum = points.fold<Vector2>(Vector2.zero(), (a, b) => a + b);
-    return sum / points.length.toDouble();
-  }
-
   // ==== gestures detect ======================================================================================
-  bool _doesPathCrossLine(Vector2 start, Vector2 end, List<Vector2> path) {
-    for (int i = 0; i < path.length - 1; i++) {
-      if (_doLinesIntersect(start, end, path[i], path[i + 1])) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   int _orientation(Vector2 a, Vector2 b, Vector2 c) {
     final v = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
     const eps = 1e-9;
@@ -1940,7 +1785,7 @@ class OneSecondGame extends FlameGame
   final area = _calculatePolygonArea(path);
 
   if (area < minArea) {
-    print("Path area too small: $area");
+    debugPrint("Path area too small: $area");
     return false;
   }
 
@@ -2060,9 +1905,9 @@ bool _isStraightLine(List<Vector2> path) {
   @override
   void onDragStart(DragStartEvent event) {
     dragStart = event.canvasPosition;
-    // userPath.clear();
+    userPath.clear();
     userPath.add(event.canvasPosition);
-    print("=== userPath added : ${userPath.last} =============");
+    debugPrint("=== userPath added : ${userPath.last} =============");
 
     _dragStartPos = event.canvasPosition;
     _dragLastPos = event.canvasPosition;
@@ -2123,24 +1968,20 @@ bool _isStraightLine(List<Vector2> path) {
     final pathLength = _calculatePathLength(judgePath);
     final straightDist =
         judgePath.first.distanceTo(judgePath.last);
-    final ratio = (pathLength <= 0) ? 0.0 : (straightDist / pathLength);
 
 
     // ─────────────────────────────
     // 슬라이스 제스처 판정
     // ─────────────────────────────
-    final bool isStraightEnough =
-    pathLength > 0 &&
-    (straightDist / pathLength) > 0.35;  // 0.55 → 0.4 완화
 
     // final bool isLongEnough = _isLongEnoughForAnyRect(straightDist);
 
     final isSliceGesture = straightDist > 30 && // 너무 짧은 터치를 슬라이스로 오인 방지 (20->30)
     _isStraightLine(judgePath);
 
-    print("straightDist: $straightDist");
-    print("pathLength: $pathLength");
-    print("ratio: ${straightDist / pathLength}");
+    debugPrint("straightDist: $straightDist");
+    debugPrint("pathLength: $pathLength");
+    debugPrint("ratio: ${straightDist / pathLength}");
 
 
     if (isSliceGesture) {
@@ -2203,14 +2044,14 @@ bool _isStraightLine(List<Vector2> path) {
         }).toList();
 
         if (realBlockers.isNotEmpty) {
-          print('[SLICE BLOCKED] Path enters blocker bbox: ${realBlockers.map((c) => c.runtimeType)}');
+          debugPrint('[SLICE BLOCKED] Path enters blocker bbox: ${realBlockers.map((c) => c.runtimeType)}');
           _applyTouchPenalty(realBlockers);
           _resetPathState();
           return;
         }
 
         // 모든 blocker bounding box를 회피 → 슬라이스 허용
-        print('[SLICE ALLOWED] Path avoids all blocker bboxes: ${overlappingShapes.map((c) => c.runtimeType)}');
+        debugPrint('[SLICE ALLOWED] Path avoids all blocker bboxes: ${overlappingShapes.map((c) => c.runtimeType)}');
       }
 
       if (slicedRects.isNotEmpty) {
@@ -2244,7 +2085,7 @@ bool _isStraightLine(List<Vector2> path) {
               // 한 제스처 내에서 올바른 앞 번호 사각형을 쳤지만, 완전히 제거(카운트=0)되지 않아서
               // 뒤에 있는 번호로 차례가 넘어가지 않은 경우입니다.
               // 이 경우 뒤에 닿은 다른 번호의 사각형들은 슬라이스를 무시합니다. (페널티 없음)
-              print('[RECT ORDER] Ignored correctly-sequenced rect because expected rect is not yet destroyed. rect=${rect.order}, expected=${expected.order}');
+              debugPrint('[RECT ORDER] Ignored correctly-sequenced rect because expected rect is not yet destroyed. rect=${rect.order}, expected=${expected.order}');
               stopSlicing = true;
             } else {
               // 처음부터 틀린 사각형을 타격 (예: 역방향) → 전체 차단 및 페널티 부여
@@ -2255,7 +2096,7 @@ bool _isStraightLine(List<Vector2> path) {
         }
 
         if (isIllegalSlice) {
-          print('[RECT ORDER BLOCKED] Wrong order slice attempted');
+          debugPrint('[RECT ORDER BLOCKED] Wrong order slice attempted');
           _applyTouchPenalty(slicedRects.cast<PositionComponent>());
         }
       }
@@ -2269,7 +2110,7 @@ bool _isStraightLine(List<Vector2> path) {
     // ─────────────────────────────
     final isClosed = _isPathClosed(judgePath);
     if (!isClosed && !isSliceGesture) {
-      print("triangle not enclosed");
+      debugPrint("triangle not enclosed");
 
       final touchedOtherShapes = <PositionComponent>[];
 
@@ -2384,7 +2225,7 @@ bool _isStraightLine(List<Vector2> path) {
   //       if (remainingTime != _lastShownTime) {
   //         _lastShownTime = remainingTime;
   //         // 필요할 때만 로그
-  //         print('remainingTime: $remainingTime');
+  //         debugPrint('remainingTime: $remainingTime');
   //         timerBar.updateTime(remainingTime);
   //       }
 
@@ -2395,12 +2236,12 @@ bool _isStraightLine(List<Vector2> path) {
   //         // 마지막으로 0초 반영 후 더 이상 건드리지 않음
   //         timerBar.updateTime(0);
   //         // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
-  //         // print("Time's up!");
+  //         // debugPrint("Time's up!");
   //       }
   //       // if (remainingTime <= 10) isTimeCritical = true;
   //       // if (remainingTime <= 0) {
   //       //   remainingTime = 0;
-  //       //   print("Time's up!");
+  //       //   debugPrint("Time's up!");
   //       // }
   //       // timerBar.updateTime(remainingTime);
   //     }
@@ -2578,7 +2419,7 @@ bool _isStraightLine(List<Vector2> path) {
 
 
   void pauseGame() {
-    print("blinkingMap:${blinkingMap.values}");
+    debugPrint("blinkingMap:${blinkingMap.values}");
     if (pausedScreen != null && pausedScreen!.isMounted) return;
 
     if (!_missionResolved && remainingTime <= 0) {
@@ -2600,7 +2441,7 @@ bool _isStraightLine(List<Vector2> path) {
     }
 
     for (final b in blinkingMap.values) {
-      print('Pausing ${b.shape}');
+      debugPrint('Pausing ${b.shape}');
       b.isPaused = true;
     }
 
@@ -2636,7 +2477,10 @@ bool _isStraightLine(List<Vector2> path) {
         //TODO : 다른 화면들처럼 go_router 사용할수는 없나?
         rootNavigatorKey.currentContext!.push(
           '/missions',
-          extra: {"stages": stages, "index": _selectedStageIndex},
+          extra: MissionRouteArgs(
+            stages: stages,
+            stageIndex: _selectedStageIndex,
+          ),
         );
       },
     );
@@ -2645,7 +2489,7 @@ bool _isStraightLine(List<Vector2> path) {
   }
 
   void resumeGame() {
-  print("resumed");
+  debugPrint("resumed");
 
   // pause 상태 먼저 해제
   _isPausedGlobally = false;
@@ -2808,9 +2652,10 @@ bool _isStraightLine(List<Vector2> path) {
     if (userPath.length > 1) {
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
+        ..strokeWidth = 4
         ..strokeCap = StrokeCap.round
-        ..color = const Color(0xFF9E9E9E).withOpacity(0.75);
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFF222222).withValues(alpha: 0.9);
 
       // 1) 손떨림 제거용 1차 필터 (너무 촘촘한 포인트 제거)
       final filteredPoints = _filterDensePoints(
@@ -2828,23 +2673,8 @@ bool _isStraightLine(List<Vector2> path) {
       final renderPath = _buildSmoothedPath(smoothedPoints);
 
       // 4) 점선 렌더
-      _drawDashedPath(
-        canvas,
-        renderPath,
-        paint: paint,
-        dashLength: 14,
-        gapLength: 10,
-      );
-    }
-  }
-
-  void _applyBlinkAlpha(PositionComponent shape, double alpha) {
-    final target = shape as dynamic;
-
-    try {
-      target.setBlinkAlpha(alpha);
-    } catch (e) {
-      print('[BLINK ALPHA] setBlinkAlpha not found on ${shape.runtimeType}: $e');
+      canvas.drawPath(renderPath, paint);
     }
   }
 }
+

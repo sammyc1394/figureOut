@@ -20,7 +20,6 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   late AnimationController _controller;
 
   bool _isLoading = false;
-  bool _hasLoadedOnce = false;
 
   final SheetService sheetService = SheetService();
 
@@ -48,10 +47,11 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   Future<void> _loadDataOnStart() async {
     setState(() => _isLoading = true);
     try {
-      final data = await SheetService().fetchData();
+      final data = await SheetService()
+          .fetchData()
+          .timeout(const Duration(seconds: 8));
       setState(() {
         _stages = data;
-        _hasLoadedOnce = true;
       });
       debugPrint("초기 데이터 불러오기 완료: ${_stages.length}개 스테이지");
     } catch (e) {
@@ -85,23 +85,15 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     return alignments[index % alignments.length];
   }
 
-  void _goToStages() {
-    if (_stages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('먼저 데이터를 갱신해주세요')),
-      );
-      return;
-    }
-    context.push('/stages', extra: _stages);
-  }
-
   Future<void> _refreshData() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final data = await sheetService.fetchData();
+      final data = await sheetService
+          .fetchData()
+          .timeout(const Duration(seconds: 8));
       setState(() {
         _stages = data;
       });
@@ -263,3 +255,4 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     );
   }
 }
+

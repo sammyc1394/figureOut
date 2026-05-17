@@ -4,6 +4,7 @@ import 'package:figureout/src/behaviors/shapeBehavior.dart';
 import 'package:flame/components.dart';
 
 import '../functions/BlinkingBehavior.dart';
+import '../functions/blink_alpha_target.dart';
 
 class DDrCommand implements ShapeBehavior {
   late final double visibleDuration;
@@ -13,7 +14,7 @@ class DDrCommand implements ShapeBehavior {
   late final Rect Function() timerRectWorld;
   late final Vector2 gameSize;
 
-  late final Map<PositionComponent, dynamic> blinkingMap;
+  late final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap;
 
   DDrCommand({
     required this.visibleDuration,
@@ -68,16 +69,11 @@ class DDrCommand implements ShapeBehavior {
   }
 
   void onFadeAlphaChanged(PositionComponent shape, double alpha) {
-    final target = shape as dynamic;
-
-    try {
-      target.setBlinkAlpha(alpha);
-    } catch (e) {
-      print('[BLINK ALPHA] setBlinkAlpha not found on ${shape.runtimeType}: $e');
+    if (shape is BlinkAlphaTarget) {
+      shape.setBlinkAlpha(alpha);
     }
   }
 
   @override
-  // TODO: implement command
-  String get command => throw UnimplementedError();
+  String get command => isRandomRespawn ? 'DR' : 'D';
 }

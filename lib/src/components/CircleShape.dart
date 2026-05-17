@@ -1,10 +1,9 @@
 import 'dart:math';
-import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:figureout/src/functions/blink_alpha_target.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
@@ -12,7 +11,7 @@ import '../effect/AttackExplosionEffect.dart';
 import '../effect/CircleDisappearEffect.dart';
 
 class CircleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable
+    with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable, BlinkAlphaTarget
     implements OrderableShape {
 
   int count;
@@ -37,14 +36,12 @@ class CircleShape extends PositionComponent
   bool _penaltyFired = false;
   bool isPaused = false;
 
-  late SvgComponent _svg;
-  late SpriteComponent _png;
-
   final Paint _attackPaint = Paint()
     ..color = Colors.orangeAccent
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6;
 
+  final Color baseColor = const Color(0xFFF45B3A);
   final Color dangerColor = const Color(0xFFEE0505);
 
   double _blinkAlpha = 1.0;
@@ -56,16 +53,6 @@ class CircleShape extends PositionComponent
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
-    // _attackPaint.color =
-    // _attackPaint.color.withValues(alpha: _blinkAlpha);
-
-    // if (_svg.isMounted) {
-      _svg.opacity = _blinkAlpha;
-    // }
-
-    // if (_png.isMounted) {
-      _png.opacity = _blinkAlpha;
-    // }
 
     _hpTextComponent?.textRenderer = TextPaint(
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
@@ -96,53 +83,15 @@ class CircleShape extends PositionComponent
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    late final String svgAsset;
-
-    if (isDark) {
-      svgAsset = 'Circle_dark.svg';
-    } else if (order != null) {
-      svgAsset = 'Circle_sequence.svg';
-    } else {
-      svgAsset = 'Circle_basic.svg';
-    }
-
-    _svg = SvgComponent(
-      svg: await Svg.load(svgAsset),
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    );
-
-    final images = Images(prefix: 'assets/');
-    final img = await images.load('shapes/Circle.png');
-
-    _png = SpriteComponent(
-      sprite: Sprite(img),
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    )..opacity = 0;
-
-    add(_svg);
-    add(_png);
-
-    _svg.paint.blendMode = blendMode;
-    _png.paint.blendMode = blendMode;
-
     if (order != null) {
       _addOrderBadge(order!);
     }
 
-    if ((attackTime ?? 0) > 0) {
-      _svg.opacity = 0;
-      _png.opacity = 1;
-    }
-
-    if (!isDark && count > 1) {
+    if (!isDark && count >= 1) {
       _hpTextComponent = TextComponent(
         text: count.toString(),
-        anchor: Anchor.topRight,
-        position: Vector2(size.x - 4, 4),
+        anchor: Anchor.center,
+        position: size / 2,
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -159,8 +108,6 @@ class CircleShape extends PositionComponent
     if (isPaused) return;
     if (isDark) return;
     if (!isAttackable) return;
-
-    _attackElapsed += dt;
 
     // // ------------------------------------------------------------
     // // 즉시 공격 및 공격도형 제거 이펙트 적용
@@ -209,24 +156,53 @@ class CircleShape extends PositionComponent
     // ------------------------------------------------------------
     // 절반 이하 → 빨간 tint
     // ------------------------------------------------------------
-    if (!_attackDone && _attackTimeCritical) {
-      _png.paint = Paint()
-        ..colorFilter = ColorFilter.mode(
-          dangerColor,
-          BlendMode.srcIn,
-        );
-    }
   }
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
+    final center = Offset(size.x / 2, size.y / 2);
+    final radius = size.x * 0.45;
+    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
+    final shadowPath = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: radius));
 
-    if (isOverlapping) {
-      final center = Offset(size.x / 2, size.y / 2);
-      final radius = size.x * 0.48;
-      canvas.drawCircle(center, radius, _overlapOutlinePaint);
+    canvas.drawShadow(
+      shadowPath,
+      Colors.black.withValues(alpha: 0.28),
+      5,
+      false,
+    );
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = fillColor.withValues(alpha: _blinkAlpha)
+        ..style = PaintingStyle.fill
+        ..blendMode = blendMode,
+    );
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = Colors.black.withValues(alpha: _blinkAlpha * 0.14)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..blendMode = blendMode,
+    );
+
+    if (!_attackDone && _attackTimeCritical) {
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
+          ..blendMode = BlendMode.srcATop,
+      );
     }
+
+    super.render(canvas);
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
@@ -291,7 +267,7 @@ class CircleShape extends PositionComponent
   void applyValidInteraction() {
     count--;
 
-    if (count > 1) {
+    if (count >= 1) {
       _hpTextComponent?.text = count.toString();
     } else {
       _hpTextComponent?.removeFromParent();

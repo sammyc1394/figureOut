@@ -29,7 +29,7 @@ class RefreshButton extends PositionComponent with TapCallbacks, GestureHitboxes
 
   @override
   bool onTapDown(TapDownEvent event) {
-    print("Refresh button pressed - to the function");
+    debugPrint("Refresh button pressed - to the function");
     onPressed();
     return true;
   }

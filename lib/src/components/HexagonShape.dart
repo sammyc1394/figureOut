@@ -1,13 +1,13 @@
-import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
+import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'dart:math' as math;
 
 import '../effect/AttackExplosionEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import 'shape_path_utils.dart';
 
 enum HexagonState {
   normal,
@@ -16,13 +16,10 @@ enum HexagonState {
 }
 
 class HexagonShape extends PositionComponent
-    with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable {
+    with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
 
   double dragScale = 1.0;
   double autoScale = 1.0;
-
-  late final SvgComponent svg;
-  late final SpriteComponent _png;
 
   int energy = 0;
   TextComponent? _hpTextComponent;
@@ -80,7 +77,6 @@ class HexagonShape extends PositionComponent
 
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
-    svg.opacity = _blinkAlpha * _opacity;
 
     _hpTextComponent?.textRenderer = TextPaint(
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
@@ -110,47 +106,16 @@ class HexagonShape extends PositionComponent
 
     await super.onLoad();
 
-    final asset = isDark ? 'Hexagon_dark.svg' : 'Hexagon_basic.svg';
-    final svgData = await Svg.load(asset);
-
-    svg = SvgComponent(
-      svg: svgData,
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    );
-
-    add(svg);
-
-    if (attackTime != null) {
-      final img = await Images(prefix: 'assets/').load('shapes/hexagon.png');
-      _png = SpriteComponent(
-        sprite: Sprite(img),
-        size: size,
-        anchor: Anchor.center,
-        position: size / 2,
-      )
-        ..opacity = 0.8
-        ..paint.blendMode = blendMode
-        ..paint.colorFilter = ColorFilter.mode(baseColor, BlendMode.srcATop);
-      add(_png);
-    }
-
-    if ((attackTime ?? 0) > 0) {
-      svg.opacity = 0;
-      _png.opacity = 1;
-    }
-
     _outlinePath = _buildHexagonPath(size.toSize());
 
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
-    if (!isDark && energy > 1) {
+    if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
-        anchor: Anchor.topRight,
-        position: Vector2(size.x - 4, 4),
+        anchor: Anchor.center,
+        position: size / 2,
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -189,26 +154,6 @@ class HexagonShape extends PositionComponent
     path.close();
 
     return path;
-  }
-
-  Path _extractPartialPath(Path path, double length) {
-
-    final result = Path();
-
-    double remaining = length;
-
-    for (final metric in path.computeMetrics()) {
-
-      if (remaining <= 0) break;
-
-      final len = remaining.clamp(0.0, metric.length);
-
-      result.addPath(metric.extractPath(0, len), Offset.zero);
-
-      remaining -= len;
-    }
-
-    return result;
   }
 
   @override
@@ -262,11 +207,6 @@ class HexagonShape extends PositionComponent
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
 
       final isDanger = ratio <= 0.2;
-
-      _png.paint.colorFilter = ColorFilter.mode(
-        isDanger ? dangerColor : baseColor,
-        BlendMode.srcATop,
-      );
 
       _attackPaint.color = isDanger ? outlineDanger : outlineNormal;
 
@@ -333,8 +273,6 @@ class HexagonShape extends PositionComponent
 
       _opacity = 1.0 - Curves.easeIn.transform(t);
 
-      svg.opacity = _blinkAlpha * _opacity;
-
       if (_disappearT >= 1.0) {
 
         // 일반 제거 explosion (zoom 제거)
@@ -354,12 +292,51 @@ class HexagonShape extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
+    final alpha = (_blinkAlpha * _opacity).clamp(0.0, 1.0);
+
+    canvas.drawShadow(
+      _outlinePath,
+      Colors.black.withValues(alpha: 0.35),
+      6,
+      false,
+    );
+
+    canvas.drawPath(
+      _outlinePath,
+      Paint()
+        ..color = fillColor.withValues(alpha: alpha)
+        ..style = PaintingStyle.fill
+        ..blendMode = blendMode,
+    );
+
+    canvas.drawPath(
+      _outlinePath,
+      Paint()
+        ..color = fillColor.withValues(alpha: alpha * 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..blendMode = blendMode,
+    );
+
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
+      final ratio =
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+
+      if (ratio <= 0.2) {
+        canvas.drawPath(
+          _outlinePath,
+          Paint()
+            ..color = dangerColor.withValues(alpha: alpha * 0.5)
+            ..style = PaintingStyle.fill
+            ..blendMode = BlendMode.srcATop,
+        );
+      }
+    }
 
     super.render(canvas);
-
-    if (isOverlapping) {
-      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
-    }
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
 
@@ -368,7 +345,7 @@ class HexagonShape extends PositionComponent
 
       final drawLen = _outlineLength * ratio;
 
-      final partial = _extractPartialPath(_outlinePath, drawLen);
+      final partial = ShapePathUtils.extractPartial(_outlinePath, drawLen);
 
       canvas.drawPath(partial, _attackPaint);
     }
@@ -399,3 +376,4 @@ class HexagonShape extends PositionComponent
       ..close();
   }
 }
+

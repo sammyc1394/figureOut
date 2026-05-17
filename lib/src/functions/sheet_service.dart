@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../config.dart';
-import '../functions/logger.dart';
+import 'random_context.dart';
 
 class SheetService {
   final String sheetId;
@@ -13,22 +14,26 @@ class SheetService {
 
   SheetService()
       : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
-        apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '' {
+        apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '';
+  String get sheetName => 'Stages & Missions';
+  String get encodedSheetName => Uri.encodeComponent(sheetName);
+  String get range => 'B1:I';
+
+  Future<List<StageData>> fetchData() async {
     if (sheetId.isEmpty || apiKey.isEmpty) {
       throw Exception('Missing Google Sheet credentials in .env');
     }
-  }
-  String get sheetName => 'Stages & Missions';
-  String get encodedSheetName => Uri.encodeComponent(sheetName);
-  String get range => 'B2:J'; // Start from row 5, columns C~J
 
-  Future<List<StageData>> fetchData() async {
     final sheetNames = await fetchSheetNames();
 
-    final futures = sheetNames
+    final stageSheetNames = sheetNames
         .where((name) => name.startsWith('Stage') || name.startsWith('Stages'))
-        .map((name) => _fetchSingleSheet(name))
         .toList();
+
+    final targetSheetNames =
+        stageSheetNames.isNotEmpty ? stageSheetNames : sheetNames;
+
+    final futures = targetSheetNames.map((name) => _fetchSingleSheet(name)).toList();
 
     final results = await Future.wait(futures);
 
@@ -60,7 +65,7 @@ class SheetService {
     Map<int, String>? missionTitleMap;
 
     // URD Context (mission별로 분리)
-    Map<int, URDContext> missionContexts = {};
+    Map<int, RandomContext> missionContexts = {};
 
     for (var row in values) {
       final cells = row.map((e) => (e ?? '').toString().trim()).toList();
@@ -68,9 +73,9 @@ class SheetService {
 
       // ===== Stage 시작 =====
       if (cell != null && (cell.startsWith('s') || cell.startsWith('S'))) {
-        final stgTitle = _safeGet(cells, 2);
-        final rewardFromS = _safeGet(cells, 7);
-        final timeFromS = _safeGet(cells, 8);
+        final stgTitle = cell;
+        final rewardFromS = '';
+        final timeFromS = '';
 
         currentMissionMap = {};
         timeLimitMap = {};
@@ -91,13 +96,21 @@ class SheetService {
       }
 
       // ===== Mission 시작 =====
-      if (cell != null &&
-          (cell.startsWith('m') ||
-              cell.startsWith('M') ||
-              cell.startsWith('b') ||
-              cell.startsWith('B'))) {
+      final missionCell = _safeGet(cells, 1);
+      final missionMarker = (cell != null &&
+              (cell.startsWith('m') ||
+                  cell.startsWith('M') ||
+                  cell.startsWith('b') ||
+                  cell.startsWith('B')))
+          ? cell
+          : missionCell;
 
-        final lower = cell.toLowerCase();
+      if (missionMarker.startsWith('m') ||
+          missionMarker.startsWith('M') ||
+          missionMarker.startsWith('b') ||
+          missionMarker.startsWith('B')) {
+
+        final lower = missionMarker.toLowerCase();
 
         if (lower.startsWith('m')) {
           final match = RegExp(r'm(\d+)').firstMatch(lower);
@@ -114,14 +127,21 @@ class SheetService {
         }
 
         if (currentMission != null && currentStage != null) {
-          missionContexts.putIfAbsent(currentMission, () => URDContext());
+          missionContexts.putIfAbsent(
+            currentMission,
+            () => RandomContext(random: _random),
+          );
 
-          final msnTitle = _safeGet(cells, 1);
+          final msnTitle =
+              missionMarker.contains(':') ? missionMarker : _safeGet(cells, 1);
           if (msnTitle.isNotEmpty) {
             currentStage.missionTitle[currentMission] = msnTitle;
           }
 
-          final timeFromJ = _safeGet(cells, 8);
+          final timeFromJ = _firstParsableNumber([
+            _safeGet(cells, 6),
+            _safeGet(cells, 7),
+          ]);
           final parsed = double.tryParse(timeFromJ);
           if (parsed != null) {
             currentStage.missionTimeLimits[currentMission] = parsed;
@@ -138,11 +158,14 @@ class SheetService {
 
       final ctx = missionContexts[currentMission]!;
 
-      final command = _safeGet(cells, 2);
-      if (command.isEmpty) continue;
-      if (_safeGet(cells, 1) == "1") continue;
+      final shapeColumn = _shapeColumnIndex(cells);
+      final rawShapeCell = _safeGet(cells, shapeColumn);
+      if (rawShapeCell.isEmpty) continue;
+      if (_isHeaderShape(rawShapeCell)) continue;
 
-      final rawShape = _safeGet(cells, 3);
+      final isWait = rawShapeCell.toLowerCase().startsWith('wait');
+      final command = isWait ? 'wait' : 'e';
+      final rawShape = rawShapeCell;
       final shape = resolveShape(normalizeShape(rawShape), ctx);
 
       final order = parseOrder(shape, ctx);
@@ -150,11 +173,11 @@ class SheetService {
 
       final darkYN = (energy == -1);
 
-      final attackRaw = _safeGet(cells, 4);
-      final movement = _safeGet(cells, 5);
+      final attackRaw = _safeGet(cells, shapeColumn + 1);
+      final movement = _safeGet(cells, shapeColumn + 2);
       final resolvedMovement = resolveMovement(movement, ctx);
 
-      final position = _safeGet(cells, 6);
+      final position = _safeGet(cells, shapeColumn + 3);
 
       final resolvedAttackRaw = resolveAttack(attackRaw, ctx);
       final resolvedPosition = resolvePosition(position, ctx);
@@ -216,12 +239,46 @@ class SheetService {
     return '';
   }
 
+  String _firstParsableNumber(List<String> values) {
+    for (final value in values) {
+      if (double.tryParse(value) != null) return value;
+    }
+    return '';
+  }
+
+  int _shapeColumnIndex(List<String> cells) {
+    final newShapeCell = _safeGet(cells, 1);
+    if (_isShapeOrWaitCell(newShapeCell)) return 1;
+
+    final legacyShapeCell = _safeGet(cells, 2);
+    if (_isShapeOrWaitCell(legacyShapeCell)) return 2;
+
+    return 1;
+  }
+
+  bool _isHeaderShape(String value) {
+    final lower = value.trim().toLowerCase();
+    return lower == 'shape' || lower == 'enemy' || lower == '도형';
+  }
+
+  bool _isShapeOrWaitCell(String value) {
+    final lower = value.trim().toLowerCase();
+    if (lower.isEmpty || _isHeaderShape(lower)) return false;
+    return lower.startsWith('wait') ||
+        lower.startsWith('circle') ||
+        lower.startsWith('rectangle') ||
+        lower.startsWith('triangle') ||
+        lower.startsWith('pentagon') ||
+        lower.startsWith('hexagon') ||
+        RegExp(r'^[crtph]\d').hasMatch(lower);
+  }
+
   String normalizeShape(String raw) {
     return raw.replaceAll(RegExp(r'\s+'), '');
   }
 
-  int? parseOrder(String shape, URDContext ctx) {
-    print("[ORDER] before parse order = $shape");
+  int? parseOrder(String shape, RandomContext ctx) {
+    debugPrint("[ORDER] before parse order = $shape");
     if (!shape.contains('_')) return null;
 
     final rest = shape.substring(shape.indexOf('_') + 1);
@@ -234,7 +291,7 @@ class SheetService {
       final orderRaw = match.group(0)!;
       final resolved = resolveRandom(orderRaw, URDField.order, ctx);
       final ret = int.tryParse(resolved);
-      print("[ORDER] order parse done = $ret - $orderRaw");
+      debugPrint("[ORDER] order parse done = $ret - $orderRaw");
       return ret;
     }
 
@@ -242,7 +299,7 @@ class SheetService {
     final numberMatch = RegExp(r'-?\d+').firstMatch(rest);
     if (numberMatch != null) {
       final ret = int.tryParse(numberMatch.group(0)!);
-      print("[ORDER] order parse done = $ret");
+      debugPrint("[ORDER] order parse done = $ret");
       return ret;
     }
 
@@ -250,50 +307,11 @@ class SheetService {
     return null;
   }
 
-  String resolveRandom(String str, URDField field, URDContext ctx) {
-    if (!str.contains('RD')) return str;
-
-    return str.replaceAllMapped(
-      RegExp(r'(URD|RD)\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)'),
-          (match) {
-        final type = match.group(1);
-        final min = double.parse(match.group(2)!);
-        final max = double.parse(match.group(3)!);
-
-        if (type == 'RD') {
-          final value = _random.nextDouble() * ((max + 1) - min) + min;
-          return value.truncate().toString();
-        }
-
-        if (type == 'URD') {
-          return _getURD(field, min.toInt(), (max.toInt() + 1), ctx).toString();
-        }
-
-        return match.group(0)!;
-      },
-    );
+  String resolveRandom(String str, URDField field, RandomContext ctx) {
+    return ctx.resolveRandom(str, field);
   }
 
-  int _getURD(URDField field, int min, int max, URDContext ctx) {
-    final rangeKey = '$min,$max';
-
-    ctx.pools.putIfAbsent(field, () => {});
-    ctx.pools[field]!.putIfAbsent(rangeKey, () {
-      final list = List.generate(max - min + 1, (i) => min + i);
-      list.shuffle(_random);
-      return list;
-    });
-
-    final pool = ctx.pools[field]![rangeKey]!;
-
-    if (pool.isEmpty) {
-      throw Exception('URD exhausted: $field ($rangeKey)');
-    }
-
-    return pool.removeLast();
-  }
-
-  String resolvePosition(String str, URDContext ctx) {
+  String resolvePosition(String str, RandomContext ctx) {
     return str.replaceAllMapped(
       RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
           (match) {
@@ -308,7 +326,7 @@ class SheetService {
     );
   }
 
-  String resolveAttack(String str, URDContext ctx) {
+  String resolveAttack(String str, RandomContext ctx) {
     return str.replaceAllMapped(
       RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
           (match) {
@@ -323,7 +341,7 @@ class SheetService {
     );
   }
 
-  String resolveShape(String rawShape, URDContext ctx) {
+  String resolveShape(String rawShape, RandomContext ctx) {
     rawShape = rawShape.replaceAll(RegExp(r'\s+'), '');
 
     final underscoreIndex = rawShape.indexOf('_');
@@ -344,10 +362,9 @@ class SheetService {
 
     // print("[DATA] shape resolve = $ret");
     return ret;
-    return ret;
   }
 
-  String resolveMovement(String movement, URDContext ctx) {
+  String resolveMovement(String movement, RandomContext ctx) {
     if(movement == '') {
       return '';
     }
@@ -366,7 +383,7 @@ class SheetService {
     return resolved.join(', ');
   }
 
-  String resolveMovementByType(String cmd, MovementValueType type, URDContext ctx) {
+  String resolveMovementByType(String cmd, MovementValueType type, RandomContext ctx) {
     switch (type) {
       case MovementValueType.positionSpeed:
         return cmd.replaceAllMapped(
@@ -454,7 +471,7 @@ class SheetService {
   }
 
   // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
-  int _parseEnergy(String s, int def, URDContext ctx) {
+  int _parseEnergy(String s, int def, RandomContext ctx) {
     // print("[ENERGY] energy parse start = $s");
     // 1. 마지막 ')' 위치 찾기
     final end = s.lastIndexOf(')');
@@ -558,6 +575,3 @@ class EnemyData {
   }
 }
 
-class URDContext {
-  final Map<URDField, Map<String, List<int>>> pools = {};
-}

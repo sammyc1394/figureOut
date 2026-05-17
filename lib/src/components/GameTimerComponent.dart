@@ -1,19 +1,14 @@
 import 'package:flame/components.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 class GameTimerComponent extends PositionComponent {
-  SvgComponent? frame;
-  SvgComponent? stateIndicator;
-  ClipComponent? clip;
-
   late TextComponent timerText;
 
   double totalTime;
   double currentTime;
 
-  final String _currentFillAsset = 'TimerBar_green.svg';
   bool _ready = false;
+  double _flashPenaltyRemaining = 0.0;
 
   static const double _epsilon = 1e-3;
 
@@ -21,12 +16,12 @@ class GameTimerComponent extends PositionComponent {
     required this.totalTime,
     required Vector2 position,
     Vector2? sizePx,
-  }) : currentTime = totalTime,
-       super(
-         position: position,
-         size: sizePx ?? Vector2(320, 28),
-         anchor: Anchor.topCenter,
-       );
+  })  : currentTime = totalTime,
+        super(
+          position: position,
+          size: sizePx ?? Vector2(320, 28),
+          anchor: Anchor.topCenter,
+        );
 
   String _formatTime(double time) {
     final int seconds = time.floor();
@@ -35,54 +30,27 @@ class GameTimerComponent extends PositionComponent {
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
-  String _frameOf(String fill) {
-    if (fill.endsWith('.svg')) {
-      final base = fill.substring(0, fill.length - 4);
-      return '${base}_empty.svg';
-    }
-    return '${fill}_empty.svg';
-  }
-
-  // 막대기 부품 하나만 사용
-  SvgComponent? bar;
-
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 초록색 원본 막대 하나만 로드합니다.
-    bar = SvgComponent(
-      svg: await Svg.load('TimerBar_green.svg'),
-      size: size,
-    );
-
-    clip = ClipComponent.rectangle(size: size);
-    clip!.add(bar!);
-
-    frame = SvgComponent(
-      svg: await Svg.load(_frameOf('TimerBar_green.svg')),
-      size: size,
-      anchor: Anchor.topLeft,
-    );
-
     timerText = TextComponent(
       text: _formatTime(currentTime),
-      anchor: Anchor.topRight,
-      position: Vector2(-8, (size.y - 21) / 2),
+      anchor: Anchor.center,
+      position: size / 2,
+      priority: 10,
       textRenderer: TextPaint(
         style: const TextStyle(
           fontFamily: 'Moulpali',
           fontSize: 16,
           height: 21 / 16,
-          letterSpacing: -0.32,
           color: Colors.black,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
 
     add(timerText);
-    add(clip!);
-    add(frame!);
 
     _ready = true;
     updateTime(currentTime);
@@ -90,46 +58,75 @@ class GameTimerComponent extends PositionComponent {
 
   void updateTime(double remaining) {
     currentTime = remaining;
-    if (!_ready || bar == null) return;
-
-    final ratio = (totalTime > 0)
-        ? (remaining / totalTime).clamp(0.0, 1.0)
-        : 0.0;
-
-    // 10초 이하일 때만 빨간색 필터를 입히고, 그 외에는 필터를 제거(null)합니다.
-    // 이렇게 하면 평소에는 원본 초록색의 예쁜 색감이 그대로 유지됩니다.
-    if (currentTime <= 10.0 + _epsilon) {
-      bar!.paint = Paint()
-        ..colorFilter = const ColorFilter.mode(Colors.red, BlendMode.srcIn);
-    } else {
-      // 10초보다 많으면 필터를 완전히 제거하여 원본 이미지를 보여줍니다.
-      bar!.paint = Paint(); 
-    }
-
-    const double minWidth = 0.0001;
-    clip!.size = Vector2(size.x * (ratio > 0 ? ratio : minWidth), size.y);
-
+    if (!_ready) return;
     timerText.text = _formatTime(currentTime);
   }
 
-  // 더 이상 사용하지 않는 레거시 함수들 정리
-  void _showOnly(SvgComponent? target) {}
-  void _tint(Color color) {}
-  void _changeState(String fillAsset) async {}
-  
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (_flashPenaltyRemaining > 0) {
+      _flashPenaltyRemaining =
+          (_flashPenaltyRemaining - dt).clamp(0.0, double.infinity).toDouble();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final rect = Rect.fromLTWH(0, 0, size.x, size.y);
+    final radius = Radius.circular(size.y / 2);
+    final rrect = RRect.fromRectAndRadius(rect, radius);
+    final ratio =
+        totalTime > 0 ? (currentTime / totalTime).clamp(0.0, 1.0) : 0.0;
+    final isDanger = currentTime <= 10.0 + _epsilon;
+    final fillColor = (isDanger || _flashPenaltyRemaining > 0)
+        ? const Color(0xFFE53935)
+        : const Color(0xFF55C867);
+
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = const Color(0xFFE8E8E8)
+        ..style = PaintingStyle.fill,
+    );
+
+    if (ratio > 0) {
+      canvas.save();
+      canvas.clipRRect(rrect);
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.x * ratio, size.y),
+        Paint()
+          ..color = fillColor
+          ..style = PaintingStyle.fill,
+      );
+      canvas.restore();
+    }
+
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = const Color(0xFF2E2E2E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    super.render(canvas);
+  }
+
   void flashPenalty({double durationSec = 0.4}) {
     if (!_ready) return;
+    _flashPenaltyRemaining = durationSec;
 
-    // 1) 타이머 텍스트 빨갛게 → durationSec 후 검정 복구
     timerText.textRenderer = TextPaint(
       style: const TextStyle(
         fontFamily: 'Moulpali',
         fontSize: 16,
         height: 21 / 16,
-        letterSpacing: -0.32,
         color: Colors.red,
+        fontWeight: FontWeight.bold,
       ),
     );
+
     add(
       TimerComponent(
         period: durationSec,
@@ -139,8 +136,8 @@ class GameTimerComponent extends PositionComponent {
               fontFamily: 'Moulpali',
               fontSize: 16,
               height: 21 / 16,
-              letterSpacing: -0.32,
               color: Colors.black,
+              fontWeight: FontWeight.bold,
             ),
           );
         },
@@ -148,42 +145,15 @@ class GameTimerComponent extends PositionComponent {
         repeat: false,
       ),
     );
-
-    // 2) 타이머 바 빨갛게 → 1초 후 원래 색으로 복구
-    //    이미 10초 이하(영구 빨간 상태)이면 건드리지 않음
-    if (bar != null && currentTime > 10.0 + _epsilon) {
-      bar!.paint = Paint()
-        ..colorFilter = const ColorFilter.mode(Colors.red, BlendMode.srcIn);
-      add(
-        TimerComponent(
-          period: 1.0,
-          onTick: () {
-            if (bar == null) return;
-            // 복구 시점에 여전히 10초 초과이면 초록으로, 이하이면 빨간 유지
-            if (currentTime <= 10.0 + _epsilon) {
-              bar!.paint = Paint()
-                ..colorFilter =
-                    const ColorFilter.mode(Colors.red, BlendMode.srcIn);
-            } else {
-              bar!.paint = Paint(); // 원본 초록 복구
-            }
-          },
-          removeOnFinish: true,
-          repeat: false,
-        ),
-      );
-    }
   }
 
-  /// 타이머 바 위 중앙에 데미지 숫자를 잠깐 표시합니다.
-  /// 예: -3s
   void showDamageNumber(double damage) {
     if (!_ready) return;
 
     final damageText = TextComponent(
       text: '-${damage.toStringAsFixed(0)}',
-      anchor: Anchor.topRight,
-      position: Vector2(size.x - 5, -22),
+      anchor: Anchor.center,
+      position: Vector2(size.x - 18, -18),
       textRenderer: TextPaint(
         style: const TextStyle(
           fontFamily: 'Moulpali',
@@ -203,7 +173,6 @@ class GameTimerComponent extends PositionComponent {
 
     add(damageText);
 
-    // 1초 후 자동 제거
     add(
       TimerComponent(
         period: 1.0,

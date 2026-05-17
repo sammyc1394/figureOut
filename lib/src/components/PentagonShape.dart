@@ -3,26 +3,23 @@ import 'dart:ui';
 
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
-import 'package:flame/cache.dart';
+import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import 'shape_path_utils.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable, BlinkAlphaTarget {
 
   int energy;
   TextComponent? _hpTextComponent;
   bool _isLongPressing = false;
-
-  late final SvgComponent svg;
-  late final SpriteComponent _png;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
@@ -48,18 +45,8 @@ class PentagonShape extends PositionComponent
     ..style = PaintingStyle.stroke
     ..strokeWidth = 3.0;
 
-  bool get _usesPngLayer => (attackTime ?? 0) > 0;
-
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
-
-    if (_usesPngLayer) {
-      svg.opacity = 0;
-      _png.opacity = _blinkAlpha;
-    } else {
-      svg.opacity = _blinkAlpha;
-      _png.opacity = 0;
-    }
 
     _hpTextComponent?.textRenderer = TextPaint(
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
@@ -150,35 +137,6 @@ class PentagonShape extends PositionComponent
 
     await super.onLoad();
 
-    final svgData =
-        await Svg.load(isDark ? 'Pentagon_dark.svg' : 'Pentagon_basic.svg');
-
-    svg = SvgComponent(
-      svg: svgData,
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    );
-
-    add(svg);
-
-    final img = await Images(prefix: 'assets/').load('shapes/Pentagon.png');
-
-    _png = SpriteComponent(
-      sprite: Sprite(img),
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-    )..opacity = 0
-     ..paint.blendMode = blendMode;
-
-    add(_png);
-
-    if (_usesPngLayer) {
-      svg.opacity = 0;
-      _png.opacity = 1;
-    }
-
     _center = _visualPentagonCenter;
 
     _baseRadius = size.x * 0.392;
@@ -188,11 +146,11 @@ class PentagonShape extends PositionComponent
     _perimeter =
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
-    if (!isDark && energy > 1) {
+    if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
-        anchor: Anchor.topRight,
-        position: Vector2(size.x - 4, 4),
+        anchor: Anchor.center,
+        position: size / 2,
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -208,10 +166,6 @@ class PentagonShape extends PositionComponent
 
   @override
   void update(double dt) {
-
-    if (_isLongPressing && _frozenPosition != null) {
-      position.setFrom(_frozenPosition!);
-    }
 
     super.update(dt);
 
@@ -246,7 +200,7 @@ class PentagonShape extends PositionComponent
           return;
         }
 
-        if (energy > 1) {
+        if (energy >= 1) {
           _hpTextComponent?.text = energy.toString();
         } else {
           _hpTextComponent?.removeFromParent();
@@ -299,12 +253,50 @@ class PentagonShape extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
+
+    canvas.drawShadow(
+      _pentagonPath,
+      Colors.black.withValues(alpha: 0.35),
+      6,
+      false,
+    );
+
+    canvas.drawPath(
+      _pentagonPath,
+      Paint()
+        ..color = fillColor.withValues(alpha: _blinkAlpha)
+        ..style = PaintingStyle.fill
+        ..blendMode = blendMode,
+    );
+
+    canvas.drawPath(
+      _pentagonPath,
+      Paint()
+        ..color = fillColor.withValues(alpha: _blinkAlpha * 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..blendMode = blendMode,
+    );
+
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
+      final ratio =
+          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
+
+      if (ratio <= 0.2) {
+        canvas.drawPath(
+          _pentagonPath,
+          Paint()
+            ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
+            ..style = PaintingStyle.fill
+            ..blendMode = BlendMode.srcATop,
+        );
+      }
+    }
 
     super.render(canvas);
-
-    if (isOverlapping) {
-      canvas.drawPath(_pentagonPath, _overlapOutlinePaint);
-    }
 
     if (!isDark && _pulseThicknessT > 0.0) {
 
@@ -329,8 +321,9 @@ class PentagonShape extends PositionComponent
 
         final paint = Paint()
           ..style = PaintingStyle.fill
-          ..color = _pulseColor.withOpacity(
-              opacity * _pulseThicknessT * _blinkAlpha);
+          ..color = _pulseColor.withValues(
+            alpha: opacity * _pulseThicknessT * _blinkAlpha,
+          );
 
         canvas.drawPath(ring, paint);
       }
@@ -356,10 +349,10 @@ class PentagonShape extends PositionComponent
 
       _attackPaint.color =
           (ratio <= 0.2 ? dangerColor : baseColor)
-              .withOpacity(_blinkAlpha);
+              .withValues(alpha: _blinkAlpha);
 
       canvas.drawPath(
-        _extractPartialPath(_pentagonPath, _perimeter * ratio),
+        ShapePathUtils.extractPartial(_pentagonPath, _perimeter * ratio),
         _attackPaint,
       );
     }
@@ -410,26 +403,6 @@ class PentagonShape extends PositionComponent
     ring.addPath(inner, Offset.zero);
 
     return ring;
-  }
-
-  Path _extractPartialPath(Path p, double len) {
-
-    final r = Path();
-
-    double rem = len;
-
-    for (final m in p.computeMetrics()) {
-
-      if (rem <= 0) break;
-
-      final l = rem.clamp(0.0, m.length);
-
-      r.addPath(m.extractPath(0, l), Offset.zero);
-
-      rem -= l;
-    }
-
-    return r;
   }
 
   Path _buildHandDrawnCircle(
@@ -570,3 +543,4 @@ class PentagonShape extends PositionComponent
       ..close();
   }
 }
+

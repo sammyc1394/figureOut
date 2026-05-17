@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../config.dart';
 import '../functions/sheet_service.dart';
+import 'route_args.dart';
 
 class StageSelectScreen extends StatefulWidget {
   final List<StageData> stages;
@@ -63,10 +64,13 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                 builder: (context) {
                   return GestureDetector(
                     onTap: () {
-                      context.push('/missions', extra: {
-                        "stages": stages,
-                        "index": _currentIndex,
-                      });
+                      context.push(
+                        '/missions',
+                        extra: MissionRouteArgs(
+                          stages: stages,
+                          stageIndex: _currentIndex,
+                        ),
+                      );
                     },
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 250),

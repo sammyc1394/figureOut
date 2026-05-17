@@ -24,7 +24,7 @@ class PausedScreen extends PositionComponent {
     // 반투명 배경
     final overlayBg = RectangleComponent(
       size: size,
-      paint: Paint()..color = Colors.black.withOpacity(0.5),
+      paint: Paint()..color = Colors.black.withValues(alpha: 0.5),
     );
     add(overlayBg);
 

@@ -76,7 +76,7 @@ class AttackExplosionEffect extends PositionComponent {
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
-        ..color = color.withOpacity(0.8)
+        ..color = color.withValues(alpha: 0.8)
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round;
 

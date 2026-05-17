@@ -31,7 +31,7 @@ const fallbackFontFamily = ['Gaegu'];
 const bgColor = 0xFFE4E0D3;
 
 // Enums
-enum shapes { Circle, Rectangel, Pentagon, Triangle, Hexagon }
+enum shapes { Circle, Rectangle, Pentagon, Triangle, Hexagon }
 enum StageResult { success, fail, cancelled }
 
 enum URDField {

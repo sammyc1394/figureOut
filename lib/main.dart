@@ -23,15 +23,14 @@ import 'package:figureout/src/routes/MainGameScreen.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/MissionSelect.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
+import 'package:figureout/src/routes/route_args.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  debugPrintGestureArenaDiagnostics = true;
-
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: "assets/.env");
+  await dotenv.load(fileName: "assets/.env", isOptional: true);
   
   final deviceLocale = PlatformDispatcher.instance.locale;
   final deviceLang = deviceLocale.languageCode;
@@ -46,15 +45,17 @@ void main() async {
 
   try {
     // Google Sheet에서 번역 로드
-    translations = await TranslationSheetService().fetchTranslations();
+    translations = await TranslationSheetService()
+        .fetchTranslations()
+        .timeout(const Duration(seconds: 5));
     if (translations.isEmpty) {
       throw Exception('Empty translation sheet');
     }
-    print('[i18n] Loaded translations from Google Sheet');
+    debugPrint('[i18n] Loaded translations from Google Sheet');
   } catch (e) {
     // 실패 시 local Dart fallback
     translations = translationData;
-    print('[i18n] Failed to load sheet, using local translations');
+    debugPrint('[i18n] Failed to load sheet, using local translations');
     debugPrint(e.toString());
   }
 
@@ -71,18 +72,17 @@ void main() async {
   final apiKey = dotenv.env['GOOGLESHEETAPIKEY'];
   final sheetId = dotenv.env['GOOGLESHEETID'];
 
-  if (apiKey == null || sheetId == null) {
-    throw Exception('ENV 값이 없습니다.');
+  if (apiKey != null && sheetId != null) {
+    await LoggerService.instance.init(
+      apiKey: apiKey,
+      sheetId: sheetId,
+    );
+  } else {
+    debugPrint('[Logger] Missing Google Sheet credentials. Logger disabled.');
   }
-
-  await LoggerService.instance.init(
-    apiKey: apiKey,
-    sheetId: sheetId,
-  );
 
   Flame.device.fullScreen();
 
-  WidgetsFlutterBinding.ensureInitialized();
   runApp(figureoutMain());
 }
 
@@ -109,21 +109,21 @@ class figureoutMain extends StatelessWidget {
         GoRoute(
           path: '/missions',
           builder: (context, state) {
-            final data = state.extra as Map;
+            final data = state.extra as MissionRouteArgs;
             return MissionSelectScreen(
-              stages: data["stages"],
-              stageIndex: data["index"],
+              stages: data.stages,
+              stageIndex: data.stageIndex,
             );
           },
         ),
         GoRoute(
           path: '/game',
           builder: (context, state) {
-            final data = state.extra as Map;
+            final data = state.extra as GameRouteArgs;
             return MainGameScreen(
-              stages: data["stages"],
-              stageIndex: data["stageIndex"],
-              missionIndex: data["missionIndex"],
+              stages: data.stages,
+              stageIndex: data.stageIndex,
+              missionIndex: data.missionIndex,
             );
           },
         ),
@@ -143,3 +143,4 @@ class figureoutMain extends StatelessWidget {
     );
   }
 }
+

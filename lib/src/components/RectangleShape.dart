@@ -3,28 +3,20 @@ import 'dart:math' as math;
 
 import 'package:figureout/src/effect/FallingClippedPiece.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
-import 'package:flame/cache.dart';
+import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
+import 'shape_path_utils.dart';
 
 class RectangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, OverlapHighlightable
+    with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget
     implements OrderableShape {
   int count = 0;
-
-  // Base rectangle is rendered as either:
-  // 1) single stretched PNG for narrow width
-  // 2) 3-slice PNG for wider width
-  final List<SpriteComponent> _baseSlices = [];
-
-  // Attack rectangle image (kept as-is for now).
-  late final SpriteComponent _pngAttack;
 
   late PositionComponent _orderBadge;
 
@@ -72,9 +64,6 @@ class RectangleShape extends PositionComponent
     ..style = PaintingStyle.stroke
     ..strokeWidth = 3.0;
 
-  // Keep SVG source only for sliced-piece effect.
-  late final Svg _sourceSvg;
-
   RectangleShape(
     Vector2 position,
     this.count, {
@@ -94,30 +83,8 @@ class RectangleShape extends PositionComponent
           anchor: Anchor.center,
         );
 
-  bool get _usesPngLayer => (attackTime ?? 0) > 0;
-
-  Paint _makeCrispPaint() {
-    return Paint()
-      ..isAntiAlias = false
-      ..filterQuality = FilterQuality.none;
-  }
-
-  void _setBaseSlicesOpacity(double value) {
-    for (final slice in _baseSlices) {
-      slice.opacity = value;
-    }
-  }
-
   void setBlinkAlpha(double alpha) {
     _blinkAlpha = alpha.clamp(0.0, 1.0);
-
-    if (_usesPngLayer) {
-      _setBaseSlicesOpacity(0.0);
-      _pngAttack.opacity = _blinkAlpha;
-    } else {
-      _setBaseSlicesOpacity(_blinkAlpha);
-      _pngAttack.opacity = 0.0;
-    }
 
     if (_orderBadgeBg != null) {
       _orderBadgeBg!.paint.color =
@@ -151,118 +118,15 @@ class RectangleShape extends PositionComponent
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    // Keep SVG for slice piece effect.
-    final String svgAsset =
-        isDark ? 'Rectangle_dark.svg' : 'Rectangle_basic.svg';
-    _sourceSvg = await Svg.load(svgAsset);
-
-    final images = Images(prefix: 'assets/');
-
-    // Base rectangle PNG with border/art.
-    final String basePngAsset =
-        isDark ? 'Rectangle_dark.png' : 'Rectangle_basic.png';
-    final imgBase = await images.load(basePngAsset);
-
-    // Pixel-align size to reduce border tearing.
-    final double targetWidth = size.x.roundToDouble();
-    final double targetHeight = size.y.roundToDouble();
-
-    // Base slice setup
-    const double baseEdgeWidth = 12.0;
-
-    // If width is too narrow, 3-slice looks broken.
-    // In that case, use a single stretched sprite instead.
-    const double singleSpriteThreshold = 56.0;
-
-    if (targetWidth < singleSpriteThreshold) {
-      final single = SpriteComponent(
-        sprite: Sprite(imgBase),
-        size: Vector2(targetWidth, targetHeight),
-        anchor: Anchor.topLeft,
-        position: Vector2.zero(),
-        paint: _makeCrispPaint(),
-      );
-
-      _baseSlices.add(single);
-      add(single);
-    } else {
-      final double edgeWidth = baseEdgeWidth;
-      final double centerWidth =
-          math.max(0.0, targetWidth - edgeWidth * 2).roundToDouble();
-
-      // LEFT slice
-      final left = SpriteComponent(
-        sprite: Sprite(
-          imgBase,
-          srcPosition: Vector2.zero(),
-          srcSize: Vector2(edgeWidth, imgBase.height.toDouble()),
-        ),
-        size: Vector2(edgeWidth, targetHeight),
-        anchor: Anchor.topLeft,
-        position: Vector2(0.0, 0.0),
-        paint: _makeCrispPaint(),
-      );
-
-      // CENTER slice
-      final center = SpriteComponent(
-        sprite: Sprite(
-          imgBase,
-          srcPosition: Vector2(edgeWidth, 0),
-          srcSize: Vector2(
-            imgBase.width.toDouble() - edgeWidth * 2,
-            imgBase.height.toDouble(),
-          ),
-        ),
-        size: Vector2(centerWidth, targetHeight),
-        anchor: Anchor.topLeft,
-        position: Vector2(edgeWidth.roundToDouble(), 0.0),
-        paint: _makeCrispPaint(),
-      );
-
-      // RIGHT slice
-      final right = SpriteComponent(
-        sprite: Sprite(
-          imgBase,
-          srcPosition: Vector2(imgBase.width.toDouble() - edgeWidth, 0),
-          srcSize: Vector2(edgeWidth, imgBase.height.toDouble()),
-        ),
-        size: Vector2(edgeWidth, targetHeight),
-        anchor: Anchor.topLeft,
-        position: Vector2((targetWidth - edgeWidth).roundToDouble(), 0.0),
-        paint: _makeCrispPaint(),
-      );
-
-      _baseSlices.addAll([left, center, right]);
-      add(left);
-      add(center);
-      add(right);
-    }
-
-    // Attack PNG stays as current implementation.
-    final imgAttack = await images.load('shapes/Rectangle.png');
-    _pngAttack = SpriteComponent(
-      sprite: Sprite(imgAttack),
-      size: size,
-      anchor: Anchor.center,
-      position: size / 2,
-      paint: _makeCrispPaint(),
-    )..opacity = 0.0;
-    add(_pngAttack);
-
-    for (final slice in _baseSlices) {
-      slice.paint.blendMode = blendMode;
-    }
-    _pngAttack.paint.blendMode = blendMode;
-
     if (order != null) {
       _addOrderBadge(order!);
     }
 
-    if (!isDark && count > 1) {
+    if (!isDark && count >= 1) {
       _hpTextComponent = TextComponent(
         text: count.toString(),
-        anchor: Anchor.topRight,
-        position: Vector2(size.x - 4, 4),
+        anchor: Anchor.center,
+        position: size / 2,
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(
@@ -275,14 +139,6 @@ class RectangleShape extends PositionComponent
       add(_hpTextComponent!);
     }
 
-    if (_usesPngLayer) {
-      _setBaseSlicesOpacity(0.0);
-      _pngAttack.opacity = 1.0;
-    } else {
-      _setBaseSlicesOpacity(1.0);
-      _pngAttack.opacity = 0.0;
-    }
-
     _outlinePath = _buildRectPath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
@@ -290,25 +146,16 @@ class RectangleShape extends PositionComponent
 
   Path _buildRectPath(Size s) {
     final inset = (_attackPaint.strokeWidth / 2) - 1.0;
-    return Path()
-      ..moveTo(inset, inset)
-      ..lineTo(s.width - inset, inset)
-      ..lineTo(s.width - inset, s.height - inset)
-      ..lineTo(inset, s.height - inset)
-      ..close();
-  }
+    final rect = Rect.fromLTWH(
+      inset,
+      inset,
+      s.width - inset * 2,
+      s.height - inset * 2,
+    );
+    final shortestSide = s.width < s.height ? s.width : s.height;
+    final radius = Radius.circular((shortestSide * 0.08).clamp(4.0, 8.0));
 
-  Path _extractPartialPath(Path path, double length) {
-    final result = Path();
-    double remaining = length;
-
-    for (final metric in path.computeMetrics()) {
-      if (remaining <= 0) break;
-      final len = remaining.clamp(0.0, metric.length);
-      result.addPath(metric.extractPath(0, len), Offset.zero);
-      remaining -= len;
-    }
-    return result;
+    return Path()..addRRect(RRect.fromRectAndRadius(rect, radius));
   }
 
   @override
@@ -353,17 +200,6 @@ class RectangleShape extends PositionComponent
     // ------------------------------------------------------------
     // 절반 이하 → 빨간 tint
     // ------------------------------------------------------------
-    if (!_attackDone && _attackTimeHalfLeft) {
-      _pngAttack.paint = Paint()
-        ..isAntiAlias = false
-        ..filterQuality = FilterQuality.none
-        ..colorFilter = ColorFilter.mode(
-          dangerColor,
-          BlendMode.srcIn,
-        );
-    } else {
-      _pngAttack.paint = _makeCrispPaint();
-    }
   }
 
   bool get _attackTimeHalfLeft {
@@ -375,13 +211,9 @@ class RectangleShape extends PositionComponent
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
-
     _renderRectangleShape(canvas);
 
-    if (isOverlapping) {
-      canvas.drawPath(_outlinePath, _overlapOutlinePaint);
-    }
+    super.render(canvas);
 
     // perimeter timer
     if ((attackTime ?? 0) > 0 && !_attackDone) {
@@ -389,24 +221,61 @@ class RectangleShape extends PositionComponent
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final drawLen = _outlineLength * ratio;
 
-      _attackPaint.color = ratio <= 0.2 ? dangerColor : baseColor;
-      _attackPaint.color =
-          _attackPaint.color.withAlpha((_blinkAlpha * 255).toInt());
+      _attackPaint.color = (ratio <= 0.2 ? dangerColor : baseColor)
+          .withValues(alpha: _blinkAlpha);
 
-      final partial = _extractPartialPath(_outlinePath, drawLen);
+      final partial = ShapePathUtils.extractPartial(_outlinePath, drawLen);
       canvas.drawPath(partial, _attackPaint);
     }
 
     _renderSliceLine(canvas);
   }
 
-  void _renderRectangleShape(Canvas canvas) {}
+  void _renderRectangleShape(Canvas canvas) {
+    final fillColor = isDark ? const Color(0xFF555555) : baseColor;
+
+    canvas.drawShadow(
+      _outlinePath,
+      Colors.black.withValues(alpha: 0.35),
+      6,
+      false,
+    );
+
+    canvas.drawPath(
+      _outlinePath,
+      Paint()
+        ..color = fillColor.withValues(alpha: _blinkAlpha)
+        ..style = PaintingStyle.fill
+        ..blendMode = blendMode,
+    );
+
+    canvas.drawPath(
+      _outlinePath,
+      Paint()
+        ..color = fillColor.withValues(alpha: _blinkAlpha * 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..blendMode = blendMode,
+    );
+
+    if (!_attackDone && _attackTimeHalfLeft) {
+      canvas.drawPath(
+        _outlinePath,
+        Paint()
+          ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
+          ..style = PaintingStyle.fill
+          ..blendMode = BlendMode.srcATop,
+      );
+    }
+  }
 
 
   void _renderSliceLine(Canvas canvas) {
     if (sliceStart != null && sliceEnd != null) {
       final slicePaint = Paint()
-        ..color = Colors.black.withAlpha((_blinkAlpha * 255).toInt())
+        ..color = Colors.black.withValues(alpha: _blinkAlpha)
         ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke;
 
@@ -432,17 +301,17 @@ class RectangleShape extends PositionComponent
   }
 
   void touchAtPoint(List<Vector2> userPath) {
-    print("=== RUNNING TOUCHATPOINT ==============");
+    debugPrint("=== RUNNING TOUCHATPOINT ==============");
     if (userPath.length < 2 || isSliced) return;
 
     // ===== A 좌표계 문제 확인 =====
     final r = toRect();
-    print("rectBounds: $r");
-    print("path first=${userPath.first}, last=${userPath.last}");
-    print(
+    debugPrint("rectBounds: $r");
+    debugPrint("path first=${userPath.first}, last=${userPath.last}");
+    debugPrint(
       "firstInside=${r.contains(Offset(userPath.first.x, userPath.first.y))}",
     );
-    print(
+    debugPrint(
       "lastInside=${r.contains(Offset(userPath.last.x, userPath.last.y))}",
     );
 
@@ -450,7 +319,7 @@ class RectangleShape extends PositionComponent
     final a = userPath.first;
     final b = userPath.last;
     final ints = getLineRectangleIntersections(a, b, r);
-    print("line intersections=${ints.length}  $ints");
+    debugPrint("line intersections=${ints.length}  $ints");
 
     final slicePoints = getSlicePoints(userPath);
 
@@ -470,7 +339,7 @@ class RectangleShape extends PositionComponent
     sliceStart = slicePoints.start;
     sliceEnd = slicePoints.end;
     isSliced = onInteracted?.call(this) ?? false;
-    print("=== slice check : $isSliced ============");
+    debugPrint("=== slice check : $isSliced ============");
     if (isSliced) {
       applyValidInteraction();
     } else {
@@ -519,8 +388,7 @@ class RectangleShape extends PositionComponent
               bounds1.center.dy - size.y / 2,
             ),
         sizePx: Vector2(bounds1.width, bounds1.height),
-        sourceSvg: _sourceSvg,
-        sourceSize: size.clone(), // 원본 SVG 렌더 사이즈
+        sourceSize: size.clone(),
         clipPath: paths.item1,
         clipOffset: Vector2(bounds1.left, bounds1.top),
         velocity: baseVel.clone(),
@@ -535,7 +403,6 @@ class RectangleShape extends PositionComponent
               bounds2.center.dy - size.y / 2,
             ),
         sizePx: Vector2(bounds2.width, bounds2.height),
-        sourceSvg: _sourceSvg,
         sourceSize: size.clone(),
         clipPath: paths.item2,
         clipOffset: Vector2(bounds2.left, bounds2.top),
@@ -774,10 +641,10 @@ class RectangleShape extends PositionComponent
   }
 
   void applyValidInteraction() {
-    print("=== VALID MOVE ==============");
+    debugPrint("=== VALID MOVE ==============");
     count--;
 
-    if (count > 1) {
+    if (count >= 1) {
       _hpTextComponent?.text = count.toString();
     } else {
       _hpTextComponent?.removeFromParent();
@@ -811,3 +678,5 @@ class SlicePoints {
 
   SlicePoints({required this.start, required this.end});
 }
+
+

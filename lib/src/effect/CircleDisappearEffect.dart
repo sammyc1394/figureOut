@@ -49,7 +49,7 @@ class CircleDisappearEffect extends PositionComponent {
       final k = Curves.easeOut.transform(t / burstRatio);
 
       final paint = Paint()
-        ..color = color.withOpacity(k)
+        ..color = color.withValues(alpha: k)
         ..strokeWidth = 8
         ..strokeCap = StrokeCap.round;
 
@@ -74,7 +74,7 @@ class CircleDisappearEffect extends PositionComponent {
     final progress = Curves.easeIn.transform(shrinkT);
 
     final paint = Paint()
-      ..color = color.withOpacity(1.0)
+      ..color = color.withValues(alpha: 1.0)
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round;
 

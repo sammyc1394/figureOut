@@ -1,19 +1,16 @@
 import 'dart:ui';
 
 import 'package:flame/components.dart';
-import 'package:flame_svg/flame_svg.dart';
 
 class FallingClippedPiece extends PositionComponent {
-  final Svg sourceSvg;
-
-  // clipPath는 "원본 SVG 좌표계(=sourceSize 기준)"에서 만들어진 Path
+  // clipPath is built in the source rectangle coordinate space.
   final Path clipPath;
 
   // clipPath의 bounds.left/top (원본 좌표계에서 조각이 시작되는 위치)
   // -> 이걸 (0,0)으로 당겨와서 "조각 로컬 좌표"로 clip 먹여야 함
   final Vector2 clipOffset;
 
-  // 원본 SVG가 렌더링될 기준 크기 (RectangleShape의 size)
+  // Source render size. Usually RectangleShape.size.
   final Vector2 sourceSize;
 
   Vector2 velocity;
@@ -31,7 +28,6 @@ class FallingClippedPiece extends PositionComponent {
   FallingClippedPiece({
     required Vector2 position,
     required Vector2 sizePx, // 조각의 "보이는" bbox 크기 (bounds.width/height)
-    required this.sourceSvg,
     required this.clipPath,
     required this.clipOffset,
     required this.sourceSize,
@@ -83,9 +79,29 @@ class FallingClippedPiece extends PositionComponent {
     // (원본 좌표계에서 clipOffset이 조각의 (0,0)이 되도록 이동)
     canvas.translate(-clipOffset.x, -clipOffset.y);
 
-    // 4) SVG 렌더
-    //    두 번째 인자는 Vector2여야 함.
-    sourceSvg.render(canvas, sourceSize);
+    // 4) Canvas render
+    final rect = Rect.fromLTWH(0, 0, sourceSize.x, sourceSize.y);
+    final shortestSide =
+        sourceSize.x < sourceSize.y ? sourceSize.x : sourceSize.y;
+    final radius = Radius.circular(
+      (shortestSide * 0.08).clamp(4.0, 8.0),
+    );
+    final rrect = RRect.fromRectAndRadius(rect, radius);
+
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = fillColor
+        ..style = PaintingStyle.fill,
+    );
+
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = fillColor.withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
 
     if (drawOutlineDebug) {
       canvas.save();
