@@ -607,7 +607,7 @@ class OneSecondGame extends FlameGame
 
         if (duration == 0) {
           // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
-          await Future<void>.delayed(Duration.zero);
+          await _waitForTargetsMounted(currentWave);
 
           final clearTargets = _currentClearTargets(currentWave);
           if (clearTargets.isNotEmpty) {
@@ -665,9 +665,26 @@ class OneSecondGame extends FlameGame
     }
 
     debugPrint("[AFTER LOOP] enemy processing over");
+    await _waitForTargetsMounted(currentWave);
     final finalWave = _currentClearTargets(currentWave);
     StageResult ret = await waitUntilMissionCleared(finalWave);
     return ret;
+  }
+
+  Future<void> _waitForTargetsMounted(Iterable<Component> targets) async {
+    final pendingMounts = targets
+        .where(
+          (component) =>
+              !component.isMounted &&
+              component.parent != null &&
+              !component.isRemoving,
+        )
+        .map((component) => component.mounted)
+        .toList();
+
+    if (pendingMounts.isNotEmpty) {
+      await Future.wait(pendingMounts);
+    }
   }
 
   Set<Component> _currentClearTargets(Set<Component> currentWave) {
@@ -2677,4 +2694,3 @@ bool _isStraightLine(List<Vector2> path) {
     }
   }
 }
-

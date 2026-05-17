@@ -65,25 +65,26 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
   }
 
   Future<void> _loadSuccessScreen() async {
-    final layout = await _loadPanelScaffold('Banner_levelComplete.svg');
+    final layout = await _loadPanelScaffold();
 
     final starSvgTitle = _addStars();
     final starSvg = await Svg.load(starSvgTitle);
-    background.add(SvgComponent(
-      svg: starSvg,
-      size: layout.p(0.50, 0.23),
-      position: layout.p(0.5, 0.31),
-      anchor: Anchor.center,
-    ));
+    background.add(
+      SvgComponent(
+        svg: starSvg,
+        size: layout.p(0.50, 0.23),
+        position: layout.p(0.5, 0.31),
+        anchor: Anchor.center,
+      ),
+    );
 
     _addCenteredLabel('Completed!', layout.p(0.5, 0.61), layout.scaleFont(24));
-    _addBottomActions(layout, centerAsset: 'Next_basic.svg', onCenterTap: onPlay);
+    _addBottomActions(layout, centerLabel: 'Next', onCenterTap: onPlay);
   }
-
 
   Future<void> _loadFailScreen() async {
     try {
-      final layout = await _loadPanelScaffold('Banner_levelFailed.svg');
+      final layout = await _loadPanelScaffold();
 
       final levelIconSvg = await Svg.load('Heart_failed.svg');
       levelIcon = SvgComponent(
@@ -94,7 +95,11 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       );
       background.add(levelIcon);
 
-      _addCenteredLabel('Almost there!', layout.p(0.5, 0.54), layout.scaleFont(24));
+      _addCenteredLabel(
+        'Almost there!',
+        layout.p(0.5, 0.54),
+        layout.scaleFont(24),
+      );
       _addCenteredLabel(
         'Continue from where you left off.',
         layout.p(0.5, 0.64),
@@ -102,22 +107,25 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
       );
       _addBottomActions(
         layout,
-        centerAsset: 'Continue_basic.svg',
+        centerLabel: 'Continue',
+        showAdBadge: true,
         onCenterTap: onContinue,
       );
-
     } catch (e) {
       debugPrint('Error loading fail aftermath : $e');
     }
   }
 
-  Future<_AftermathLayout> _loadPanelScaffold(String bannerAsset) async {
+  Future<_AftermathLayout> _loadPanelScaffold() async {
     const svgWidth = 349.0;
     const svgHeight = 308.0;
 
     final maxPanelWidth = size.x < 700 ? size.x * 0.84 : 460.0;
     final maxPanelHeight = size.y < 700 ? size.y * 0.58 : 406.0;
-    final scale = math.min(maxPanelWidth / svgWidth, maxPanelHeight / svgHeight);
+    final scale = math.min(
+      maxPanelWidth / svgWidth,
+      maxPanelHeight / svgHeight,
+    );
     final renderSize = Vector2(svgWidth * scale, svgHeight * scale);
 
     background = SvgComponent(
@@ -129,81 +137,76 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
     add(background);
 
     final layout = _AftermathLayout(background.size);
-    final banner = SvgComponent(
-      svg: await Svg.load(bannerAsset),
+    final banner = _RibbonBannerComponent(
+      stageLabel: '${stgIndex + 1}-$msnIndex',
       size: layout.p(1.14, 0.31),
-      position: layout.p(0.5, -0.08),
-      anchor: Anchor.center,
+      position: layout.p(0.5, -0.03),
+      fontSize: layout.scaleFont(26),
     );
     background.add(banner);
-
-    banner.add(TextComponent(
-      text: '${stgIndex + 1}-$msnIndex',
-      textRenderer: TextPaint(
-        style: TextStyle(
-          fontFamily: appFontFamily,
-          fontFamilyFallback: fallbackFontFamily,
-          fontSize: layout.scaleFont(26),
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      anchor: Anchor.center,
-      position: banner.size / 2,
-    ));
 
     return layout;
   }
 
   void _addBottomActions(
     _AftermathLayout layout, {
-    required String centerAsset,
+    required String centerLabel,
     required VoidCallback onCenterTap,
+    bool showAdBadge = false,
   }) {
-    background.add(SvgButton(
-      assetPath: 'Exit_basic.svg',
-      size: layout.sq(0.12),
-      position: layout.p(0.14, 0.79),
-      onTap: onMenu,
-    ));
+    background.add(
+      SvgButton(
+        assetPath: 'Exit_basic.svg',
+        size: layout.sq(0.12),
+        position: layout.p(0.14, 0.78),
+        onTap: onMenu,
+      ),
+    );
 
-    background.add(SvgButton(
-      assetPath: centerAsset,
-      size: layout.p(0.42, 0.15),
-      position: layout.p(0.29, 0.77),
-      onTap: onCenterTap,
-    ));
+    background.add(
+      _AftermathPillButton(
+        label: centerLabel,
+        showAdBadge: showAdBadge,
+        size: layout.p(0.47, 0.15),
+        position: layout.p(0.5, 0.855),
+        onTap: onCenterTap,
+      ),
+    );
 
-    background.add(SvgButton(
-      assetPath: 'Retry_default.svg',
-      size: layout.sq(0.12),
-      position: layout.p(0.76, 0.79),
-      onTap: onRetry,
-    ));
+    background.add(
+      SvgButton(
+        assetPath: 'Retry_default.svg',
+        size: layout.sq(0.12),
+        position: layout.p(0.76, 0.78),
+        onTap: onRetry,
+      ),
+    );
   }
 
   void _addCenteredLabel(String text, Vector2 position, double fontSize) {
-    background.add(TextComponent(
-      text: text,
-      textRenderer: TextPaint(
-        style: TextStyle(
-          fontFamily: appFontFamily,
-          fontFamilyFallback: fallbackFontFamily,
-          fontSize: fontSize,
-          color: const Color(0xFF222222),
-          fontWeight: FontWeight.bold,
+    background.add(
+      TextComponent(
+        text: text,
+        textRenderer: TextPaint(
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontFamilyFallback: fallbackFontFamily,
+            fontSize: fontSize,
+            color: const Color(0xFF222222),
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        anchor: Anchor.center,
+        position: position,
       ),
-      anchor: Anchor.center,
-      position: position,
-    ));
+    );
   }
 
   String _addStars() {
     // temporary code while not scoring - if we starts scoring, will try sth else
     final effectiveStar = starCount == 0 ? 3 : starCount;
 
-    String ret="menu/mission/";
+    String ret = "menu/mission/";
     switch (effectiveStar) {
       case 1:
         ret += 'Star_1.svg';
@@ -221,6 +224,181 @@ class AftermathScreen extends PositionComponent with TapCallbacks {
 
     debugPrint('score file name : $ret');
     return ret;
+  }
+}
+
+class _RibbonBannerComponent extends PositionComponent {
+  final String stageLabel;
+  final double fontSize;
+
+  _RibbonBannerComponent({
+    required this.stageLabel,
+    required super.size,
+    required super.position,
+    required this.fontSize,
+  }) : super(anchor: Anchor.center);
+
+  @override
+  Future<void> onLoad() async {
+    add(
+      TextComponent(
+        text: stageLabel,
+        textRenderer: TextPaint(
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontFamilyFallback: fallbackFontFamily,
+            fontSize: fontSize,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        anchor: Anchor.center,
+        position: Vector2(size.x * 0.5, size.y * 0.42),
+      ),
+    );
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    final sidePaint = Paint()..color = const Color(0xFF75A8C9);
+    final facePaint = Paint()..color = const Color(0xFF7FB1D0);
+    final shadowPaint = Paint()..color = const Color(0x33000000);
+    final center = Rect.fromLTWH(
+      size.x * 0.17,
+      size.y * 0.14,
+      size.x * 0.66,
+      size.y * 0.56,
+    );
+    final leftTail = Path()
+      ..moveTo(size.x * 0.01, size.y * 0.28)
+      ..lineTo(size.x * 0.20, size.y * 0.28)
+      ..lineTo(size.x * 0.17, size.y * 0.50)
+      ..lineTo(size.x * 0.20, size.y * 0.72)
+      ..lineTo(size.x * 0.01, size.y * 0.72)
+      ..lineTo(size.x * 0.05, size.y * 0.50)
+      ..close();
+    final rightTail = Path()
+      ..moveTo(size.x * 0.99, size.y * 0.28)
+      ..lineTo(size.x * 0.80, size.y * 0.28)
+      ..lineTo(size.x * 0.83, size.y * 0.50)
+      ..lineTo(size.x * 0.80, size.y * 0.72)
+      ..lineTo(size.x * 0.99, size.y * 0.72)
+      ..lineTo(size.x * 0.95, size.y * 0.50)
+      ..close();
+
+    canvas.drawPath(leftTail, sidePaint);
+    canvas.drawPath(rightTail, sidePaint);
+    canvas.drawRect(
+      Rect.fromLTWH(
+        center.left,
+        center.bottom - size.y * 0.04,
+        center.width,
+        size.y * 0.05,
+      ),
+      shadowPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(center, Radius.circular(size.y * 0.04)),
+      facePaint,
+    );
+  }
+}
+
+class _AftermathPillButton extends PositionComponent with TapCallbacks {
+  final String label;
+  final bool showAdBadge;
+  final VoidCallback onTap;
+
+  _AftermathPillButton({
+    required this.label,
+    required this.showAdBadge,
+    required super.size,
+    required super.position,
+    required this.onTap,
+  }) : super(anchor: Anchor.center);
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    final rect = Rect.fromLTWH(0, 0, size.x, size.y);
+    final radius = Radius.circular(size.y * 0.45);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, radius),
+      Paint()..color = const Color(0xFF86B9D7),
+    );
+
+    final textStart = size.x * 0.62;
+    if (showAdBadge) {
+      final badge = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          size.x * 0.14,
+          size.y * 0.22,
+          size.x * 0.20,
+          size.y * 0.56,
+        ),
+        Radius.circular(size.y * 0.12),
+      );
+      canvas.drawRRect(badge, Paint()..color = const Color(0xFF222222));
+      _paintText(
+        canvas,
+        'AD',
+        Offset(size.x * 0.24, size.y * 0.50),
+        size.y * 0.34,
+        Colors.white,
+      );
+    } else {
+      final play = Path()
+        ..moveTo(size.x * 0.28, size.y * 0.30)
+        ..lineTo(size.x * 0.28, size.y * 0.70)
+        ..lineTo(size.x * 0.42, size.y * 0.50)
+        ..close();
+      canvas.drawPath(play, Paint()..color = Colors.white);
+    }
+
+    _paintText(
+      canvas,
+      label,
+      Offset(textStart, size.y * 0.50),
+      size.y * 0.42,
+      Colors.white,
+    );
+  }
+
+  void _paintText(
+    Canvas canvas,
+    String text,
+    Offset center,
+    double fontSize,
+    Color color,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontFamily: appFontFamily,
+          fontFamilyFallback: fallbackFontFamily,
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    painter.paint(
+      canvas,
+      Offset(center.dx - painter.width / 2, center.dy - painter.height / 2),
+    );
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    onTap();
+    super.onTapUp(event);
   }
 }
 
@@ -254,14 +432,14 @@ class SvgButtonComponent extends PositionComponent with TapCallbacks {
     required Vector2 position,
     required Anchor anchor,
   }) : fallbackText = null,
-        super(position: position, anchor: anchor);
+       super(position: position, anchor: anchor);
 
   SvgButtonComponent.fallback({
     required Vector2 position,
     required this.onTap,
     required this.fallbackText,
   }) : svg = null,
-        super(position: position, anchor: Anchor.center, size: Vector2(120, 50));
+       super(position: position, anchor: Anchor.center, size: Vector2(120, 50));
 
   @override
   Future<void> onLoad() async {
@@ -299,4 +477,3 @@ class SvgButtonComponent extends PositionComponent with TapCallbacks {
     onTap();
   }
 }
-

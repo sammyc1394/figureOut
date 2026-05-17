@@ -131,6 +131,8 @@ Supported movement commands:
 
 - `Wait n`: wait `n` seconds before spawning the next enemy group
 - `Wait 0`: wait until all current non-dark enemies are defeated
+- `Wait 0` waits for newly spawned enemies to mount before checking clear state.
+- Already removed or removing enemies must not block the next wave.
 - `Wait` rows are written in the shape column.
 - Dark enemies with health `-1` do not block `Wait 0`
 
@@ -141,6 +143,10 @@ Supported movement commands:
 - Keep mobile touch targets at least `44 x 44`
 - Avoid system font scaling breaking the UI
 - Preserve smooth FPS and avoid unnecessary memory churn
+- Mission result popups use a parchment panel, shared blue ribbon, and blue
+  action pill buttons.
+- The failed Continue button includes an AD badge; badge/icon spacing must not
+  overlap button text.
 
 ## Development Notes
 
