@@ -61,7 +61,7 @@ class HexagonShape extends PositionComponent
   double _autoGrowT = 0.0;
   double _disappearT = 0.0;
 
-  static const double triggerScale = 1.25;
+  double get triggerScale => 1.1 + energy * 0.1;
   static const double maxAutoScale = 3.5;
 
   double _finalScale = 1.0;
