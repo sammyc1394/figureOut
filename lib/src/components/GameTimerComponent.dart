@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:figureout/src/config.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +14,7 @@ class GameTimerComponent extends PositionComponent {
   double _flashPenaltyRemaining = 0.0;
 
   static const double _epsilon = 1e-3;
+  static const double _textAreaWidth = 60.0;
 
   GameTimerComponent({
     required this.totalTime,
@@ -20,7 +24,7 @@ class GameTimerComponent extends PositionComponent {
         super(
           position: position,
           size: sizePx ?? Vector2(320, 28),
-          anchor: Anchor.topCenter,
+          anchor: Anchor.topLeft,
         );
 
   String _formatTime(double time) {
@@ -36,16 +40,16 @@ class GameTimerComponent extends PositionComponent {
 
     timerText = TextComponent(
       text: _formatTime(currentTime),
-      anchor: Anchor.center,
-      position: size / 2,
+      anchor: Anchor.centerRight,
+      position: Vector2(_textAreaWidth - 8, size.y / 2),
       priority: 10,
       textRenderer: TextPaint(
-        style: const TextStyle(
-          fontFamily: 'Moulpali',
-          fontSize: 16,
+        style: TextStyle(
+          fontFamily: appFontFamily,
+          fontSize: 18,
           height: 21 / 16,
           color: Colors.black,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -71,30 +75,70 @@ class GameTimerComponent extends PositionComponent {
     }
   }
 
+  Path _buildWigglyPath(double barLeft, double barWidth, double barHeight) {
+    const amp = 0.8;
+    const freq = 0.7;
+    const step = 4.0;
+    final radius = barHeight / 2;
+    final right = barLeft + barWidth;
+    final cy = barHeight / 2;
+
+    double wTop(double x) => sin(x * freq) * amp;
+    double wBot(double x) => sin(x * freq + pi * 0.7) * amp;
+
+    final path = Path();
+
+    // Top edge: left-arc-end → right-arc-start
+    path.moveTo(barLeft + radius, wTop(barLeft + radius));
+    for (double x = barLeft + radius + step; x < right - radius; x += step) {
+      path.lineTo(x, wTop(x));
+    }
+    path.lineTo(right - radius, wTop(right - radius));
+
+    // Right semicircle
+    for (int i = 1; i <= 12; i++) {
+      final a = -pi / 2 + pi * i / 12;
+      path.lineTo(right - radius + cos(a) * radius, cy + sin(a) * radius);
+    }
+
+    // Bottom edge: right-arc-start → left-arc-end
+    path.lineTo(right - radius, barHeight + wBot(right - radius));
+    for (double x = right - radius - step; x > barLeft + radius; x -= step) {
+      path.lineTo(x, barHeight + wBot(x));
+    }
+    path.lineTo(barLeft + radius, barHeight + wBot(barLeft + radius));
+
+    // Left semicircle
+    for (int i = 1; i <= 12; i++) {
+      final a = pi / 2 + pi * i / 12;
+      path.lineTo(barLeft + radius + cos(a) * radius, cy + sin(a) * radius);
+    }
+
+    path.close();
+    return path;
+  }
+
   @override
   void render(Canvas canvas) {
-    final rect = Rect.fromLTWH(0, 0, size.x, size.y);
-    final radius = Radius.circular(size.y / 2);
-    final rrect = RRect.fromRectAndRadius(rect, radius);
+    final barLeft = _textAreaWidth;
+    final barWidth = size.x - _textAreaWidth;
     final ratio =
         totalTime > 0 ? (currentTime / totalTime).clamp(0.0, 1.0) : 0.0;
     final isDanger = currentTime <= 10.0 + _epsilon;
-    final fillColor = (isDanger || _flashPenaltyRemaining > 0)
-        ? const Color(0xFFE53935)
-        : const Color(0xFF55C867);
+    final isWarning = !isDanger && ratio <= 0.5;
+    final fillColor = (_flashPenaltyRemaining > 0 || isDanger)
+        ? const Color(0xFFED613D)
+        : isWarning
+            ? const Color(0xFFF0C400)
+            : const Color(0xFF63BE5D);
 
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..color = const Color(0xFFE8E8E8)
-        ..style = PaintingStyle.fill,
-    );
+    final wigglyPath = _buildWigglyPath(barLeft, barWidth, size.y);
 
     if (ratio > 0) {
       canvas.save();
-      canvas.clipRRect(rrect);
+      canvas.clipPath(wigglyPath);
       canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.x * ratio, size.y),
+        Rect.fromLTWH(barLeft, 0, barWidth * ratio, size.y),
         Paint()
           ..color = fillColor
           ..style = PaintingStyle.fill,
@@ -102,12 +146,14 @@ class GameTimerComponent extends PositionComponent {
       canvas.restore();
     }
 
-    canvas.drawRRect(
-      rrect,
+    canvas.drawPath(
+      wigglyPath,
       Paint()
-        ..color = const Color(0xFF2E2E2E)
+        ..color = fillColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
     );
 
     super.render(canvas);

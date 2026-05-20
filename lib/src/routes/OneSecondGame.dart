@@ -278,7 +278,8 @@ class OneSecondGame extends FlameGame
 
     timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
-      position: Vector2((size.x / 2) + 16, 80),
+      position: Vector2(20, 80),
+      sizePx: Vector2(size.x - 40, 20),
     )
       ..priority = 3000;
     add(timerBar);
