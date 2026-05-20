@@ -100,10 +100,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
 
     if (!isDark && energy >= 1) {
+      // centroid of SVG triangle (top:3.5, bot:78.5 on 86h grid) = y * (3.5+78.5+78.5)/(86*3)
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.center,
-        position: size / 2,
+        position: Vector2(size.x / 2, size.y * (3.5 + 78.5 * 2) / (86 * 3)),
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),

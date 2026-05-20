@@ -150,7 +150,7 @@ class PentagonShape extends PositionComponent
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.center,
-        position: size / 2,
+        position: Vector2(_visualPentagonCenter.dx, _visualPentagonCenter.dy),
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
