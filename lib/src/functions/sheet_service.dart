@@ -52,6 +52,8 @@ class SheetService {
       throw Exception('Sheet fetch failed: ${res.statusCode}');
     }
 
+    debugPrint('[SHEET RAW] $name: ${res.body.substring(0, res.body.length.clamp(0, 300))}');
+
     final data = jsonDecode(res.body);
     final values = (data['values'] as List).cast<List<dynamic>>();
 

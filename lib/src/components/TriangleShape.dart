@@ -62,6 +62,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   double _rotDir = 1.0;
 
   late Path _outlinePath;
+  late Path _wobblePath;
   late double _outlineLength;
 
   final Paint _attackPaint = Paint()
@@ -98,6 +99,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
+    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
 
     if (!isDark && energy >= 1) {
       // centroid of SVG triangle (top:3.5, bot:78.5 on 86h grid) = y * (3.5+78.5+78.5)/(86*3)
@@ -234,14 +236,14 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     final alpha = (_blinkAlpha * _shapeOpacity).clamp(0.0, 1.0);
 
     canvas.drawShadow(
-      _outlinePath,
+      _wobblePath,
       Colors.black.withValues(alpha: 0.35),
       6,
       false,
     );
 
     canvas.drawPath(
-      _outlinePath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: alpha)
         ..style = PaintingStyle.fill
@@ -249,7 +251,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     );
 
     canvas.drawPath(
-      _outlinePath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: alpha * 0.8)
         ..style = PaintingStyle.stroke
@@ -261,7 +263,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     if (!_attackDone && _attackTimeHalfLeft) {
       canvas.drawPath(
-        _outlinePath,
+        _wobblePath,
         Paint()
           ..color = dangerColor.withValues(alpha: alpha * 0.5)
           ..style = PaintingStyle.fill

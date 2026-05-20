@@ -9,6 +9,7 @@ import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/CircleDisappearEffect.dart';
+import 'shape_path_utils.dart';
 
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable, BlinkAlphaTarget
@@ -30,6 +31,8 @@ class CircleShape extends PositionComponent
 
   late PositionComponent _orderBadge;
   TextComponent? _hpTextComponent;
+
+  late Path _wobblePath;
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
@@ -99,6 +102,8 @@ class CircleShape extends PositionComponent
       );
       add(_hpTextComponent!);
     }
+
+    _wobblePath = ShapePathUtils.wobble(_buildCirclePath(), amplitude: size.x * 0.009);
   }
 
   @override
@@ -160,31 +165,25 @@ class CircleShape extends PositionComponent
 
   @override
   void render(Canvas canvas) {
-    final center = Offset(size.x / 2, size.y / 2);
-    final radius = size.x * 0.45;
     final fillColor = isDark ? const Color(0xFF888888) : baseColor;
-    final shadowPath = Path()
-      ..addOval(Rect.fromCircle(center: center, radius: radius));
 
     canvas.drawShadow(
-      shadowPath,
+      _wobblePath,
       Colors.black.withValues(alpha: 0.28),
       5,
       false,
     );
 
-    canvas.drawCircle(
-      center,
-      radius,
+    canvas.drawPath(
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: _blinkAlpha)
         ..style = PaintingStyle.fill
         ..blendMode = blendMode,
     );
 
-    canvas.drawCircle(
-      center,
-      radius,
+    canvas.drawPath(
+      _wobblePath,
       Paint()
         ..color = Colors.black.withValues(alpha: _blinkAlpha * 0.14)
         ..style = PaintingStyle.stroke
@@ -193,9 +192,8 @@ class CircleShape extends PositionComponent
     );
 
     if (!_attackDone && _attackTimeCritical) {
-      canvas.drawCircle(
-        center,
-        radius,
+      canvas.drawPath(
+        _wobblePath,
         Paint()
           ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
           ..blendMode = BlendMode.srcATop,

@@ -1441,7 +1441,11 @@ class OneSecondGame extends FlameGame
       _isContinuing = false;
       _lastRoundStartIndex = 0;
 
-      if (_isPausedGlobally) return;
+      if (_isPausedGlobally) {
+        _refreshCompleter?.complete();
+        _refreshCompleter = null;
+        return;
+      }
 
       debugPrint("Refreshing Game...");
 
