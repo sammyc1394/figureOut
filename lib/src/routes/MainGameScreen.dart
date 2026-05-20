@@ -63,12 +63,30 @@ class _MainGameScreenState extends State<MainGameScreen> {
     return PopScope(
       canPop: false,
       child: ColoredBox(
-        color: const Color(bgColor), // 배경 색
+        color: const Color(bgColor),
         child: GameWidget(
           game: oneSec,
-          // Flame의 캔버스에 덮이는 배경 지정
-          backgroundBuilder: (context) =>
-              Container(color: const Color(bgColor)),
+          backgroundBuilder: (context) => Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(color: const Color(bgColor)),
+              Opacity(
+                opacity: 0.15,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    -1,  0,  0, 0, 255,
+                     0, -1,  0, 0, 255,
+                     0,  0, -1, 0, 255,
+                     0,  0,  0, 1,   0,
+                  ]),
+                  child: Image.asset(
+                    'assets/noise_texture.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
