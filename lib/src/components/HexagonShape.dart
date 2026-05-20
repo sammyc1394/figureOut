@@ -42,13 +42,13 @@ class HexagonShape extends PositionComponent
   final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6
-    ..color = const Color(0xFF9BEE3B);
+    ..color = const Color(0xFF398A63);
 
-  static const Color outlineNormal = Color(0xFF9BEE3B);
+  static const Color outlineNormal = Color(0xFF398A63);
   static const Color outlineDanger = Color(0xFFEE0505);
 
   final Color dangerColor = const Color(0xFFEE0505);
-  final Color baseColor   = const Color(0xFF9BEE3B);
+  final Color baseColor   = const Color(0xFF398A63);
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
@@ -226,7 +226,7 @@ class HexagonShape extends PositionComponent
             basePath: _buildExplosionHexagonPath(),
             position: position.clone(),
             size: size.clone(),
-            color: const Color(0xFF9BEE3B),
+            color: const Color(0xFF398A63),
           ),
         );
 
@@ -281,7 +281,7 @@ class HexagonShape extends PositionComponent
             basePath: _buildExplosionHexagonPath(),
             position: position.clone(),
             size: size.clone(),
-            color: const Color(0xFF9BEE3B),
+            color: const Color(0xFF398A63),
           ),
         );
 

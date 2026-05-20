@@ -41,7 +41,7 @@ class CircleShape extends PositionComponent
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6;
 
-  final Color baseColor = const Color(0xFFF45B3A);
+  final Color baseColor = const Color(0xFFED613D);
   final Color dangerColor = const Color(0xFFEE0505);
 
   double _blinkAlpha = 1.0;

@@ -69,9 +69,9 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     ..strokeWidth = 6
     ..strokeJoin = StrokeJoin.round
     ..strokeCap = StrokeCap.round
-    ..color = const Color(0xFFFFD84D);
+    ..color = const Color(0xFFF2AC32);
 
-  final Color baseColor = const Color(0xFFFFD84D);
+  final Color baseColor = const Color(0xFFF2AC32);
   final Color dangerColor = const Color(0xFFEE0505);
 
   TriangleShape(
@@ -211,7 +211,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
           basePath: _buildExplosionTrianglePath(),   // 삼각형 외곽 그대로 사용
           position: position.clone(),
           size: size.clone(),
-          color: const Color(0xFFFFD84D),
+          color: const Color(0xFFF2AC32),
         ),
       );
 

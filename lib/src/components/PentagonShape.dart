@@ -92,7 +92,7 @@ class PentagonShape extends PositionComponent
 
   final Paint _circlePaint = Paint()
     ..style = PaintingStyle.fill
-    ..color = const Color(0xFFFFA6FC);
+    ..color = const Color(0xFFF6B4B9);
 
   // ===============================
   // ATTACK
@@ -101,12 +101,12 @@ class PentagonShape extends PositionComponent
   final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6
-    ..color = const Color(0xFFFFA6FC);
+    ..color = const Color(0xFFF6B4B9);
 
   late Path _pentagonPath;
   late double _perimeter;
 
-  final Color baseColor = const Color(0xFFFFA6FC);
+  final Color baseColor = const Color(0xFFF6B4B9);
   final Color dangerColor = const Color(0xFFEE0505);
 
   PentagonShape(
