@@ -52,6 +52,8 @@ class SheetService {
       throw Exception('Sheet fetch failed: ${res.statusCode}');
     }
 
+    debugPrint('[SHEET RAW] $name: ${res.body.substring(0, res.body.length.clamp(0, 300))}');
+
     final data = jsonDecode(res.body);
     final values = (data['values'] as List).cast<List<dynamic>>();
 
@@ -159,9 +161,8 @@ class SheetService {
       final ctx = missionContexts[currentMission]!;
 
       final shapeColumn = _shapeColumnIndex(cells);
+      if (shapeColumn < 0) continue;
       final rawShapeCell = _safeGet(cells, shapeColumn);
-      if (rawShapeCell.isEmpty) continue;
-      if (_isHeaderShape(rawShapeCell)) continue;
 
       final isWait = rawShapeCell.toLowerCase().startsWith('wait');
       final command = isWait ? 'wait' : 'e';
@@ -247,13 +248,10 @@ class SheetService {
   }
 
   int _shapeColumnIndex(List<String> cells) {
-    final newShapeCell = _safeGet(cells, 1);
-    if (_isShapeOrWaitCell(newShapeCell)) return 1;
-
-    final legacyShapeCell = _safeGet(cells, 2);
-    if (_isShapeOrWaitCell(legacyShapeCell)) return 2;
-
-    return 1;
+    if (_isShapeOrWaitCell(_safeGet(cells, 1))) return 1;
+    if (_isShapeOrWaitCell(_safeGet(cells, 2))) return 2;
+    if (_isShapeOrWaitCell(_safeGet(cells, 3))) return 3;
+    return -1;
   }
 
   bool _isHeaderShape(String value) {

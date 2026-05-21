@@ -92,7 +92,7 @@ class PentagonShape extends PositionComponent
 
   final Paint _circlePaint = Paint()
     ..style = PaintingStyle.fill
-    ..color = const Color(0xFFFFA6FC);
+    ..color = const Color(0xFFF6B4B9);
 
   // ===============================
   // ATTACK
@@ -101,12 +101,13 @@ class PentagonShape extends PositionComponent
   final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6
-    ..color = const Color(0xFFFFA6FC);
+    ..color = const Color(0xFFF6B4B9);
 
   late Path _pentagonPath;
+  late Path _wobblePath;
   late double _perimeter;
 
-  final Color baseColor = const Color(0xFFFFA6FC);
+  final Color baseColor = const Color(0xFFF6B4B9);
   final Color dangerColor = const Color(0xFFEE0505);
 
   PentagonShape(
@@ -145,12 +146,13 @@ class PentagonShape extends PositionComponent
 
     _perimeter =
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+    _wobblePath = ShapePathUtils.wobble(_pentagonPath, amplitude: size.x * 0.009);
 
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.center,
-        position: size / 2,
+        position: Vector2(_visualPentagonCenter.dx, _visualPentagonCenter.dy),
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -256,14 +258,14 @@ class PentagonShape extends PositionComponent
     final fillColor = isDark ? const Color(0xFF888888) : baseColor;
 
     canvas.drawShadow(
-      _pentagonPath,
+      _wobblePath,
       Colors.black.withValues(alpha: 0.35),
       6,
       false,
     );
 
     canvas.drawPath(
-      _pentagonPath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: _blinkAlpha)
         ..style = PaintingStyle.fill
@@ -271,7 +273,7 @@ class PentagonShape extends PositionComponent
     );
 
     canvas.drawPath(
-      _pentagonPath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: _blinkAlpha * 0.8)
         ..style = PaintingStyle.stroke
@@ -287,7 +289,7 @@ class PentagonShape extends PositionComponent
 
       if (ratio <= 0.2) {
         canvas.drawPath(
-          _pentagonPath,
+          _wobblePath,
           Paint()
             ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
             ..style = PaintingStyle.fill

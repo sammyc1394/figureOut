@@ -37,18 +37,19 @@ class HexagonShape extends PositionComponent
   bool _penaltyFired = false;
 
   late Path _outlinePath;
+  late Path _wobblePath;
   late double _outlineLength;
 
   final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6
-    ..color = const Color(0xFF9BEE3B);
+    ..color = const Color(0xFF398A63);
 
-  static const Color outlineNormal = Color(0xFF9BEE3B);
+  static const Color outlineNormal = Color(0xFF398A63);
   static const Color outlineDanger = Color(0xFFEE0505);
 
   final Color dangerColor = const Color(0xFFEE0505);
-  final Color baseColor   = const Color(0xFF9BEE3B);
+  final Color baseColor   = const Color(0xFF398A63);
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
@@ -110,6 +111,7 @@ class HexagonShape extends PositionComponent
 
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
 
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
@@ -226,7 +228,7 @@ class HexagonShape extends PositionComponent
             basePath: _buildExplosionHexagonPath(),
             position: position.clone(),
             size: size.clone(),
-            color: const Color(0xFF9BEE3B),
+            color: const Color(0xFF398A63),
           ),
         );
 
@@ -281,7 +283,7 @@ class HexagonShape extends PositionComponent
             basePath: _buildExplosionHexagonPath(),
             position: position.clone(),
             size: size.clone(),
-            color: const Color(0xFF9BEE3B),
+            color: const Color(0xFF398A63),
           ),
         );
 
@@ -296,14 +298,14 @@ class HexagonShape extends PositionComponent
     final alpha = (_blinkAlpha * _opacity).clamp(0.0, 1.0);
 
     canvas.drawShadow(
-      _outlinePath,
+      _wobblePath,
       Colors.black.withValues(alpha: 0.35),
       6,
       false,
     );
 
     canvas.drawPath(
-      _outlinePath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: alpha)
         ..style = PaintingStyle.fill
@@ -311,7 +313,7 @@ class HexagonShape extends PositionComponent
     );
 
     canvas.drawPath(
-      _outlinePath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: alpha * 0.8)
         ..style = PaintingStyle.stroke
@@ -327,7 +329,7 @@ class HexagonShape extends PositionComponent
 
       if (ratio <= 0.2) {
         canvas.drawPath(
-          _outlinePath,
+          _wobblePath,
           Paint()
             ..color = dangerColor.withValues(alpha: alpha * 0.5)
             ..style = PaintingStyle.fill

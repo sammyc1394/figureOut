@@ -47,6 +47,7 @@ class RectangleShape extends PositionComponent
   bool isPaused = false;
 
   late Path _outlinePath;
+  late Path _wobblePath;
   late double _outlineLength;
 
   final Paint _attackPaint = Paint()
@@ -142,6 +143,7 @@ class RectangleShape extends PositionComponent
     _outlinePath = _buildRectPath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
+    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
   }
 
   Path _buildRectPath(Size s) {
@@ -235,14 +237,14 @@ class RectangleShape extends PositionComponent
     final fillColor = isDark ? const Color(0xFF555555) : baseColor;
 
     canvas.drawShadow(
-      _outlinePath,
+      _wobblePath,
       Colors.black.withValues(alpha: 0.35),
       6,
       false,
     );
 
     canvas.drawPath(
-      _outlinePath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: _blinkAlpha)
         ..style = PaintingStyle.fill
@@ -250,7 +252,7 @@ class RectangleShape extends PositionComponent
     );
 
     canvas.drawPath(
-      _outlinePath,
+      _wobblePath,
       Paint()
         ..color = fillColor.withValues(alpha: _blinkAlpha * 0.8)
         ..style = PaintingStyle.stroke
@@ -262,7 +264,7 @@ class RectangleShape extends PositionComponent
 
     if (!_attackDone && _attackTimeHalfLeft) {
       canvas.drawPath(
-        _outlinePath,
+        _wobblePath,
         Paint()
           ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
           ..style = PaintingStyle.fill
