@@ -717,6 +717,7 @@ class OneSecondGame extends FlameGame
     // 1. 도형 & 사이즈 파싱
     String shapeType = "";
     Vector2 size = Vector2.zero();
+    double rectAngle = 0.0;
     debugPrint("[PreparedEnemy] enemy name : ${enemy.shape}");
     if (enemy.shape.startsWith('Circle')) {
       final scale = _parseScale(enemy.shape);
@@ -727,18 +728,9 @@ class OneSecondGame extends FlameGame
       shapeType = "Circle";
 
     } else if (enemy.shape.startsWith('Rectangle')) {
-      // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
       size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
-
-      // 만약 Rectangle2 처럼 스케일만 적혀있다면 기본(40,80)에 스케일 적용
-      if (_parseRectSize(enemy.shape) == null) {
-        final scale = _parseScale(enemy.shape);
-        // 기본값이 Rectangle4라고 가정하면 scale 1.0 -> 40,80
-        // Rectangle2 -> scale 0.5 -> 20,40
-        size = Vector2(40 * scale, 80 * scale);
-      }
-
       shapeType = "Rectangle";
+      rectAngle = _parseRectAngle(enemy.shape);
 
     } else if (enemy.shape.startsWith('Pentagon')) {
       final scale = _parseScale(enemy.shape);
@@ -813,6 +805,7 @@ class OneSecondGame extends FlameGame
       behavior: behavior,
       attackTime: enemy.attackSeconds,
       attackDamage: enemy.attackDamage,
+      angle: rectAngle,
     );
   }
 
@@ -879,6 +872,7 @@ class OneSecondGame extends FlameGame
           customSize: enemy.customSize,
           order: enemy.order,
           onInteracted: _onOrderInteracted,
+          angle: enemy.angle,
         );
 
       case "Triangle":
@@ -943,7 +937,7 @@ class OneSecondGame extends FlameGame
     return 1.0; // 기본값 (Circle == Circle4)
   }
 
-  // 2) Rectangle 직접 크기 파싱 (Rectangle40:200)
+  // 2) Rectangle 직접 크기 파싱 (Rectangle40:200 or Rectangle40:200@45)
   Vector2? _parseRectSize(String s) {
     final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
     if (m != null) {
@@ -953,6 +947,16 @@ class OneSecondGame extends FlameGame
       return Vector2(w, h);
     }
     return null;
+  }
+
+  // 3) Rectangle 회전 각도 파싱 (Rectangle4/45, Rectangle40:200/-30)
+  double _parseRectAngle(String s) {
+    final m = RegExp(r'/(-?\d+(?:\.\d+)?)').firstMatch(s);
+    if (m != null) {
+      final degrees = double.parse(m.group(1)!);
+      return degrees * math.pi / 180;
+    }
+    return 0.0;
   }
 
   ShapeBehavior? checkBehavior(
