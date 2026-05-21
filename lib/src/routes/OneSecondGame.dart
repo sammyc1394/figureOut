@@ -959,9 +959,9 @@ class OneSecondGame extends FlameGame
     return null;
   }
 
-  // 3) Rectangle 회전 각도 파싱 (Rectangle4@45, Rectangle40:200@-30)
+  // 3) Rectangle 회전 각도 파싱 (Rectangle4/45, Rectangle40:200/-30)
   double _parseRectAngle(String s) {
-    final m = RegExp(r'@(-?\d+(?:\.\d+)?)').firstMatch(s);
+    final m = RegExp(r'/(-?\d+(?:\.\d+)?)').firstMatch(s);
     if (m != null) {
       final degrees = double.parse(m.group(1)!);
       return degrees * math.pi / 180;
