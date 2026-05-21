@@ -728,17 +728,7 @@ class OneSecondGame extends FlameGame
       shapeType = "Circle";
 
     } else if (enemy.shape.startsWith('Rectangle')) {
-      // Rectangle은 직접 크기 지정이 있거나, 없으면 스케일 적용
       size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
-
-      // 만약 Rectangle2 처럼 스케일만 적혀있다면 기본(40,80)에 스케일 적용
-      if (_parseRectSize(enemy.shape) == null) {
-        final scale = _parseScale(enemy.shape);
-        // 기본값이 Rectangle4라고 가정하면 scale 1.0 -> 40,80
-        // Rectangle2 -> scale 0.5 -> 20,40
-        size = Vector2(40 * scale, 80 * scale);
-      }
-
       shapeType = "Rectangle";
       rectAngle = _parseRectAngle(enemy.shape);
 
