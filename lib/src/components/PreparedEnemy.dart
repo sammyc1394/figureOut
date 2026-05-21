@@ -12,6 +12,7 @@ class PreparedEnemy {
   final double? attackTime;
   final double? attackDamage;
   final ShapeBehavior? behavior;
+  final double angle;
 
   const PreparedEnemy({
     required this.shapeType,
@@ -23,6 +24,7 @@ class PreparedEnemy {
     required this.order,
     required this.behavior,
     required this.customSize,
+    this.angle = 0.0,
   });
 
   @override

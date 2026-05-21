@@ -78,10 +78,12 @@ class RectangleShape extends PositionComponent
     this.onRemoved,
     this.onInteracted,
     this.blendMode = BlendMode.srcOver,
+    double angle = 0.0,
   }) : super(
           position: position,
           size: customSize ?? Vector2(40, 80),
           anchor: Anchor.center,
+          angle: angle,
         );
 
   void setBlinkAlpha(double alpha) {

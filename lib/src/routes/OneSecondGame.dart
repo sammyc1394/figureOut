@@ -717,6 +717,7 @@ class OneSecondGame extends FlameGame
     // 1. 도형 & 사이즈 파싱
     String shapeType = "";
     Vector2 size = Vector2.zero();
+    double rectAngle = 0.0;
     debugPrint("[PreparedEnemy] enemy name : ${enemy.shape}");
     if (enemy.shape.startsWith('Circle')) {
       final scale = _parseScale(enemy.shape);
@@ -739,6 +740,7 @@ class OneSecondGame extends FlameGame
       }
 
       shapeType = "Rectangle";
+      rectAngle = _parseRectAngle(enemy.shape);
 
     } else if (enemy.shape.startsWith('Pentagon')) {
       final scale = _parseScale(enemy.shape);
@@ -813,6 +815,7 @@ class OneSecondGame extends FlameGame
       behavior: behavior,
       attackTime: enemy.attackSeconds,
       attackDamage: enemy.attackDamage,
+      angle: rectAngle,
     );
   }
 
@@ -879,6 +882,7 @@ class OneSecondGame extends FlameGame
           customSize: enemy.customSize,
           order: enemy.order,
           onInteracted: _onOrderInteracted,
+          angle: enemy.angle,
         );
 
       case "Triangle":
@@ -943,7 +947,7 @@ class OneSecondGame extends FlameGame
     return 1.0; // 기본값 (Circle == Circle4)
   }
 
-  // 2) Rectangle 직접 크기 파싱 (Rectangle40:200)
+  // 2) Rectangle 직접 크기 파싱 (Rectangle40:200 or Rectangle40:200@45)
   Vector2? _parseRectSize(String s) {
     final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
     if (m != null) {
@@ -953,6 +957,16 @@ class OneSecondGame extends FlameGame
       return Vector2(w, h);
     }
     return null;
+  }
+
+  // 3) Rectangle 회전 각도 파싱 (Rectangle4@45, Rectangle40:200@-30)
+  double _parseRectAngle(String s) {
+    final m = RegExp(r'@(-?\d+(?:\.\d+)?)').firstMatch(s);
+    if (m != null) {
+      final degrees = double.parse(m.group(1)!);
+      return degrees * math.pi / 180;
+    }
+    return 0.0;
   }
 
   ShapeBehavior? checkBehavior(
