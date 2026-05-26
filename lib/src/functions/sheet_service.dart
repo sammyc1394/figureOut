@@ -276,7 +276,7 @@ class SheetService {
   }
 
   int? parseOrder(String shape, RandomContext ctx) {
-    debugPrint("[ORDER] before parse order = $shape");
+    // debugPrint("[ORDER] before parse order = $shape");
     if (!shape.contains('_')) return null;
 
     final rest = shape.substring(shape.indexOf('_') + 1);
@@ -325,8 +325,9 @@ class SheetService {
   }
 
   String resolveAttack(String str, RandomContext ctx) {
+
     return str.replaceAllMapped(
-      RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
+      RegExp(r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)'),
           (match) {
         final secRaw = match.group(1)!.trim();
         final damageRaw = match.group(2)!.trim();
