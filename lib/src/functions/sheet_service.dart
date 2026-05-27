@@ -158,6 +158,8 @@ class SheetService {
 
       if (currentStage == null || currentMission == null) continue;
 
+      if (_safeGet(cells, 1) == '1') continue;
+
       final ctx = missionContexts[currentMission]!;
 
       final shapeColumn = _shapeColumnIndex(cells);
