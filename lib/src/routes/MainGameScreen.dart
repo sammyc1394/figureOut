@@ -1,5 +1,7 @@
 
 import 'package:figureout/src/routes/OneSecondGame.dart';
+import 'package:figureout/src/routes/AftermathScreen.dart';
+import 'package:figureout/src/routes/PausedScreen.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,6 +68,29 @@ class _MainGameScreenState extends State<MainGameScreen> {
         color: const Color(bgColor),
         child: GameWidget(
           game: oneSec,
+          overlayBuilderMap: {
+            'pause': (context, game) {
+              final g = game as OneSecondGame;
+              return PauseOverlayWidget(
+                onResume: g.handlePauseResume,
+                onRetry: g.handlePauseRetry,
+                onMenu: g.handlePauseMenu,
+              );
+            },
+            'aftermath': (context, game) {
+              final g = game as OneSecondGame;
+              return AftermathOverlayWidget(
+                result: g.currentAftermathResult!,
+                starCount: g.currentAftermathStars,
+                stgIndex: g.currentAftermathStgIndex,
+                msnIndex: g.currentAftermathMsnIndex,
+                onContinue: g.handleAftermathContinue,
+                onRetry: g.handleAftermathRetry,
+                onPlay: g.handleAftermathPlay,
+                onMenu: g.handleAftermathMenu,
+              );
+            },
+          },
           backgroundBuilder: (context) => Stack(
             fit: StackFit.expand,
             children: [

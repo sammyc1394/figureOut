@@ -4,7 +4,6 @@ import 'package:figureout/src/behaviors/ZCommand.dart';
 import 'package:flame/components.dart';
 
 import 'dart:async';
-import 'package:figureout/src/routes/AftermathScreen.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
@@ -36,7 +35,6 @@ import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
-import 'PausedScreen.dart';
 import 'route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -64,7 +62,17 @@ class OneSecondGame extends FlameGame
 
   //pause
   late PauseButton pauseButton;
-  PausedScreen? pausedScreen;
+
+  // aftermath overlay state
+  StageResult? _currentAftermathResult;
+  int _currentAftermathStars = 0;
+  int _currentAftermathStgIndex = 0;
+  int _currentAftermathMsnIndex = 0;
+
+  StageResult? get currentAftermathResult => _currentAftermathResult;
+  int get currentAftermathStars => _currentAftermathStars;
+  int get currentAftermathStgIndex => _currentAftermathStgIndex;
+  int get currentAftermathMsnIndex => _currentAftermathMsnIndex;
 
   //stage data
   late StageData initialStage;
@@ -414,7 +422,7 @@ class OneSecondGame extends FlameGame
       return;
     }
 
-    removeAll(children.whereType<AftermathScreen>().toList());
+    _removeAftermathOverlay();
 
     Future.microtask(() async{
       // if (_isPausedGlobally){
@@ -1464,7 +1472,7 @@ class OneSecondGame extends FlameGame
       blinkingMap.clear();
 
       // 결과 화면도 제거
-      removeAll(children.whereType<AftermathScreen>().toList());
+      _removeAftermathOverlay();
 
       children.whereType<BlinkingBehaviorComponent>()
           .forEach((b) => b.removeFromParent());
@@ -1482,8 +1490,7 @@ class OneSecondGame extends FlameGame
           c is RectangleShape ||
           c is PentagonShape ||
           c is TriangleShape ||
-          c is HexagonShape ||
-          c is AftermathScreen);
+          c is HexagonShape);
 
       while (hasShapes() && DateTime.now().isBefore(deadline)) {
         await Future.delayed(const Duration(milliseconds: 50));
@@ -1619,98 +1626,18 @@ class OneSecondGame extends FlameGame
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
-    final stage = _allStages[_selectedStageIndex];
-    final int missionNo = _selectedMissionIndex; // 이미 1-based
-    final String msnTitle = stage.missionTitle[missionNo] ?? '';
-
-    debugPrint("stage result is = $result");
-    final aftermath = AftermathScreen(
-      result: result,
-      starCount: starCount,
-      msnIndex: msnIndex,
-      stgIndex: stgIndex,
-      msnTitle: msnTitle,
-      screenSize: size,
-      onContinue: () {
-        debugPrint('[AFTERMATH] Continue pressed.');
-        removeAll(children.whereType<AftermathScreen>().toList());
-        _resumeFromFailure();
-      },
-      onRetry: onRefresh,
-      //     () {
-      //   removeAll(children.whereType<AftermathScreen>().toList());
-      //
-      //   _isContinuing = false;
-      //   _lastRoundStartIndex = 0;
-      //
-      //   _isMissionRunning = false;
-      //   _runToken++;
-      //
-      //   runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-      // },
-      onPlay: () {
-        // play next stage
-        removeAll(children.whereType<AftermathScreen>().toList());
-
-        final isLastStage = _selectedStageIndex >= maxStageIndex - 1;
-        final isLastMission = _selectedMissionIndex >= maxMissionIndex;
-
-        if (isLastStage && isLastMission) {
-          debugPrint("All stages cleared → go to menu");
-
-          rootNavigatorKey.currentContext!.go(
-            '/stages',
-            extra: stages,
-          );
-
-          return;
-        }
-
-        // Could start from stage 0 or a chosen stage
-        // move to next stage
-        if (_selectedStageIndex < maxStageIndex) {
-          if (_selectedMissionIndex < maxMissionIndex) {
-            _selectedMissionIndex = _selectedMissionIndex + 1;
-          } else {
-            debugPrint("last mission - move to next stage");
-            _selectedStageIndex = 0;
-            _selectedMissionIndex = 0;
-
-
-          }
-
-          debugPrint(
-            "stage index = $_selectedStageIndex, mission index = $_selectedMissionIndex",
-          );
-          debugPrint("playing next stage/mission");
-          removeAll(children.whereType<AftermathScreen>().toList());
-          runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-        } else {
-          debugPrint("No more stages left!");
-        }
-      },
-      onMenu: () {
-        debugPrint("Go to menu screen");
-        removeAll(children.whereType<AftermathScreen>().toList());
-
-        rootNavigatorKey.currentContext!.push(
-          '/missions',
-          extra: MissionRouteArgs(
-            stages: stages,
-            stageIndex: _selectedStageIndex,
-          ),
-        );
-      },
-    )..priority = 5000;
-    debugPrint("aftermath Screen defined");
-    add(aftermath);
+    _currentAftermathResult = result;
+    _currentAftermathStars = starCount;
+    _currentAftermathStgIndex = stgIndex;
+    _currentAftermathMsnIndex = msnIndex;
+    overlays.add('aftermath');
   }
 
   void _resumeFromFailure() {
     debugPrint('[RESUME] Resuming failed mission from last round...');
 
     // Remove aftermath screen
-    removeAll(children.whereType<AftermathScreen>().toList());
+    _removeAftermathOverlay();
 
     _isTimeOver = false;
     _timerPaused = false;
@@ -2446,7 +2373,7 @@ bool _isStraightLine(List<Vector2> path) {
 
   void pauseGame() {
     debugPrint("blinkingMap:${blinkingMap.values}");
-    if (pausedScreen != null && pausedScreen!.isMounted) return;
+    if (overlays.isActive('pause')) return;
 
     if (!_missionResolved && remainingTime <= 0) {
       _timerEndedNotified = true;
@@ -2489,29 +2416,7 @@ bool _isStraightLine(List<Vector2> path) {
       }
     }
 
-    pausedScreen = PausedScreen(
-      screenSize: size,
-      onResume: () {
-        resumeGame();
-      },
-      onRetry: () {
-        resumeGame();
-        onRefresh();
-      },
-      onMenu: () {
-        removeAll(children.whereType<AftermathScreen>().toList());
-        //TODO : 다른 화면들처럼 go_router 사용할수는 없나?
-        rootNavigatorKey.currentContext!.push(
-          '/missions',
-          extra: MissionRouteArgs(
-            stages: stages,
-            stageIndex: _selectedStageIndex,
-          ),
-        );
-      },
-    );
-
-    add(pausedScreen!);
+    overlays.add('pause');
   }
 
   void resumeGame() {
@@ -2522,10 +2427,7 @@ bool _isStraightLine(List<Vector2> path) {
   _timerPaused = true; // 결과창 뜰 동안 타이머는 멈춤 유지
 
   // pause UI 제거
-  if (pausedScreen != null) {
-    pausedScreen!.removeFromParent();
-    pausedScreen = null;
-  }
+  if (overlays.isActive('pause')) overlays.remove('pause');
 
   if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
     _pendingResult = StageResult.fail;
@@ -2579,6 +2481,65 @@ bool _isStraightLine(List<Vector2> path) {
   }
 }
   
+  void _removeAftermathOverlay() {
+    if (overlays.isActive('aftermath')) overlays.remove('aftermath');
+  }
+
+  void handleAftermathContinue() {
+    _removeAftermathOverlay();
+    _resumeFromFailure();
+  }
+
+  void handleAftermathRetry() => onRefresh();
+
+  void handleAftermathPlay() {
+    _removeAftermathOverlay();
+
+    final isLastStage = _selectedStageIndex >= maxStageIndex - 1;
+    final isLastMission = _selectedMissionIndex >= maxMissionIndex;
+
+    if (isLastStage && isLastMission) {
+      rootNavigatorKey.currentContext!.go('/stages', extra: stages);
+      return;
+    }
+
+    if (_selectedStageIndex < maxStageIndex) {
+      if (_selectedMissionIndex < maxMissionIndex) {
+        _selectedMissionIndex = _selectedMissionIndex + 1;
+      } else {
+        _selectedStageIndex = 0;
+        _selectedMissionIndex = 0;
+      }
+      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+    }
+  }
+
+  void handleAftermathMenu() {
+    _removeAftermathOverlay();
+    rootNavigatorKey.currentContext!.push(
+      '/missions',
+      extra: MissionRouteArgs(stages: stages, stageIndex: _selectedStageIndex),
+    );
+  }
+
+  void handlePauseResume() => resumeGame();
+
+  void handlePauseRetry() {
+    resumeGame();
+    onRefresh();
+  }
+
+  void handlePauseMenu() {
+    _removeAftermathOverlay();
+    rootNavigatorKey.currentContext!.push(
+      '/missions',
+      extra: MissionRouteArgs(
+        stages: stages,
+        stageIndex: _selectedStageIndex,
+      ),
+    );
+  }
+
   void _drawDashedPath(
     Canvas canvas,
     Path source, {
