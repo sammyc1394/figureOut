@@ -1,89 +1,94 @@
 
+import 'dart:ui';
 import 'package:figureout/src/config.dart';
-import 'package:flame/components.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
-import '../functions/svgButton.dart';
 
-class PausedScreen extends PositionComponent {
+class PauseOverlayWidget extends StatelessWidget {
   final VoidCallback onResume;
   final VoidCallback onRetry;
   final VoidCallback onMenu;
 
-  PausedScreen({
-    required Vector2 screenSize,
+  const PauseOverlayWidget({
+    super.key,
     required this.onResume,
     required this.onRetry,
     required this.onMenu,
-  }) : super(size: screenSize, position: Vector2.zero()) {
-    priority = 5000;
-  }
+  });
 
   @override
-  Future<void> onLoad() async {
-    // 반투명 배경
-    final overlayBg = RectangleComponent(
-      size: size,
-      paint: Paint()..color = Colors.black.withValues(alpha: 0.5),
-    );
-    add(overlayBg);
-
-    // Pause 창 패널
-    final panelSvg = await Svg.load('Paused_window.svg');
-    final panelSize = Vector2(size.x * 0.8, size.y * 0.30);
-    final panel = SvgComponent(
-      svg: panelSvg,
-      size: panelSize,
-      anchor: Anchor.center,
-      position: size / 2,
-    );
-    add(panel);
-
-    final pausedText = TextComponent(
-      text: i18n.t('pause_title'),
-      textRenderer: TextPaint(
-        style: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
-          color: Colors.black,
-          fontFamily: appFontFamily,
+  Widget build(BuildContext context) {
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.25),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 45),
+            decoration: BoxDecoration(
+              color: const Color(0xFF7BA6C5),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: onMenu,
+                  child: Image.asset(
+                    'assets/Home_button_beige.png',
+                    width: 44,
+                    height: 44,
+                    colorBlendMode: BlendMode.srcIn,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: onResume,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EDD8),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/Resume_button_icon.png',
+                          width: 22,
+                          height: 22,
+                          // color: const Color(0xFF555555),
+                          colorBlendMode: BlendMode.srcIn,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Resume',
+                          style: TextStyle(
+                            fontFamily: appFontFamily,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF555555),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: onRetry,
+                  child: Image.asset(
+                    'assets/Replay_button beige.png',
+                    width: 44,
+                    height: 44,
+                    colorBlendMode: BlendMode.srcIn,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      anchor: Anchor.topCenter,
-      position: Vector2(panelSize.x / 2, panel.y * 0.17),
     );
-    panel.add(pausedText);
-
-    final buttonSize = Vector2(panelSize.x * 0.2, panelSize.y * 0.18);
-
-    final centerY = panelSize.y / 2;
-
-    // 버튼 배치
-    final buttonY = centerY* 1.1;
-    final spacing = panelSize.x * 0.35;
-
-    final menuButton = SvgButton(
-      assetPath: 'Exit_basic.svg',
-      size: buttonSize*0.8 ,
-      position: Vector2(panelSize.x / 2 - spacing, buttonY),
-      onTap: onMenu,
-    )..anchor=Anchor.center;
-    panel.add(menuButton);
-
-    final resumeButton = SvgButton(
-      assetPath: 'Resume_default.svg',
-      size: buttonSize*2.3,
-      position: Vector2(panelSize.x / 2, buttonY),
-      onTap: onResume,
-    )..anchor=Anchor.center;
-    panel.add(resumeButton);
-
-    final retryButton = SvgButton(
-      assetPath: 'Retry_default.svg',
-      size: buttonSize*0.8,
-      position: Vector2(panelSize.x / 2+spacing, buttonY),
-      onTap: onRetry,
-    )..anchor=Anchor.center;
-    panel.add(retryButton);
   }
 }
