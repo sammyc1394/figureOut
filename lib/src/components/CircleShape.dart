@@ -175,8 +175,22 @@ class CircleShape extends PositionComponent
     return point.distanceTo(center) <= radius;
   }
 
+  static const double _borderHalo = 0.08;
+  static const Color _borderColor = Color(0xFFE4E0D3);
+
   @override
   void render(Canvas canvas) {
+    _sprite.render(
+      canvas,
+      position: Vector2(-size.x * _borderHalo / 2, -size.y * _borderHalo / 2),
+      size: size * (1 + _borderHalo),
+      overridePaint: Paint()
+        ..colorFilter = ColorFilter.mode(
+          Color.fromARGB((_blinkAlpha * 255).round(), 0xE4, 0xE0, 0xD3),
+          BlendMode.srcIn,
+        ),
+    );
+
     _sprite.render(
       canvas,
       size: size,
