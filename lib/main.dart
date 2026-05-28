@@ -102,8 +102,14 @@ class figureoutMain extends StatelessWidget {
         GoRoute(
           path: '/stages',
           builder: (context, state) {
-            final data = state.extra as List<StageData>;
-            return StageSelectScreen(stages: data);
+            final extra = state.extra;
+            if (extra is StageRouteArgs) {
+              return StageSelectScreen(
+                stages: extra.stages,
+                initialStageIndex: extra.initialStageIndex,
+              );
+            }
+            return StageSelectScreen(stages: extra as List<StageData>);
           },
         ),
         GoRoute(

@@ -264,8 +264,13 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
-                    onTap: () =>
-                        context.push('/stages', extra: stages),
+                    onTap: () => context.push(
+                      '/stages',
+                      extra: StageRouteArgs(
+                        stages: stages,
+                        initialStageIndex: widget.stageIndex,
+                      ),
+                    ),
                     child: SvgPicture.asset(
                       "assets/menu/common/Arrow_prev.svg",
                       width: 40,
