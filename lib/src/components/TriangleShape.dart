@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'package:figureout/src/routes/OneSecondGame.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,8 @@ import '../functions/OverlapHighlightable.dart';
 import 'shape_path_utils.dart';
 
 class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
+  static final _images = Images(prefix: 'assets/');
+
   int energy = 0;
   TextComponent? _hpTextComponent;
 
@@ -61,6 +64,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   double _baseRotationSpeed = 0.0;
   double _rotDir = 1.0;
 
+  late Sprite _sprite;
   late Path _outlinePath;
   late Path _wobblePath;
   late double _outlineLength;
@@ -96,6 +100,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
+    _sprite = await Sprite.load('shapes/Triangle_3x.png', images: _images);
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
@@ -231,34 +236,37 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   }
 
   @override
+  bool containsLocalPoint(Vector2 point) {
+    final pts = [
+      Vector2(size.x * (48.0 / 96.0), size.y * (3.5 / 86.0)),
+      Vector2(size.x * (2.1 / 96.0),  size.y * (78.5 / 86.0)),
+      Vector2(size.x * (93.9 / 96.0), size.y * (78.5 / 86.0)),
+    ];
+    return isPointInPolygon(point, pts);
+  }
+
+  @override
   void render(Canvas canvas) {
-    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
     final alpha = (_blinkAlpha * _shapeOpacity).clamp(0.0, 1.0);
 
-    canvas.drawShadow(
-      _wobblePath,
-      Colors.black.withValues(alpha: 0.35),
-      6,
-      false,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: alpha)
-        ..style = PaintingStyle.fill
-        ..blendMode = blendMode,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: alpha * 0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round
-        ..blendMode = blendMode,
+    _sprite.render(
+      canvas,
+      size: size,
+      overridePaint: isDark
+          ? (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.matrix([
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0, 0, 0, alpha, 0,
+              ]))
+          : (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.mode(
+                Color.fromARGB((alpha * 255).round(), 255, 255, 255),
+                BlendMode.modulate,
+              )),
     );
 
     if (!_attackDone && _attackTimeHalfLeft) {

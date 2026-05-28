@@ -1,3 +1,4 @@
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,8 @@ enum HexagonState {
 class HexagonShape extends PositionComponent
     with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
 
+  static final _images = Images(prefix: 'assets/');
+
   double dragScale = 1.0;
   double autoScale = 1.0;
 
@@ -36,6 +39,7 @@ class HexagonShape extends PositionComponent
   bool _attackDone = false;
   bool _penaltyFired = false;
 
+  late Sprite _sprite;
   late Path _outlinePath;
   late Path _wobblePath;
   late double _outlineLength;
@@ -107,6 +111,7 @@ class HexagonShape extends PositionComponent
 
     await super.onLoad();
 
+    _sprite = await Sprite.load('shapes/Hexagon_3x.png', images: _images);
     _outlinePath = _buildHexagonPath(size.toSize());
 
     _outlineLength =
@@ -293,34 +298,53 @@ class HexagonShape extends PositionComponent
   }
 
   @override
+  bool containsLocalPoint(Vector2 point) {
+    final cx = size.x / 2;
+    final cy = size.y / 2;
+    const inset = 13.0;
+    final r = (size.x / 2) - inset;
+    final pts = List.generate(6, (i) {
+      final a = (math.pi / 3) * i + _hexAngleOffset;
+      return Vector2(cx + r * math.cos(a), cy + r * math.sin(a));
+    });
+    return _pointInPolygon(point, pts);
+  }
+
+  bool _pointInPolygon(Vector2 p, List<Vector2> poly) {
+    int count = 0;
+    for (int i = 0; i < poly.length; i++) {
+      final a = poly[i];
+      final b = poly[(i + 1) % poly.length];
+      if (((a.y > p.y) != (b.y > p.y)) &&
+          (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
+        count++;
+      }
+    }
+    return count.isOdd;
+  }
+
+  @override
   void render(Canvas canvas) {
-    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
     final alpha = (_blinkAlpha * _opacity).clamp(0.0, 1.0);
 
-    canvas.drawShadow(
-      _wobblePath,
-      Colors.black.withValues(alpha: 0.35),
-      6,
-      false,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: alpha)
-        ..style = PaintingStyle.fill
-        ..blendMode = blendMode,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: alpha * 0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round
-        ..blendMode = blendMode,
+    _sprite.render(
+      canvas,
+      size: size,
+      overridePaint: isDark
+          ? (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.matrix([
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0, 0, 0, alpha, 0,
+              ]))
+          : (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.mode(
+                Color.fromARGB((alpha * 255).round(), 255, 255, 255),
+                BlendMode.modulate,
+              )),
     );
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {

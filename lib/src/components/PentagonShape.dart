@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
@@ -16,6 +17,8 @@ import 'shape_path_utils.dart';
 
 class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable, BlinkAlphaTarget {
+
+  static final _images = Images(prefix: 'assets/');
 
   int energy;
   TextComponent? _hpTextComponent;
@@ -103,6 +106,7 @@ class PentagonShape extends PositionComponent
     ..strokeWidth = 6
     ..color = const Color(0xFFF6B4B9);
 
+  late Sprite _sprite;
   late Path _pentagonPath;
   late Path _wobblePath;
   late double _perimeter;
@@ -142,6 +146,7 @@ class PentagonShape extends PositionComponent
 
     _baseRadius = size.x * 0.392;
 
+    _sprite = await Sprite.load('shapes/Pentagon_3x.png', images: _images);
     _pentagonPath = _buildPentagonPath(_center, _baseRadius);
 
     _perimeter =
@@ -254,33 +259,50 @@ class PentagonShape extends PositionComponent
   // ===============================
 
   @override
+  bool containsLocalPoint(Vector2 point) {
+    final cx = size.x / 2 - size.x * 0.04;
+    final cy = size.y / 2 + size.y * 0.04;
+    final r = size.x * 0.392;
+    final pts = List.generate(5, (i) {
+      final a = (-90 + i * 72) * pi / 180;
+      return Vector2(cx + cos(a) * r, cy + sin(a) * r);
+    });
+    return _pointInPolygon(point, pts);
+  }
+
+  bool _pointInPolygon(Vector2 p, List<Vector2> poly) {
+    int count = 0;
+    for (int i = 0; i < poly.length; i++) {
+      final a = poly[i];
+      final b = poly[(i + 1) % poly.length];
+      if (((a.y > p.y) != (b.y > p.y)) &&
+          (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
+        count++;
+      }
+    }
+    return count.isOdd;
+  }
+
+  @override
   void render(Canvas canvas) {
-    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
-
-    canvas.drawShadow(
-      _wobblePath,
-      Colors.black.withValues(alpha: 0.35),
-      6,
-      false,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: _blinkAlpha)
-        ..style = PaintingStyle.fill
-        ..blendMode = blendMode,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: _blinkAlpha * 0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round
-        ..blendMode = blendMode,
+    _sprite.render(
+      canvas,
+      size: size,
+      overridePaint: isDark
+          ? (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.matrix([
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0, 0, 0, _blinkAlpha, 0,
+              ]))
+          : (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.mode(
+                Color.fromARGB((_blinkAlpha * 255).round(), 255, 255, 255),
+                BlendMode.modulate,
+              )),
     );
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {

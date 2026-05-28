@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ import 'shape_path_utils.dart';
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable, BlinkAlphaTarget
     implements OrderableShape {
+
+  static final _images = Images(prefix: 'assets/');
 
   int count;
   final bool isDark;
@@ -32,6 +35,7 @@ class CircleShape extends PositionComponent
   late PositionComponent _orderBadge;
   TextComponent? _hpTextComponent;
 
+  late Sprite _sprite;
   late Path _wobblePath;
 
   double _attackElapsed = 0.0;
@@ -103,6 +107,7 @@ class CircleShape extends PositionComponent
       add(_hpTextComponent!);
     }
 
+    _sprite = await Sprite.load('shapes/Circle_3x.png', images: _images);
     _wobblePath = ShapePathUtils.wobble(_buildCirclePath(), amplitude: size.x * 0.009);
   }
 
@@ -164,31 +169,32 @@ class CircleShape extends PositionComponent
   }
 
   @override
+  bool containsLocalPoint(Vector2 point) {
+    final center = size / 2;
+    final radius = size.x * 0.46;
+    return point.distanceTo(center) <= radius;
+  }
+
+  @override
   void render(Canvas canvas) {
-    final fillColor = isDark ? const Color(0xFF888888) : baseColor;
-
-    canvas.drawShadow(
-      _wobblePath,
-      Colors.black.withValues(alpha: 0.28),
-      5,
-      false,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: _blinkAlpha)
-        ..style = PaintingStyle.fill
-        ..blendMode = blendMode,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = Colors.black.withValues(alpha: _blinkAlpha * 0.14)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..blendMode = blendMode,
+    _sprite.render(
+      canvas,
+      size: size,
+      overridePaint: isDark
+          ? (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.matrix([
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0, 0, 0, _blinkAlpha, 0,
+              ]))
+          : (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.mode(
+                Color.fromARGB((_blinkAlpha * 255).round(), 255, 255, 255),
+                BlendMode.modulate,
+              )),
     );
 
     if (!_attackDone && _attackTimeCritical) {

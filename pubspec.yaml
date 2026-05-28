@@ -67,6 +67,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/shapes/
     - assets/menu/stage/
     - assets/menu/mission/
     - assets/menu/common/
