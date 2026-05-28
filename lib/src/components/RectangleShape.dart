@@ -146,7 +146,7 @@ class RectangleShape extends PositionComponent
       add(_hpTextComponent!);
     }
 
-    _sprite = await Sprite.load('shapes/Square_3x.png', images: _images);
+    _sprite = await Sprite.load('shapes/Rectangle_3x.png', images: _images);
     _outlinePath = _buildRectPath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
