@@ -247,7 +247,7 @@ class RectangleShape extends PositionComponent
            point.y >= inset && point.y <= size.y - inset;
   }
 
-  static const double _borderHalo = 0.08;
+  static const double _borderHalo = 0.05;
 
   void _renderRectangleShape(Canvas canvas) {
     _sprite.render(

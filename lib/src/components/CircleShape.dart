@@ -175,7 +175,7 @@ class CircleShape extends PositionComponent
     return point.distanceTo(center) <= radius;
   }
 
-  static const double _borderHalo = 0.08;
+  static const double _borderHalo = 0.05;
   static const Color _borderColor = Color(0xFFE4E0D3);
 
   @override

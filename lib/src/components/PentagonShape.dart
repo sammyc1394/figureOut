@@ -283,7 +283,7 @@ class PentagonShape extends PositionComponent
     return count.isOdd;
   }
 
-  static const double _borderHalo = 0.08;
+  static const double _borderHalo = 0.05;
 
   @override
   void render(Canvas canvas) {

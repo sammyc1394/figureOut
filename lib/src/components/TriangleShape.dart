@@ -246,7 +246,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   }
 
   @override
-  static const double _borderHalo = 0.08;
+  static const double _borderHalo = 0.05;
 
   void render(Canvas canvas) {
     final alpha = (_blinkAlpha * _shapeOpacity).clamp(0.0, 1.0);
