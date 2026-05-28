@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/BlinkingBehavior.dart';
 import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
@@ -16,6 +17,8 @@ import 'shape_path_utils.dart';
 
 class PentagonShape extends PositionComponent
     with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable, BlinkAlphaTarget {
+
+  static final _images = Images(prefix: 'assets/');
 
   int energy;
   TextComponent? _hpTextComponent;
@@ -143,7 +146,7 @@ class PentagonShape extends PositionComponent
 
     _baseRadius = size.x * 0.392;
 
-    _sprite = await Sprite.load('shapes/Pentagon_3x.png');
+    _sprite = await Sprite.load('shapes/Pentagon_3x.png', images: _images);
     _pentagonPath = _buildPentagonPath(_center, _baseRadius);
 
     _perimeter =

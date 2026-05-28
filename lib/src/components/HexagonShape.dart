@@ -1,3 +1,4 @@
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,8 @@ enum HexagonState {
 
 class HexagonShape extends PositionComponent
     with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
+
+  static final _images = Images(prefix: 'assets/');
 
   double dragScale = 1.0;
   double autoScale = 1.0;
@@ -108,7 +111,7 @@ class HexagonShape extends PositionComponent
 
     await super.onLoad();
 
-    _sprite = await Sprite.load('shapes/Hexagon_3x.png');
+    _sprite = await Sprite.load('shapes/Hexagon_3x.png', images: _images);
     _outlinePath = _buildHexagonPath(size.toSize());
 
     _outlineLength =

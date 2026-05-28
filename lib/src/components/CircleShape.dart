@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ import 'shape_path_utils.dart';
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable, BlinkAlphaTarget
     implements OrderableShape {
+
+  static final _images = Images(prefix: 'assets/');
 
   int count;
   final bool isDark;
@@ -104,7 +107,7 @@ class CircleShape extends PositionComponent
       add(_hpTextComponent!);
     }
 
-    _sprite = await Sprite.load('shapes/Circle_3x.png');
+    _sprite = await Sprite.load('shapes/Circle_3x.png', images: _images);
     _wobblePath = ShapePathUtils.wobble(_buildCirclePath(), amplitude: size.x * 0.009);
   }
 

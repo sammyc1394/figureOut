@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:figureout/src/effect/FallingClippedPiece.dart';
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,8 @@ import 'shape_path_utils.dart';
 class RectangleShape extends PositionComponent
     with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget
     implements OrderableShape {
+  static final _images = Images(prefix: 'assets/');
+
   int count = 0;
 
   late PositionComponent _orderBadge;
@@ -143,7 +146,7 @@ class RectangleShape extends PositionComponent
       add(_hpTextComponent!);
     }
 
-    _sprite = await Sprite.load('shapes/Square_3x.png');
+    _sprite = await Sprite.load('shapes/Square_3x.png', images: _images);
     _outlinePath = _buildRectPath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);

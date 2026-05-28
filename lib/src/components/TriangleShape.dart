@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'package:figureout/src/routes/OneSecondGame.dart';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,8 @@ import '../functions/OverlapHighlightable.dart';
 import 'shape_path_utils.dart';
 
 class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
+  static final _images = Images(prefix: 'assets/');
+
   int energy = 0;
   TextComponent? _hpTextComponent;
 
@@ -97,7 +100,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     priority = 100 + (1000 - size.x).toInt();
     await super.onLoad();
 
-    _sprite = await Sprite.load('shapes/Triangle_3x.png');
+    _sprite = await Sprite.load('shapes/Triangle_3x.png', images: _images);
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
