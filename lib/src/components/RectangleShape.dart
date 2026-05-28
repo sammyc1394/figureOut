@@ -46,6 +46,7 @@ class RectangleShape extends PositionComponent
   bool _penaltyFired = false;
   bool isPaused = false;
 
+  late Sprite _sprite;
   late Path _outlinePath;
   late Path _wobblePath;
   late double _outlineLength;
@@ -142,6 +143,7 @@ class RectangleShape extends PositionComponent
       add(_hpTextComponent!);
     }
 
+    _sprite = await Sprite.load('shapes/Square_3x.png');
     _outlinePath = _buildRectPath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
@@ -235,33 +237,32 @@ class RectangleShape extends PositionComponent
     _renderSliceLine(canvas);
   }
 
+  @override
+  bool containsLocalPoint(Vector2 point) {
+    const inset = 4.0;
+    return point.x >= inset && point.x <= size.x - inset &&
+           point.y >= inset && point.y <= size.y - inset;
+  }
+
   void _renderRectangleShape(Canvas canvas) {
-    final fillColor = isDark ? const Color(0xFF555555) : baseColor;
-
-    canvas.drawShadow(
-      _wobblePath,
-      Colors.black.withValues(alpha: 0.35),
-      6,
-      false,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: _blinkAlpha)
-        ..style = PaintingStyle.fill
-        ..blendMode = blendMode,
-    );
-
-    canvas.drawPath(
-      _wobblePath,
-      Paint()
-        ..color = fillColor.withValues(alpha: _blinkAlpha * 0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round
-        ..blendMode = blendMode,
+    _sprite.render(
+      canvas,
+      size: size,
+      overridePaint: isDark
+          ? (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.matrix([
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0, 0, 0, _blinkAlpha, 0,
+              ]))
+          : (Paint()
+              ..blendMode = blendMode
+              ..colorFilter = ColorFilter.mode(
+                Color.fromARGB((_blinkAlpha * 255).round(), 255, 255, 255),
+                BlendMode.modulate,
+              )),
     );
 
     if (!_attackDone && _attackTimeHalfLeft) {
