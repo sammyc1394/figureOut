@@ -1,5 +1,15 @@
 import '../functions/sheet_service.dart';
 
+class StageRouteArgs {
+  final List<StageData> stages;
+  final int initialStageIndex;
+
+  const StageRouteArgs({
+    required this.stages,
+    this.initialStageIndex = 0,
+  });
+}
+
 class MissionRouteArgs {
   final List<StageData> stages;
   final int stageIndex;

@@ -10,15 +10,20 @@ import 'route_args.dart';
 
 class StageSelectScreen extends StatefulWidget {
   final List<StageData> stages;
+  final int initialStageIndex;
 
-  const StageSelectScreen({super.key, required this.stages});
+  const StageSelectScreen({
+    super.key,
+    required this.stages,
+    this.initialStageIndex = 0,
+  });
 
   @override
   State<StageSelectScreen> createState() => _StageSelectScreenState();
 }
 
 class _StageSelectScreenState extends State<StageSelectScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   // SVG 파일 목록 (assets 폴더에 미리 넣어야 함)
   final List<String> stagesSVG = [
@@ -30,6 +35,12 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
     "assets/menu/stage/stage_6.png",
     "assets/menu/stage/stage_7.png",
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialStageIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +63,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                   enableInfiniteScroll: false,
                   padEnds: true,
                   autoPlay: false,
+                  initialPage: widget.initialStageIndex,
                   onPageChanged: (index, reason) {
                     setState(() => _currentIndex = index);
                   },
