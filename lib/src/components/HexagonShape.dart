@@ -323,9 +323,22 @@ class HexagonShape extends PositionComponent
     return count.isOdd;
   }
 
+  static const double _borderHalo = 0.05;
+
   @override
   void render(Canvas canvas) {
     final alpha = (_blinkAlpha * _opacity).clamp(0.0, 1.0);
+
+    _sprite.render(
+      canvas,
+      position: Vector2(-size.x * _borderHalo / 2, -size.y * _borderHalo / 2),
+      size: size * (1 + _borderHalo),
+      overridePaint: Paint()
+        ..colorFilter = ColorFilter.mode(
+          Color.fromARGB((alpha * 255).round(), 0xE4, 0xE0, 0xD3),
+          BlendMode.srcIn,
+        ),
+    );
 
     _sprite.render(
       canvas,
