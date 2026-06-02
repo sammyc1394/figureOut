@@ -20,15 +20,17 @@ class RandomContext {
 
         if (type == 'RD') {
           final value = random.nextDouble() * ((max + 1) - min) + min;
-          return value.truncate().toString();
+          return value.floor().toString();
         }
 
         if (type == 'URD') {
-          return _getUnique(
+          String ret = _getUnique(
             field,
             min.toInt(),
-            max.toInt() + 1,
+            max.toInt(),
           ).toString();
+          print('URD(${min.toInt()}, ${max.toInt()}), field = $field, ret = $ret');
+          return ret;
         }
 
         return match.group(0)!;
