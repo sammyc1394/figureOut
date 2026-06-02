@@ -303,7 +303,6 @@ class SheetService {
       return ret;
     }
 
-
     return null;
   }
 
