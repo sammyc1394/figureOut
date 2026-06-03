@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import '../config.dart';
 
 class RandomContext {
-  final math.Random random;
+  final math.Random random = math.Random();
   final Map<URDField, Map<String, List<int>>> pools = {};
-
-  RandomContext({math.Random? random}) : random = random ?? math.Random();
 
   String resolveRandom(String str, URDField field) {
     if (!str.contains('RD')) return str;
@@ -29,7 +27,7 @@ class RandomContext {
             min.toInt(),
             max.toInt(),
           ).toString();
-          print('URD(${min.toInt()}, ${max.toInt()}), field = $field, ret = $ret');
+          print('URD run = (${min.toInt()}, ${max.toInt()}), field = $field, ret = $ret');
           return ret;
         }
 
