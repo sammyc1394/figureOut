@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,7 +9,6 @@ import 'random_context.dart';
 class SheetService {
   final String sheetId;
   final String apiKey;
-  final math.Random _random = math.Random();
 
   SheetService()
       : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
@@ -131,7 +129,7 @@ class SheetService {
         if (currentMission != null && currentStage != null) {
           missionContexts.putIfAbsent(
             currentMission,
-            () => RandomContext(random: _random),
+            () => RandomContext(),
           );
 
           final msnTitle =
