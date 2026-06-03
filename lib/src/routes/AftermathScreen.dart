@@ -114,11 +114,11 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   Widget _heart(double w, double h) {
     return Positioned(
-      top: h * 0.20,
+      top: h * 0.25,
       left: 0,
       right: 0,
       child: Center(
-        child: SvgPicture.asset('assets/Heart_failed.svg', height: w * 0.23),
+        child: Image.asset('assets/Lose_brokenheart.png', height: w * 0.17),
       ),
     );
   }
