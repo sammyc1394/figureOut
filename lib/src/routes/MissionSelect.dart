@@ -29,10 +29,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
   bool isLoaded = false;
 
-  final String defaultMsn =
-      "assets/menu/mission/Mission_default_empty.svg";
-  final String selectedMsn =
-      "assets/menu/mission/Mission_selected_empty.svg";
+  static const _missionBg = Color(0xFF7BAED0);
 
   @override
   void initState() {
@@ -69,19 +66,6 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     });
   }
 
-  String _difficultyStars(int level) {
-    switch (level) {
-      case 1:
-        return "assets/menu/mission/Star_1.svg";
-      case 2:
-        return "assets/menu/mission/Star_2.svg";
-      case 3:
-        return "assets/menu/mission/Star_3.svg";
-      default:
-        return "assets/menu/mission/Star_0.svg";
-    }
-  }
-
   double _rotationAngleFor(int index) {
     final angles = [
       -0.06, 0.04, -0.03, 0.05,
@@ -112,10 +96,8 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   Widget build(BuildContext context) {
     if (!isLoaded) {
       return const Scaffold(
-        backgroundColor: Color(bgColor),
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        backgroundColor: _missionBg,
+        body: Center(child: CircularProgressIndicator()),
       );
     }
     final stages = widget.stages;
@@ -126,144 +108,118 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: const Color(bgColor),
-          appBar: const Menuappbar(),
+          backgroundColor: _missionBg,
+          appBar: const Menuappbar(backgroundColor: _missionBg),
           body: Column(
             children: [
-              Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 16,
-              ),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1,
-              ),
-              itemCount: missionNumbers.length,
-              itemBuilder: (context, index) {
-                final missionNo = missionNumbers[index];
-                final isSelected = selectedIndex == index;
-                final rotationAngle = _rotationAngleFor(index);
-
-                final isBossMission =
-                    stage.missionIsBoss[missionNo] ?? false;
-                final isLocked = _isBossLocked(stage, missionNo);
-                final isCleared = _isMissionCleared(missionNo);
-
-                return GestureDetector(
-                  onTap: isLocked
-                      ? null
-                      : () async {
-                          setState(() {
-                            selectedIndex = index;
-                          });
-
-                          await Future.delayed(
-                            const Duration(milliseconds: 800),
-                          );
-
-                          if (!mounted) return;
-
-                          context.push(
-                            '/game',
-                            extra: GameRouteArgs(
-                              stages: widget.stages,
-                              stageIndex: widget.stageIndex,
-                              missionIndex: missionNo - 1,
-                            ),
-                          ).then((_) {
-                            _loadMissionProgress();
-                          });
-                        },
-                  child: Transform.rotate(
-                    angle: rotationAngle,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ColorFiltered(
-                          colorFilter: isLocked
-                              ? const ColorFilter.matrix([
-                                  0.3, 0.3, 0.3, 0, 0,
-                                  0.3, 0.3, 0.3, 0, 0,
-                                  0.3, 0.3, 0.3, 0, 0,
-                                  0,   0,   0,   1, 0,
-                                ])
-                              : const ColorFilter.mode(
-                                  Colors.transparent,
-                                  BlendMode.multiply,
-                                ),
-                          child: SvgPicture.asset(
-                            isSelected ? selectedMsn : defaultMsn,
-                            width: 100,
-                            height: 100,
-                          ),
-                        ),
-
-                        Positioned(
-                          top: 28,
-                          child: Text(
-                            isBossMission ? "Boss" : "$missionNo",
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                              fontFamily: 'Gaegu',
-                            ),
-                          ),
-                        ),
-
-                        Positioned(
-                          bottom: 10,
-                          child: isBossMission
-                              ? (isLocked
-                                  ? Transform.translate(
-                                      offset: const Offset(0, -4),
-                                      child: SvgPicture.asset(
-                                        "assets/menu/mission/lock.svg",
-                                        width: 40,
-                                        height: 40,
-                                        colorFilter:
-                                            const ColorFilter.mode(
-                                          Colors.black54,
-                                          BlendMode.srcIn,
-                                        ),
-                                      ),
-                                    )
-                                  : SvgPicture.asset(
-                                      _difficultyStars(1),
-                                      width: 50,
-                                      height: 20,
-                                    ))
-                              : SvgPicture.asset(
-                                  _difficultyStars(
-                                    isCleared ? 3 : 1,
-                                  ),
-                                  width: 50,
-                                  height: 20,
-                                ),
-                        ),
-                      ],
+              // Stage label
+              Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ColorFiltered(
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
+                      child: Image.asset('assets/Stage_outline.png', height: 44),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
+                    Text(
+                      'Stage ${widget.stageIndex + 1}',
+                      style: TextStyle(
+                        fontFamily: appFontFamily,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-          Padding(
-            padding: const EdgeInsets.only(
-              bottom: 24,
-              left: 24,
-              right: 24,
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Align(
+              // Mission grid
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: missionNumbers.length,
+                  itemBuilder: (context, index) {
+                    final missionNo = missionNumbers[index];
+                    final isBossMission = stage.missionIsBoss[missionNo] ?? false;
+                    final isLocked = _isBossLocked(stage, missionNo);
+                    final isCleared = _isMissionCleared(missionNo);
+
+                    return GestureDetector(
+                      onTap: isLocked
+                          ? null
+                          : () async {
+                              setState(() => selectedIndex = index);
+                              await Future.delayed(const Duration(milliseconds: 300));
+                              if (!mounted) return;
+                              context.push(
+                                '/game',
+                                extra: GameRouteArgs(
+                                  stages: widget.stages,
+                                  stageIndex: widget.stageIndex,
+                                  missionIndex: missionNo - 1,
+                                ),
+                              ).then((_) => _loadMissionProgress());
+                            },
+                      child: Opacity(
+                        opacity: isLocked ? 0.45 : 1.0,
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Image.asset(
+                                'assets/StageScreen_box.png',
+                                fit: BoxFit.fill,
+                              ),
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    isBossMission ? 'Boss' : '$missionNo',
+                                    style: const TextStyle(
+                                      fontFamily: 'Gaegu',
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                      decoration: TextDecoration.none,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Image.asset(
+                                    isCleared
+                                        ? 'assets/Win_stars.png'
+                                        : 'assets/StageScreen_emptystars.png',
+                                    width: 80,
+                                    height: 30,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Back button
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24, left: 24),
+                child: Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
                     onTap: () => context.push(
@@ -273,17 +229,15 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                         initialStageIndex: widget.stageIndex,
                       ),
                     ),
-                    child: SvgPicture.asset(
-                      "assets/menu/common/Arrow_prev.svg",
+                    child: Image.asset(
+                      'assets/Back_button_beige.png',
                       width: 40,
                       height: 40,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
           ),
         ),
         Positioned.fill(
