@@ -47,3 +47,7 @@ enum MovementValueType {
 }
 
 late LocalizationService i18n;
+
+const int maxHearts = 5;
+// 테스트: 30초, 실서비스: 1800 (30분)
+const int heartRefillIntervalSec = 30;

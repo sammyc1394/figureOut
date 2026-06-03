@@ -45,15 +45,24 @@ class _MainGameScreenState extends State<MainGameScreen> {
 
   Future<void> _decreaseHeartOnStart() async {
     final prefs = await SharedPreferences.getInstance();
-    int currentHearts = prefs.getInt('hearts') ?? 100;
+    int currentHearts = (prefs.getInt('hearts') ?? maxHearts).clamp(0, maxHearts);
 
-    if (currentHearts <= 0) {
-      currentHearts = 100;
-    } else {
+    if (currentHearts > 0) {
       currentHearts -= 1;
+      await prefs.setInt('hearts', currentHearts);
+
+      // 하트 타이머가 없으면 시작
+      if (currentHearts < maxHearts) {
+        final nextHeartTime = prefs.getInt('next_heart_time');
+        if (nextHeartTime == null) {
+          await prefs.setInt(
+            'next_heart_time',
+            DateTime.now().millisecondsSinceEpoch + heartRefillIntervalSec * 1000,
+          );
+        }
+      }
     }
 
-    await prefs.setInt('hearts', currentHearts);
     setState(() => _initialized = true);
   }
 
