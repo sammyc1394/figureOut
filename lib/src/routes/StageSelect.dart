@@ -46,9 +46,12 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
   Widget build(BuildContext context) {
     final stages = widget.stages;
 
-    return Scaffold(
-      appBar: const Menuappbar(),
-      body: Column(
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: const Color(bgColor),
+          appBar: const Menuappbar(),
+          body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 10),
@@ -198,6 +201,24 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
 
         ],
       ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.15,
+              child: ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  -1, 0, 0, 0, 255,
+                   0,-1, 0, 0, 255,
+                   0, 0,-1, 0, 255,
+                   0, 0, 0, 1,   0,
+                ]),
+                child: Image.asset('assets/noise_texture.png', fit: BoxFit.cover),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
