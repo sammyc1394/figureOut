@@ -118,6 +118,8 @@ class OneSecondGame extends FlameGame
 
   final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
 
+  final ValueNotifier<Map<String, int>> shapeCountNotifier = ValueNotifier({});
+
   // screen data
   late final screenWidth;
   late final screenHeight;
@@ -168,12 +170,44 @@ class OneSecondGame extends FlameGame
     }
   }
 
+  void _updateShapeCount() {
+    final Map<String, int> counts = {};
+
+    void _countShape(PositionComponent shape) {
+      if (shape is CircleShape && !shape.isDark) counts['Circle'] = (counts['Circle'] ?? 0) + 1;
+      else if (shape is PentagonShape && !shape.isDark) counts['Pentagon'] = (counts['Pentagon'] ?? 0) + 1;
+      else if (shape is HexagonShape && !shape.isDark) counts['Hexagon'] = (counts['Hexagon'] ?? 0) + 1;
+      else if (shape is RectangleShape && !shape.isDark) counts['Rectangle'] = (counts['Rectangle'] ?? 0) + 1;
+      else if (shape is TriangleShape && !shape.isDark) counts['Triangle'] = (counts['Triangle'] ?? 0) + 1;
+    }
+
+    // 현재 화면에 있는 도형 카운트
+    for (final child in children) {
+      if (child is PositionComponent) _countShape(child);
+    }
+
+    // 블링킹으로 일시적으로 사라진 도형도 카운트 (사용자가 제거한 게 아니므로)
+    for (final entry in blinkingMap.entries) {
+      final shape = entry.key;
+      final blink = entry.value;
+      if (!shape.isMounted && blink.willReappear) {
+        _countShape(shape);
+      }
+    }
+
+    shapeCountNotifier.value = Map.unmodifiable(counts);
+  }
+
   @override
   void onChildrenChanged(Component child, ChildrenChangeType type) {
     super.onChildrenChanged(child, type);
     // 새 컴포넌트가 추가될 때마다 현재 디버그 상태를 그대로 적용
     if (type == ChildrenChangeType.added) {
       _applyDebugToTree(child, debugMode);
+    }
+    if (child is CircleShape || child is PentagonShape || child is HexagonShape ||
+        child is RectangleShape || child is TriangleShape) {
+      _updateShapeCount();
     }
   }
 
