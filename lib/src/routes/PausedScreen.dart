@@ -29,65 +29,63 @@ class PauseOverlayWidget extends StatelessWidget {
               color: const Color(0xFF7BA6C5),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: onMenu,
-                    child: Image.asset(
-                      'assets/Home_button_beige.png',
-                      width: 44,
-                      height: 44,
-                      colorBlendMode: BlendMode.srcIn,
-                    ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: onMenu,
+                  child: Image.asset(
+                    'assets/Home_button_beige.png',
+                    width: 44,
+                    height: 44,
+                    colorBlendMode: BlendMode.srcIn,
                   ),
-                  const SizedBox(width: 20),
-                  GestureDetector(
-                    onTap: onResume,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5EDD8),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(
-                            'assets/Resume_button_icon.png',
-                            width: 22,
-                            height: 22,
-                            // color: const Color(0xFF555555),
-                            colorBlendMode: BlendMode.srcIn,
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: onResume,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EDD8),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/Resume_button_icon.png',
+                          width: 22,
+                          height: 22,
+                          // color: const Color(0xFF555555),
+                          colorBlendMode: BlendMode.srcIn,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Resume',
+                          style: TextStyle(
+                            fontFamily: appFontFamily,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF555555),
+                            decoration: TextDecoration.none,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Resume',
-                            style: TextStyle(
-                              fontFamily: appFontFamily,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF555555),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  GestureDetector(
-                    onTap: onRetry,
-                    child: Image.asset(
-                      'assets/Replay_button beige.png',
-                      width: 44,
-                      height: 44,
-                      colorBlendMode: BlendMode.srcIn,
-                    ),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: onRetry,
+                  child: Image.asset(
+                    'assets/Replay_button beige.png',
+                    width: 44,
+                    height: 44,
+                    colorBlendMode: BlendMode.srcIn,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
