@@ -53,166 +53,165 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
           appBar: const Menuappbar(),
           body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 450,
-            child: CarouselSlider(
-                options: CarouselOptions(
-                  height: 450,
-                  viewportFraction: 0.48,
-                  enlargeCenterPage: true,
-                  enlargeFactor: 0.5,
-                  enableInfiniteScroll: false,
-                  padEnds: true,
-                  autoPlay: false,
-                  initialPage: widget.initialStageIndex,
-                  onPageChanged: (index, reason) {
-                    setState(() => _currentIndex = index);
-                  },
-                ),
-            items: List.generate(stages.length, (index) {
-              final svgPath = stagesSVG[index % stagesSVG.length];
-              final stage = stages[index];
+          children: [
+            const SizedBox(height: 10),
+              SizedBox(
+                height: 600,
+                child: CarouselSlider(
+                    options: CarouselOptions(
+                      height: 480,
+                      viewportFraction: 0.48,
+                      enlargeCenterPage: true,
+                      enlargeFactor: 0.36,
+                      enableInfiniteScroll: false,
+                      padEnds: true,
+                      autoPlay: false,
+                      initialPage: widget.initialStageIndex,
+                      onPageChanged: (index, reason) {
+                        setState(() => _currentIndex = index);
+                      },
+                    ),
+                items: List.generate(stages.length, (index) {
+                  final svgPath = stagesSVG[index % stagesSVG.length];
+                  final stage = stages[index];
 
-              return Builder(
-                builder: (context) {
-                  return GestureDetector(
-                    onTap: () {
-                      context.push(
-                        '/missions',
-                        extra: MissionRouteArgs(
-                          stages: stages,
-                          stageIndex: _currentIndex,
+                  return Builder(
+                    builder: (context) {
+                      return GestureDetector(
+                        onTap: () {
+                          context.push(
+                            '/missions',
+                            extra: MissionRouteArgs(
+                              stages: stages,
+                              stageIndex: _currentIndex,
+                            ),
+                          );
+                        },
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 250),
+                          opacity: index == _currentIndex ? 1.0 : 0.2,
+                          child: AnimatedScale(
+                            duration: const Duration(milliseconds: 250),
+                            scale: index == _currentIndex ? 1.3 : 0.7,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 220,
+                                  height: 220,
+                                  child: Center(
+                                    child: Image.asset(
+                                      svgPath,
+                                      width: 200,
+                                      height: 200,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 200),
+                                  opacity: index == _currentIndex ? 1.0 : 0.0,
+                                  child: SizedBox(
+                                    width: 120,
+                                    height: 40,
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+
+                                        Image.asset(
+                                          "assets/menu/stage/stage_name_outline.png",
+                                          fit: BoxFit.contain,
+                                        ),
+
+                                        Text(
+                                          // stage.name.isNotEmpty
+                                          //     ? stage.name
+                                          //     :
+                                          'Stage ${index + 1}',
+                                          style: TextStyle(
+                                            fontSize: 23,
+                                            fontWeight: FontWeight.w500,
+                                            fontFamily: appFontFamily,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       );
                     },
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 250),
-                      opacity: index == _currentIndex ? 1.0 : 0.2,
-                      child: AnimatedScale(
-                        duration: const Duration(milliseconds: 250),
-                        scale: index == _currentIndex ? 1.0 : 0.82,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                  );
 
-                            SizedBox(
-                              width: 220,
-                              height: 220,
-                              child: Center(
-                                child: Image.asset(
-                                  svgPath,
-                                  width: 220,
-                                  height: 220,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            AnimatedOpacity(
-                              duration: const Duration(milliseconds: 200),
-                              opacity: index == _currentIndex ? 1.0 : 0.0,
-                              child: SizedBox(
-                                width: 150,
-                                height: 60,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-
-                                    Image.asset(
-                                      "assets/menu/stage/stage_name_outline.png",
-                                      fit: BoxFit.contain,
-                                    ),
-
-                                    Text(
-                                      stage.name.isNotEmpty
-                                          ? stage.name
-                                          : 'Stage ${index + 1}',
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w500,
-                                        fontFamily: appFontFamily,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                })
+              ),
+        ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20), // 하단 여백 추가
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // : 뒤로가기 버튼
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () => context.push('/'),
+                      child: SvgPicture.asset(
+                        "assets/menu/common/Arrow_prev.svg",
+                        width: 40,
+                        height: 40,
                       ),
                     ),
-                  );
-                },
-              );
+                  ),
 
-            })
-          ),
-    ),
-          const SizedBox(height: 20),
-          // 기존 Row 전체를 이 코드로 교체
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24), // 하단 여백 추가
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // : 뒤로가기 버튼
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: GestureDetector(
-                    onTap: () => context.push('/'),
-                    child: SvgPicture.asset(
-                      "assets/menu/common/Arrow_prev.svg",
-                      width: 40,
-                      height: 40,
+                  Expanded(
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(stages.length, (index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: SvgPicture.asset(
+                              _currentIndex == index
+                                  ? "assets/menu/stage/carousel_selected.svg"
+                                  : "assets/menu/stage/carousel_notSelected.svg",
+                              width: 12,
+                              height: 12,
+                            ),
+                          );
+                        }),
+                      ),
                     ),
                   ),
-                ),
 
-                Expanded(
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(stages.length, (index) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: SvgPicture.asset(
-                            _currentIndex == index
-                                ? "assets/menu/stage/carousel_selected.svg"
-                                : "assets/menu/stage/carousel_notSelected.svg",
-                            width: 12,
-                            height: 12,
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ),
-
-                // 오른쪽 여백 확보용 (정렬 균형)
-                const SizedBox(width: 48),
-              ],
+                  // 오른쪽 여백 확보용 (정렬 균형)
+                  const SizedBox(width: 48),
+                ],
+              ),
             ),
-          ),
 
-        ],
-      ),
+          ],
         ),
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: 0.15,
-              child: ColorFiltered(
-                colorFilter: const ColorFilter.matrix([
-                  -1, 0, 0, 0, 255,
-                   0,-1, 0, 0, 255,
-                   0, 0,-1, 0, 255,
-                   0, 0, 0, 1,   0,
-                ]),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.15,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    -1, 0, 0, 0, 255,
+                     0,-1, 0, 0, 255,
+                     0, 0,-1, 0, 255,
+                     0, 0, 0, 1,   0,
+                  ]),
                 child: Image.asset('assets/noise_texture.png', fit: BoxFit.cover),
               ),
             ),
