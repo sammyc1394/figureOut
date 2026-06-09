@@ -46,6 +46,35 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
   Widget build(BuildContext context) {
     final stages = widget.stages;
 
+    final size = MediaQuery.sizeOf(context);
+    final screenWidth = size.width;
+    final screenHeight = size.height;
+    final shortestSide = size.shortestSide;
+
+    final isTablet = shortestSide >= 600;
+
+    final appBarHeight = kToolbarHeight;
+    final topGap = screenHeight * 0.012;
+    final bottomGap = screenHeight * 0.024;
+
+    final imageSize = (shortestSide * (isTablet ? 0.75 : 0.45))
+        .clamp(180.0, isTablet ? 300.0 : 240.0);
+    final imageInnerSize = imageSize * 0.90;
+
+    final stageTitleWidth = imageSize * 0.55;
+    final stageTitleHeight = imageSize * 0.18;
+    final titleFontSize = (imageSize * 0.10).clamp(18.0, 26.0);
+
+    final indicatorSize = (shortestSide * 0.028).clamp(10.0, 16.0);
+    final indicatorGap = shortestSide * 0.010;
+
+    final arrowSize = (shortestSide * 0.095).clamp(36.0, 52.0);
+    final rightSpacerWidth = arrowSize + indicatorGap * 2;
+
+    final carouselHeight = (screenHeight * (isTablet ? 0.52 : 0.64))
+        .clamp(360.0, isTablet ? 560.0 : 480.0);
+    final viewportFraction = isTablet ? 0.5: 0.5;
+
     return Stack(
       children: [
         Scaffold(
@@ -54,13 +83,12 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
           body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 10),
+            SizedBox(height: topGap),
               SizedBox(
-                height: 600,
                 child: CarouselSlider(
                     options: CarouselOptions(
-                      height: 480,
-                      viewportFraction: 0.48,
+                      height: carouselHeight,
+                      viewportFraction: viewportFraction,
                       enlargeCenterPage: true,
                       enlargeFactor: 0.36,
                       enableInfiniteScroll: false,
@@ -97,42 +125,39 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(
-                                  width: 220,
-                                  height: 220,
+                                  width: imageSize,
+                                  height: imageSize,
                                   child: Center(
                                     child: Image.asset(
                                       svgPath,
-                                      width: 200,
-                                      height: 200,
+                                      width: imageInnerSize,
+                                      height: imageInnerSize,
                                       fit: BoxFit.contain,
                                     ),
                                   ),
                                 ),
 
-                                const SizedBox(height: 8),
+                                SizedBox(height: imageSize * 0.04),
 
                                 AnimatedOpacity(
                                   duration: const Duration(milliseconds: 200),
                                   opacity: index == _currentIndex ? 1.0 : 0.0,
                                   child: SizedBox(
-                                    width: 120,
-                                    height: 40,
+                                    width: stageTitleWidth,
+                                    height: stageTitleHeight,
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-
                                         Image.asset(
                                           "assets/menu/stage/stage_name_outline.png",
                                           fit: BoxFit.contain,
                                         ),
-
                                         Text(
-                                          // stage.name.isNotEmpty
-                                          //     ? stage.name
-                                          //     :
-                                          'Stage ${index + 1}',
+                                          stage.name.isNotEmpty
+                                              ? stage.name
+                                              : 'Stage ${index + 1}',
                                           style: TextStyle(
-                                            fontSize: 23,
+                                            fontSize: titleFontSize,
                                             fontWeight: FontWeight.w500,
                                             fontFamily: appFontFamily,
                                             color: Colors.black,
@@ -153,9 +178,9 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                 })
               ),
         ),
-            const SizedBox(height: 10),
+            SizedBox(height: bottomGap),
             Padding(
-              padding: const EdgeInsets.only(bottom: 20), // 하단 여백 추가
+              padding: EdgeInsets.only(bottom: bottomGap), // 하단 여백 추가
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -166,8 +191,8 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                       onTap: () => context.push('/'),
                       child: SvgPicture.asset(
                         "assets/menu/common/Arrow_prev.svg",
-                        width: 40,
-                        height: 40,
+                        width: arrowSize,
+                        height: arrowSize,
                       ),
                     ),
                   ),
@@ -178,13 +203,13 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(stages.length, (index) {
                           return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            padding: EdgeInsets.symmetric(horizontal: indicatorGap),
                             child: SvgPicture.asset(
                               _currentIndex == index
                                   ? "assets/menu/stage/carousel_selected.svg"
                                   : "assets/menu/stage/carousel_notSelected.svg",
-                              width: 12,
-                              height: 12,
+                              width: indicatorSize,
+                              height: indicatorSize,
                             ),
                           );
                         }),
@@ -193,11 +218,10 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                   ),
 
                   // 오른쪽 여백 확보용 (정렬 균형)
-                  const SizedBox(width: 48),
+                  SizedBox(width: rightSpacerWidth),
                 ],
               ),
             ),
-
           ],
         ),
           ),
