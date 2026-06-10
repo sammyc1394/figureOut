@@ -1885,7 +1885,7 @@ bool _isStraightLine(List<Vector2> path) {
     maxDeviation = math.max(maxDeviation, deviation);
   }
 
-  return maxDeviation < 20;  // 허용 오차 (원래 10에서 20으로 늘려 관대하게)
+  return maxDeviation < 28;  // 허용 오차
 }
 
 
@@ -1939,22 +1939,27 @@ bool _isStraightLine(List<Vector2> path) {
       }
     }
 
-    if (userPath.length < 3) {
+    // 2개 포인트(시작+끝)만 있어도 슬라이스 판정 가능
+    if (userPath.length < 2) {
       _resetPathState();
       return;
     }
-    // 드래그 포인트 최적화 파라미터 튜닝
-    // minDistance: 포인트 간 최소 간격. (기존 6 -> 3: 촘촘하게 수집하여 원 닫힘 인식 개선)
     final filtered = _filterDensePoints(userPath, minDistance: 3);
-    
-    // window: 스무딩 강도. (기존 2 -> 4: 손떨림 지글거림을 확실히 눌러줌)
-    final smoothed = _smoothPoints(filtered, window: 4);
-    final judgePath = smoothed;
 
-    // final isClosed = _isPathClosed(userPath);
+    // 빠른 제스처는 filtered 포인트가 적을 수 있음.
+    // 2개 이하이면 스무딩이 두 점을 같은 중간점으로 만들어 _isStraightLine이 false를 반환하므로
+    // 시작·끝만 남긴 직선 경로로 대체한다.
+    final List<Vector2> judgePath;
+    if (filtered.length >= 3) {
+      final adaptiveWindow = ((filtered.length - 1) ~/ 4).clamp(1, 4);
+      judgePath = _smoothPoints(filtered, window: adaptiveWindow);
+    } else {
+      judgePath = [userPath.first, userPath.last];
+    }
+
+    // straightDist는 스무딩 전 실제 제스처 시작·끝 거리로 측정
     final pathLength = _calculatePathLength(judgePath);
-    final straightDist =
-        judgePath.first.distanceTo(judgePath.last);
+    final straightDist = userPath.first.distanceTo(userPath.last);
 
 
     // ─────────────────────────────
@@ -1963,7 +1968,7 @@ bool _isStraightLine(List<Vector2> path) {
 
     // final bool isLongEnough = _isLongEnoughForAnyRect(straightDist);
 
-    final isSliceGesture = straightDist > 30 && // 너무 짧은 터치를 슬라이스로 오인 방지 (20->30)
+    final isSliceGesture = straightDist > 20 && // 너무 짧은 터치를 슬라이스로 오인 방지
     _isStraightLine(judgePath);
 
     debugPrint("straightDist: $straightDist");
@@ -2056,7 +2061,7 @@ bool _isStraightLine(List<Vector2> path) {
           if (stopSlicing) break;
 
           if (rect.order == null) {
-            rect.touchAtPoint(userPath);
+            rect.touchAtPoint(judgePath);
             continue;
           }
 
@@ -2064,7 +2069,7 @@ bool _isStraightLine(List<Vector2> path) {
 
           if (expected == null || rect.order == expected.order) {
             // 올바른 순서의 사각형을 타격함
-            rect.touchAtPoint(userPath);
+            rect.touchAtPoint(judgePath);
             hitAnyExpected = true;
           } else {
             // 기대하지 않은 순서의 사각형을 타격함
@@ -2256,7 +2261,9 @@ bool _isStraightLine(List<Vector2> path) {
       // 육각형: 월드 좌표 꼭짓점 6개 계산 후 폴리곤 판정
       return _doesPathTouchPolygon(_getHexagonVertices(comp), path);
     }
-    // 기타 도형(RectangleShape 등)은 기존 bbox 판정 유지
+    if (comp is RectangleShape) {
+      return _doesPathTouchPolygon(comp.getWorldCorners(), path);
+    }
     return _doesPathTouchRect(comp.toRect(), path);
   }
 
@@ -2356,30 +2363,34 @@ bool _isStraightLine(List<Vector2> path) {
   }
 
   bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
-    final box = rect.toRect();
+    final vertices = rect.getWorldCorners();
     int hits = 0;
 
     for (int i = 0; i < path.length - 1; i++) {
       final p1 = path[i];
       final p2 = path[i + 1];
 
-      final p1Inside = box.contains(Offset(p1.x, p1.y));
-      final p2Inside = box.contains(Offset(p2.x, p2.y));
+      final p1Inside = _isPointInPolygon(p1, vertices);
+      final p2Inside = _isPointInPolygon(p2, vertices);
 
-      // 안/밖이 다르면 경계 통과 → hit
       if (p1Inside != p2Inside) {
         hits++;
         continue;
       }
 
-      // 둘 다 밖인데 실제 교차하면 hit
-      if (!p1Inside && !p2Inside && _lineIntersectsRect(p1, p2, box)) {
-        hits++;
+      if (!p1Inside && !p2Inside) {
+        int edgeHits = 0;
+        for (int j = 0; j < vertices.length; j++) {
+          if (_doLinesIntersect(p1, p2, vertices[j], vertices[(j + 1) % vertices.length])) {
+            edgeHits++;
+            // break;
+          }
+        }
+        hits += edgeHits;
       }
     }
 
-    // 밖→안→밖이면 hits >= 2, 또는 안에서 시작해 밖으로 나가도 hits >= 1
-    return hits >= 2 || (hits >= 1 && box.contains(Offset(path.first.x, path.first.y)));
+    return hits >= 2 || (hits >= 1 && _isPointInPolygon(path.first, vertices));
   }
 
 
