@@ -243,13 +243,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
-                    onTap: () => context.push(
-                      '/stages',
-                      extra: StageRouteArgs(
-                        stages: stages,
-                        initialStageIndex: widget.stageIndex,
-                      ),
-                    ),
+                    onTap: () => context.pop(),
                     child: Image.asset(
                       'assets/Back_button_beige.png',
                       width: 40,

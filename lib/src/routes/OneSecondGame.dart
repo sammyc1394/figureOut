@@ -2574,10 +2574,7 @@ bool _isStraightLine(List<Vector2> path) {
 
   void handleAftermathMenu() {
     _removeAftermathOverlay();
-    rootNavigatorKey.currentContext!.push(
-      '/missions',
-      extra: MissionRouteArgs(stages: stages, stageIndex: _selectedStageIndex),
-    );
+    rootNavigatorKey.currentContext!.pop();
   }
 
   void handlePauseResume() => resumeGame();
@@ -2589,13 +2586,7 @@ bool _isStraightLine(List<Vector2> path) {
 
   void handlePauseMenu() {
     _removeAftermathOverlay();
-    rootNavigatorKey.currentContext!.push(
-      '/missions',
-      extra: MissionRouteArgs(
-        stages: stages,
-        stageIndex: _selectedStageIndex,
-      ),
-    );
+    rootNavigatorKey.currentContext!.pop();
   }
 
   void _drawDashedPath(
