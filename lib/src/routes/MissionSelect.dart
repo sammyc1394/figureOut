@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import 'menuAppBar.dart';
 import 'route_args.dart';
+import 'NoHeartsOverlay.dart';
 
 class MissionSelectScreen extends StatefulWidget {
   final List<StageData> stages;
@@ -160,6 +161,26 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                       onTap: isLocked
                           ? null
                           : () async {
+                              // 하트 0개면 입장 차단
+                              final prefs = await SharedPreferences.getInstance();
+                              final hearts = (prefs.getInt('hearts') ?? maxHearts).clamp(0, maxHearts);
+                              if (!mounted) return;
+                              if (hearts <= 0) {
+                                showGeneralDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  barrierColor: Colors.transparent,
+                                  transitionDuration: Duration.zero,
+                                  pageBuilder: (ctx, _, __) => Material(
+                                    color: Colors.transparent,
+                                    child: NoHeartsOverlay(
+                                      onOk: () => Navigator.of(ctx).pop(),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
                               setState(() => selectedIndex = index);
                               await Future.delayed(const Duration(milliseconds: 300));
                               if (!mounted) return;
