@@ -2097,6 +2097,19 @@ bool _isStraightLine(List<Vector2> path) {
       return;
     }
 
+    final touchedRects = children
+        .whereType<RectangleShape>()
+        .where((r) => _doesPathTouchComponent(r, judgePath))
+        .toList();
+
+    if (touchedRects.isNotEmpty) {
+      for (final rect in touchedRects) {
+        rect.touchAtPoint(judgePath);
+      }
+      _resetPathState();
+      return;
+    }
+
     // ─────────────────────────────
     // 원 판정 시작
     // ─────────────────────────────
