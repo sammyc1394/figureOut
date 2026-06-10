@@ -373,9 +373,8 @@ class RectangleShape extends PositionComponent
     // ------------------------------------------------------------
     if (!isMounted) return;
 
-    final toLocal = absoluteCenter - size / 2;
-    final localA = sliceStart! - toLocal; // 0..size 로컬
-    final localB = sliceEnd! - toLocal;
+    final localA = _worldToLocal(sliceStart!);
+    final localB = _worldToLocal(sliceEnd!);
 
     final paths = _splitRectToTwoClipPaths(localA, localB, size);
     if (paths == null) {
@@ -523,20 +522,46 @@ class RectangleShape extends PositionComponent
     return (item1: path1, item2: path2);
   }
 
+  // 회전을 반영한 실제 월드 공간의 4개 꼭짓점 반환
+  List<Vector2> getWorldCorners() {
+    final c = absoluteCenter;
+    final hw = size.x / 2;
+    final hh = size.y / 2;
+    final cosA = math.cos(angle);
+    final sinA = math.sin(angle);
+    return [
+      Vector2(c.x - hw * cosA + hh * sinA, c.y - hw * sinA - hh * cosA),
+      Vector2(c.x + hw * cosA + hh * sinA, c.y + hw * sinA - hh * cosA),
+      Vector2(c.x + hw * cosA - hh * sinA, c.y + hw * sinA + hh * cosA),
+      Vector2(c.x - hw * cosA - hh * sinA, c.y - hw * sinA + hh * cosA),
+    ];
+  }
+
+  // 월드 좌표 → 로컬 좌표 변환 (회전 역변환 포함)
+  Vector2 _worldToLocal(Vector2 worldPt) {
+    final centered = worldPt - absoluteCenter;
+    final cosA = math.cos(angle);
+    final sinA = math.sin(angle);
+    return Vector2(
+      centered.x * cosA + centered.y * sinA + size.x / 2,
+      -centered.x * sinA + centered.y * cosA + size.y / 2,
+    );
+  }
+
   SlicePoints? getSlicePoints(List<Vector2> userPath) {
-    final rectBounds = toRect();
+    final corners = getWorldCorners();
     final intersectionPoints = <Vector2>[];
 
     for (int i = 0; i < userPath.length - 1; i++) {
       final start = userPath[i];
       final end = userPath[i + 1];
 
-      final intersections = getLineRectangleIntersections(
-        start,
-        end,
-        rectBounds,
-      );
-      intersectionPoints.addAll(intersections);
+      for (int j = 0; j < corners.length; j++) {
+        final edgeStart = corners[j];
+        final edgeEnd = corners[(j + 1) % corners.length];
+        final pt = getLineIntersection(start, end, edgeStart, edgeEnd);
+        if (pt != null) intersectionPoints.add(pt);
+      }
     }
 
     if (intersectionPoints.length >= 2) {
@@ -605,7 +630,7 @@ class RectangleShape extends PositionComponent
             (p1.y - p2.y) * (p1.x - p3.x)) /
         denom;
 
-    const eps = 0.01;
+    const eps = 0.05;
 
     if (t >= -eps && t <= 1 + eps && u >= -eps && u <= 1 + eps) {
       return Vector2(
@@ -672,7 +697,8 @@ class RectangleShape extends PositionComponent
       _hpTextComponent = null;
     }
 
-    Future.delayed(const Duration(milliseconds: 1), () {
+    // 다음 프레임에 즉시 해제 — 1ms 딜레이는 빠른 연속 슬라이스를 막을 수 있음
+    Future.microtask(() {
       isSliced = false;
       sliceStart = null;
       sliceEnd = null;
