@@ -48,7 +48,7 @@ class CircleShape extends PositionComponent
     ..style = PaintingStyle.stroke
     ..strokeWidth = 6;
 
-  final Color baseColor = const Color(0xFFED613D);
+  final Color baseColor = const Color(0xFFA93A1E);
   final Color dangerColor = const Color(0xFFEE0505);
 
   double _blinkAlpha = 1.0;
@@ -228,7 +228,7 @@ class CircleShape extends PositionComponent
       final sweep = 2 * pi * ratio;
 
       _attackPaint.color =
-        (_attackTimeCritical ? dangerColor : Colors.orangeAccent)
+        (_attackTimeCritical ? dangerColor : baseColor)
             .withValues(alpha: _blinkAlpha);
 
       final center = Offset(size.x / 2, size.y / 2);

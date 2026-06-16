@@ -49,11 +49,8 @@ class HexagonShape extends PositionComponent
     ..strokeWidth = 6
     ..color = const Color(0xFF398A63);
 
-  static const Color outlineNormal = Color(0xFF398A63);
-  static const Color outlineDanger = Color(0xFFEE0505);
-
   final Color dangerColor = const Color(0xFFEE0505);
-  final Color baseColor   = const Color(0xFF398A63);
+  final Color baseColor   = const Color(0xFF235A40);
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
@@ -215,7 +212,7 @@ class HexagonShape extends PositionComponent
 
       final isDanger = ratio <= 0.2;
 
-      _attackPaint.color = isDanger ? outlineDanger : outlineNormal;
+      _attackPaint.color = isDanger ? dangerColor : baseColor;
 
       if (_attackElapsed >= attackTime!) {
 
