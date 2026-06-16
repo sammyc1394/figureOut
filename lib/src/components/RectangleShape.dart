@@ -62,7 +62,7 @@ class RectangleShape extends PositionComponent
     ..color = const Color(0xFF7CA6FF);
 
   final Color dangerColor = const Color(0xFFEE0505);
-  final Color baseColor = const Color(0xFF345983);
+  final Color baseColor = const Color(0xFF132D4A);
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
@@ -281,15 +281,15 @@ class RectangleShape extends PositionComponent
               )),
     );
 
-    if (!_attackDone && _attackTimeHalfLeft) {
-      canvas.drawPath(
-        _wobblePath,
-        Paint()
-          ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
-          ..style = PaintingStyle.fill
-          ..blendMode = BlendMode.srcATop,
-      );
-    }
+    // if (!_attackDone && _attackTimeHalfLeft) {
+    //   canvas.drawPath(
+    //     _wobblePath,
+    //     Paint()
+    //       ..color = dangerColor.withValues(alpha: _blinkAlpha * 0.5)
+    //       ..style = PaintingStyle.fill
+    //       ..blendMode = BlendMode.srcATop,
+    //   );
+    // }
   }
 
 

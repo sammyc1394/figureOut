@@ -75,8 +75,8 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     ..strokeJoin = StrokeJoin.round
     ..strokeCap = StrokeCap.round
     ..color = const Color(0xFFF2AC32);
-
-  final Color baseColor = const Color(0xFFF2AC32);
+  // 0xFF345983
+  final Color baseColor = const Color(0xFFAE7F2D);
   final Color dangerColor = const Color(0xFFEE0505);
 
   TriangleShape(
@@ -294,7 +294,9 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     super.render(canvas);
 
-    if ((attackTime ?? 0) > 0 && !_attackDone && !_isDisappearing) {
+    if ((attackTime ?? 0) > 0 && !_attackDone
+        // && !_isDisappearing
+    ) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final drawLen = _outlineLength * ratio;
