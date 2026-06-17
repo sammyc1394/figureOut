@@ -77,6 +77,14 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
       removeFromParent();
       return;
     }
+
+    // BBC가 visible이라고 판단 중인데 도형이 실제로 없으면
+    // 공격 타이머 등 외부 원인으로 제거된 것이므로 BBC도 함께 제거
+    if (_visible && !shape.isMounted) {
+      removeFromParent();
+      return;
+    }
+
     _timer += dt;
 
     if (_visible && !_fadeStarted && _timer >= _fadeStartTime) {
