@@ -313,9 +313,9 @@ class PentagonShape extends PositionComponent
           ? (Paint()
               ..blendMode = blendMode
               ..colorFilter = ColorFilter.matrix([
-                0.33, 0.33, 0.33, 0, 0,
-                0.33, 0.33, 0.33, 0, 0,
-                0.33, 0.33, 0.33, 0, 0,
+                0.20, 0.20, 0.20, 0, 0,
+                0.20, 0.20, 0.20, 0, 0,
+                0.20, 0.20, 0.20, 0, 0,
                 0, 0, 0, _blinkAlpha, 0,
               ]))
           : (Paint()
