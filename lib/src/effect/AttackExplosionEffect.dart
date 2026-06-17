@@ -12,9 +12,10 @@ class AttackExplosionEffect extends PositionComponent {
   double _elapsed = 0;
 
   static const double _minScale = 1.0;
-  static const double _maxScale = 3.0;
-  static const double _ringSpacing = 0.30;
-  static const int _maxRings = 9;
+  final double _maxScale;
+  final double _ringSpacing;
+  final int _maxRings;
+  final double _strokeMaxWidth;
 
   AttackExplosionEffect({
     required this.basePath,
@@ -22,11 +23,26 @@ class AttackExplosionEffect extends PositionComponent {
     required Vector2 position,
     required Vector2 size,
     this.duration = 0.9,
-  }) : super(size: size) {
-    final bounds = basePath.getBounds();
-    _cx = (bounds.left + bounds.right) / 2;
-    _cy = (bounds.top + bounds.bottom) / 2;
-    // position the component so that path center = shape center
+    // Local-space point to use as the scale pivot.
+    // Defaults to the path's bounding-box centre.
+    Offset? pivot,
+    double maxScale = 3.0,
+    double ringSpacing = 0.30,
+    int maxRings = 9,
+    double strokeMaxWidth = 2.0,
+  })  : _maxScale = maxScale,
+        _ringSpacing = ringSpacing,
+        _maxRings = maxRings,
+        _strokeMaxWidth = strokeMaxWidth,
+        super(size: size) {
+    if (pivot != null) {
+      _cx = pivot.dx;
+      _cy = pivot.dy;
+    } else {
+      final bounds = basePath.getBounds();
+      _cx = (bounds.left + bounds.right) / 2;
+      _cy = (bounds.top + bounds.bottom) / 2;
+    }
     this.position = Vector2(position.x - _cx, position.y - _cy);
   }
 
@@ -46,7 +62,6 @@ class AttackExplosionEffect extends PositionComponent {
 
     final outerScale = _minScale + (_maxScale - _minScale) * t;
 
-    // Collect ring scales from outer to inner (inner drawn last = on top)
     final List<double> ringScales = [];
     double s = outerScale;
     while (s >= _minScale && ringScales.length < _maxRings) {
@@ -56,10 +71,10 @@ class AttackExplosionEffect extends PositionComponent {
 
     for (final ringScale in ringScales) {
       final progress = (ringScale - _minScale) / (_maxScale - _minScale);
-
       final opacity =
           ((1.0 - progress * 0.55) * globalAlpha).clamp(0.0, 1.0).toDouble();
-      final stroke = (2.0 - progress * 0.8).clamp(0.5, 2.0).toDouble();
+      final stroke =
+          (_strokeMaxWidth * (1.0 - progress * 0.4)).clamp(0.4, _strokeMaxWidth).toDouble();
 
       if (opacity < 0.01) continue;
 
@@ -78,8 +93,7 @@ class AttackExplosionEffect extends PositionComponent {
       canvas.restore();
     }
 
-    // Solid fill fades linearly over the first 40% of the animation,
-    // overlapping with the rings so the transition feels like a blend not a cut.
+    // Solid fill fades linearly over the first 40%, overlapping with rings.
     if (t < 0.40) {
       final fillT = t / 0.40;
       final fillOpacity =

@@ -213,12 +213,21 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       // 타이머 자폭은 유저 제거 아님
       wasRemovedByUser = false;
 
+      const svgW = 96.0, svgH = 86.0;
+      final pivotX = size.x * (48.0 + 2.1 + 93.9) / (3 * svgW);
+      final pivotY = size.y * (3.5 + 78.5 + 78.5) / (3 * svgH);
+
       parent?.add(
         AttackExplosionEffect(
-          basePath: _buildExplosionTrianglePath(),   // 삼각형 외곽 그대로 사용
-          position: position.clone(),
+          basePath: _buildExplosionTrianglePath(),
+          position: Vector2(position.x - 2.0, position.y),
           size: size.clone(),
           color: const Color(0xFFF2AC32),
+          pivot: Offset(pivotX, pivotY),
+          maxScale: 4.5,
+          ringSpacing: 0.45,
+          maxRings: 9,
+          strokeMaxWidth: 0.9,
         ),
       );
 
