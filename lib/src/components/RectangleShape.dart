@@ -198,6 +198,10 @@ class RectangleShape extends PositionComponent
           position: position.clone(),
           size: size.clone(),
           color: const Color(0xFF4680FF),
+          maxScale: 6.0,
+          ringSpacing: 0.45,
+          maxRings: 9,
+          strokeMaxWidth: 0.9,
         ),
       );
 
