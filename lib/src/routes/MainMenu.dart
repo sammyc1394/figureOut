@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:figureout/main.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config.dart';
@@ -23,8 +24,6 @@ class _MainMenuScreenState extends State<MainMenuScreen>
 
   final SheetService sheetService = SheetService();
 
-  List<StageData> _stages = [];
-
   final List<String> shapes = [
     "assets/Circle_basic.svg",
     "assets/Triangle_basic.svg",
@@ -40,25 +39,6 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       vsync: this,
       duration: const Duration(seconds: 8),
     )..repeat(reverse: true);
-
-    _loadDataOnStart();
-  }
-
-  Future<void> _loadDataOnStart() async {
-    setState(() => _isLoading = true);
-    try {
-      final data = await SheetService()
-          .fetchData()
-          .timeout(const Duration(seconds: 8));
-      setState(() {
-        _stages = data;
-      });
-      debugPrint("초기 데이터 불러오기 완료: ${_stages.length}개 스테이지");
-    } catch (e) {
-      debugPrint("초기 데이터 불러오기 실패: $e");
-    } finally {
-      setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -75,42 +55,35 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       const Alignment(0.25, 0.25),   // hexagon
       const Alignment(0.92, 0.72),   // rectangle
       const Alignment(-0.92, 0.50),  // pentagon
-      // 잘린버전
-      // const Alignment(-0.82, -0.72), // circle
-      // const Alignment(0.92, -0.48),  // triangle
-      // const Alignment(0.32, 0.38),   // hexagon
-      // const Alignment(1.18, 0.78),   // rectangle (잘리게)
-      // const Alignment(-1.15, 0.68),  // pentagon (잘리게)
     ];
     return alignments[index % alignments.length];
   }
 
   Future<void> _refreshData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final data = await sheetService
-          .fetchData()
+      final allSheetNames = await sheetService.fetchSheetNames().timeout(const Duration(seconds: 8));
+      final stageNames = allSheetNames
+          .where((n) => n.startsWith('Stage') || n.startsWith('Stages'))
+          .toList();
+      cachedStageSheetNames = stageNames.isNotEmpty ? stageNames : allSheetNames;
+      cachedStages = await sheetService
+          .fetchData(preloadedSheetNames: allSheetNames)
           .timeout(const Duration(seconds: 8));
-      setState(() {
-        _stages = data;
-      });
 
-      debugPrint("${data.length}개의 StageData 불러옴!");
-      ScaffoldMessenger.of(context).showSnackBar(
+      debugPrint("${cachedStages.length}개의 StageData 불러옴!");
+      messenger.showSnackBar(
         const SnackBar(content: Text("데이터가 새로고침되었습니다.")),
       );
     } catch (e) {
       debugPrint("데이터 불러오기 실패: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("데이터 불러오기에 실패했습니다.")),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -120,8 +93,8 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       backgroundColor: const Color(bgColor),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque, // 빈 영역 터치도 인식
-        onTap: () {
-          context.push('/stages', extra: _stages);
+        onTap: _isLoading ? null : () {
+          context.push('/stages', extra: cachedStages);
         },
         child: Stack(
           alignment: Alignment.center,
@@ -189,7 +162,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 ),
 
                 Transform.translate(
-                  offset: const Offset(0, -2), // 👉 핵심
+                  offset: const Offset(0, -2),
                   child: Text(
                     'Out',
                     textAlign: TextAlign.center,
@@ -238,7 +211,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 const SizedBox(height: 150),
 
                 _isLoading
-                    ? const CircularProgressIndicator() // 로딩 중이면 인디케이터 표시
+                    ? const CircularProgressIndicator()
                     : IconButton(
                   icon: const Icon(Icons.refresh),
                   iconSize: 40,
@@ -247,8 +220,6 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 ),
 
                 const SizedBox(height: 20),
-
-                // Refresh 버튼 유지
 
                 Text(
                   'Tap to enter',
@@ -269,4 +240,3 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     );
   }
 }
-

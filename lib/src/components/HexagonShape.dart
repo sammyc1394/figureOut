@@ -12,6 +12,7 @@ import 'shape_path_utils.dart';
 
 enum HexagonState {
   normal,
+  shrinkingBack,
   autoGrowing,
   disappearing,
 }
@@ -46,7 +47,6 @@ class HexagonShape extends PositionComponent
 
   final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 6
     ..color = const Color(0xFF398A63);
 
   final Color dangerColor = const Color(0xFFEE0505);
@@ -61,14 +61,17 @@ class HexagonShape extends PositionComponent
 
   double _autoGrowT = 0.0;
   double _disappearT = 0.0;
+  double _shrinkBackT = 0.0;
+  double _shrinkStartScale = 1.0;
 
-  double get triggerScale => 1.1 + energy * 0.1;
+  int _currentHp = 0;
+
   static const double maxAutoScale = 3.5;
 
   double _finalScale = 1.0;
   double _opacity = 1.0;
 
-  static const double _hexAngleOffset = -math.pi / 30;
+  static const double _hexAngleOffset = 0.0;
   static const double extraDisappearScale = 1.25;
 
   // ============================
@@ -115,6 +118,10 @@ class HexagonShape extends PositionComponent
         _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
     _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
 
+    _attackPaint.strokeWidth = size.x * 0.06;
+
+    _currentHp = energy;
+
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
         text: energy.toString(),
@@ -133,7 +140,7 @@ class HexagonShape extends PositionComponent
 
     final center = Offset(s.width / 2, s.height / 2);
 
-    final inset = (_attackPaint.strokeWidth / 2) + 10.0;
+    final inset = -(s.width * 0.02);
 
     final radius = (s.width / 2) - inset;
 
@@ -179,6 +186,20 @@ class HexagonShape extends PositionComponent
     dragScale += 0.01;
 
     scale = Vector2.all(dragScale);
+
+    if (energy >= 1) {
+      final stage = ((dragScale - 1.0) / 0.2).floor().clamp(0, energy);
+      final newHp = energy - stage;
+      if (newHp != _currentHp) {
+        _currentHp = newHp;
+        _hpTextComponent?.text = _currentHp > 0 ? '$_currentHp' : '';
+        if (_currentHp <= 0) {
+          wasRemovedByUser = true;
+          _finalScale = dragScale;
+          _state = HexagonState.disappearing;
+        }
+      }
+    }
   }
 
   @override
@@ -186,11 +207,10 @@ class HexagonShape extends PositionComponent
 
     if (_state != HexagonState.normal) return;
 
-    if (dragScale >= triggerScale) {
-
-      _state = HexagonState.autoGrowing;
-
-      wasRemovedByUser = true;
+    if (dragScale > 1.0) {
+      _shrinkStartScale = dragScale;
+      _shrinkBackT = 0.0;
+      _state = HexagonState.shrinkingBack;
     }
   }
 
@@ -237,6 +257,39 @@ class HexagonShape extends PositionComponent
         removeFromParent();
 
         return;
+      }
+    }
+
+    // ============================
+    // SHRINK BACK
+    // ============================
+
+    if (_state == HexagonState.shrinkingBack) {
+
+      _shrinkBackT += dt / 0.6;
+
+      final t = Curves.easeOut.transform(_shrinkBackT.clamp(0.0, 1.0));
+
+      final curScale = _shrinkStartScale + t * (1.0 - _shrinkStartScale);
+
+      dragScale = curScale;
+      scale = Vector2.all(curScale);
+
+      if (energy >= 1) {
+        final stage = ((curScale - 1.0) / 0.2).floor().clamp(0, energy);
+        final displayHp = energy - stage;
+        if (displayHp != _currentHp) {
+          _currentHp = displayHp;
+          _hpTextComponent?.text = '$_currentHp';
+        }
+      }
+
+      if (_shrinkBackT >= 1.0) {
+        dragScale = 1.0;
+        scale = Vector2.all(1.0);
+        _currentHp = energy;
+        if (energy >= 1) _hpTextComponent?.text = '$energy';
+        _state = HexagonState.normal;
       }
     }
 
@@ -326,16 +379,18 @@ class HexagonShape extends PositionComponent
   void render(Canvas canvas) {
     final alpha = (_blinkAlpha * _opacity).clamp(0.0, 1.0);
 
-    _sprite.render(
-      canvas,
-      position: Vector2(-size.x * _borderHalo / 2, -size.y * _borderHalo / 2),
-      size: size * (1 + _borderHalo),
-      overridePaint: Paint()
-        ..colorFilter = ColorFilter.mode(
-          Color.fromARGB((alpha * 255).round(), 0xE4, 0xE0, 0xD3),
-          BlendMode.srcIn,
-        ),
-    );
+    if ((attackTime ?? 0) <= 0 || _attackDone) {
+      _sprite.render(
+        canvas,
+        position: Vector2(-size.x * _borderHalo / 2, -size.y * _borderHalo / 2),
+        size: size * (1 + _borderHalo),
+        overridePaint: Paint()
+          ..colorFilter = ColorFilter.mode(
+            Color.fromARGB((alpha * 255).round(), 0xE4, 0xE0, 0xD3),
+            BlendMode.srcIn,
+          ),
+      );
+    }
 
     _sprite.render(
       canvas,
