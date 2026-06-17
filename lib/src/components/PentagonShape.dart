@@ -111,6 +111,9 @@ class PentagonShape extends PositionComponent
   late Path _wobblePath;
   late double _perimeter;
 
+  late Path _attackBorderPath;
+  late double _attackBorderPerimeter;
+
   final Color baseColor = const Color(0xFFC96C72);
   final Color dangerColor = const Color(0xFFEE0505);
 
@@ -144,7 +147,7 @@ class PentagonShape extends PositionComponent
 
     _center = _visualPentagonCenter;
 
-    _baseRadius = size.x * 0.392;
+    _baseRadius = size.x * 0.42;
 
     _sprite = await Sprite.load('shapes/Pentagon_3x.png', images: _images);
     _pentagonPath = _buildPentagonPath(_center, _baseRadius);
@@ -152,6 +155,11 @@ class PentagonShape extends PositionComponent
     _perimeter =
         _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
     _wobblePath = ShapePathUtils.wobble(_pentagonPath, amplitude: size.x * 0.009);
+
+    final attackCenter = Offset(size.x / 2, size.y / 2 + size.y * 0.04);
+    _attackBorderPath = _buildPentagonPath(attackCenter, size.x * 0.50);
+    _attackBorderPerimeter =
+        _attackBorderPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
@@ -389,7 +397,7 @@ class PentagonShape extends PositionComponent
               .withValues(alpha: _blinkAlpha);
 
       canvas.drawPath(
-        ShapePathUtils.extractPartial(_pentagonPath, _perimeter * ratio),
+        ShapePathUtils.extractPartial(_attackBorderPath, _attackBorderPerimeter * ratio),
         _attackPaint,
       );
     }

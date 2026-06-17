@@ -309,7 +309,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   }
 
   Path _buildTrianglePath(Size s) {
-    final inset = _attackPaint.strokeWidth / 2;
+    final inset = -3.0;
     // SVG viewBox 96×86 기준 삼각형 꼭짓점
     // top: (48, 3.5), bottomLeft: (2.1, 78.5), bottomRight: (93.9, 78.5)
     const double svgW = 96, svgH = 86;
