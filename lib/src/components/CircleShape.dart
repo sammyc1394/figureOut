@@ -155,7 +155,7 @@ class CircleShape extends PositionComponent
             basePath: _buildCirclePath(),
             position: position.clone(),
             size: size.clone(),
-            color: const Color(0xFFFF9D33),
+            color: const Color(0xFFED613D),
           ),
         );
 
