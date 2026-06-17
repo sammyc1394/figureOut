@@ -251,7 +251,11 @@ class PentagonShape extends PositionComponent
             basePath: _buildExplosionPentagonPath(),
             position: position.clone(),
             size: size.clone(),
-            color: const Color(0xFFC100BA),
+            color: const Color(0xFFF3ACB1),
+            maxScale: 6.0,
+            ringSpacing: 0.45,
+            maxRings: 9,
+            strokeMaxWidth: 0.9,
           ),
         );
 
