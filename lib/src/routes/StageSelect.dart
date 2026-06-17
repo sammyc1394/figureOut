@@ -188,7 +188,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
-                      onTap: () => context.push('/'),
+                      onTap: () => context.pop(),
                       child: SvgPicture.asset(
                         "assets/menu/common/Arrow_prev.svg",
                         width: arrowSize,
