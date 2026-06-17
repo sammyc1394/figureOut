@@ -412,21 +412,6 @@ class HexagonShape extends PositionComponent
               )),
     );
 
-    if ((attackTime ?? 0) > 0 && !_attackDone) {
-      final ratio =
-          ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
-
-      if (ratio <= 0.2) {
-        canvas.drawPath(
-          _wobblePath,
-          Paint()
-            ..color = dangerColor.withValues(alpha: alpha * 0.5)
-            ..style = PaintingStyle.fill
-            ..blendMode = BlendMode.srcATop,
-        );
-      }
-    }
-
     super.render(canvas);
 
     if ((attackTime ?? 0) > 0 && !_attackDone) {
