@@ -1,4 +1,5 @@
 import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:figureout/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -182,12 +183,30 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                               }
 
                               setState(() => selectedIndex = index);
+
+                              // 해당 스테이지 최신 데이터 fetch
+                              List<StageData> freshStages = widget.stages;
+                              if (widget.stageIndex < cachedStageSheetNames.length) {
+                                try {
+                                  final sheetName = cachedStageSheetNames[widget.stageIndex];
+                                  final freshStage = await SheetService()
+                                      .fetchSingleStage(sheetName)
+                                      .timeout(const Duration(seconds: 5));
+                                  if (freshStage != null) {
+                                    freshStages = List.of(widget.stages)..[widget.stageIndex] = freshStage;
+                                    cachedStages = freshStages;
+                                  }
+                                } catch (e) {
+                                  debugPrint('[Sheet] Stage re-fetch failed, using cached: $e');
+                                }
+                              }
+
                               await Future.delayed(const Duration(milliseconds: 300));
                               if (!mounted) return;
                               context.push(
                                 '/game',
                                 extra: GameRouteArgs(
-                                  stages: widget.stages,
+                                  stages: freshStages,
                                   stageIndex: widget.stageIndex,
                                   missionIndex: missionNo - 1,
                                 ),

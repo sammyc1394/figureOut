@@ -17,12 +17,12 @@ class SheetService {
   String get encodedSheetName => Uri.encodeComponent(sheetName);
   String get range => 'B1:I';
 
-  Future<List<StageData>> fetchData() async {
+  Future<List<StageData>> fetchData({List<String>? preloadedSheetNames}) async {
     if (sheetId.isEmpty || apiKey.isEmpty) {
       throw Exception('Missing Google Sheet credentials in .env');
     }
 
-    final sheetNames = await fetchSheetNames();
+    final sheetNames = preloadedSheetNames ?? await fetchSheetNames();
 
     final stageSheetNames = sheetNames
         .where((name) => name.startsWith('Stage') || name.startsWith('Stages'))
@@ -38,6 +38,11 @@ class SheetService {
     return results.expand((e) => e).toList();
   }
 
+  Future<StageData?> fetchSingleStage(String sheetName) async {
+    final results = await _fetchSingleSheet(sheetName);
+    return results.isNotEmpty ? results.first : null;
+  }
+
   Future<List<StageData>> _fetchSingleSheet(String name) async {
     final encoded = Uri.encodeComponent(name);
 
@@ -45,7 +50,7 @@ class SheetService {
       'https://sheets.googleapis.com/v4/spreadsheets/$sheetId/values/$encoded!$range?key=$apiKey',
     );
 
-    final res = await http.get(uri);
+    final res = await http.get(uri, headers: {'Cache-Control': 'no-cache'});
     if (res.statusCode != 200) {
       throw Exception('Sheet fetch failed: ${res.statusCode}');
     }
@@ -221,7 +226,7 @@ class SheetService {
       'https://sheets.googleapis.com/v4/spreadsheets/$sheetId?key=$apiKey',
     );
 
-    final res = await http.get(uri);
+    final res = await http.get(uri, headers: {'Cache-Control': 'no-cache'});
 
     if (res.statusCode != 200) {
       throw Exception('Sheet meta fetch failed: ${res.statusCode}');

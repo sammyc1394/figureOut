@@ -26,6 +26,10 @@ import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:figureout/src/routes/route_args.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+
+List<StageData> cachedStages = [];
+List<String> cachedStageSheetNames = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,6 +68,21 @@ void main() async {
     translations,
   );
 
+  try {
+    final service = SheetService();
+    final allSheetNames = await service.fetchSheetNames().timeout(const Duration(seconds: 8));
+    final stageNames = allSheetNames
+        .where((n) => n.startsWith('Stage') || n.startsWith('Stages'))
+        .toList();
+    cachedStageSheetNames = stageNames.isNotEmpty ? stageNames : allSheetNames;
+    cachedStages = await service
+        .fetchData(preloadedSheetNames: allSheetNames)
+        .timeout(const Duration(seconds: 8));
+    debugPrint('[Sheet] Loaded ${cachedStages.length} stages at startup');
+  } catch (e) {
+    debugPrint('[Sheet] Initial fetch failed: $e');
+  }
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp, // Lock to portrait orientation
   ]);
@@ -94,6 +113,7 @@ class figureoutMain extends StatelessWidget {
     final router = GoRouter(
       navigatorKey: rootNavigatorKey,
       initialLocation: '/',
+      observers: [routeObserver],
       routes: [
         GoRoute(
           path: '/',
