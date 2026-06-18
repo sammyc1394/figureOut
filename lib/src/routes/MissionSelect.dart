@@ -30,6 +30,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   Set<int> clearedMissions = {};
 
   bool isLoaded = false;
+  bool _isNavigating = false;
 
   static const _missionBg = Color(0xFF7BAED0);
 
@@ -162,6 +163,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                       onTap: isLocked
                           ? null
                           : () async {
+                              if (_isNavigating) return;
+                              setState(() => _isNavigating = true);
+                              try {
                               // 하트 0개면 입장 차단
                               final prefs = await SharedPreferences.getInstance();
                               final hearts = (prefs.getInt('hearts') ?? maxHearts).clamp(0, maxHearts);
@@ -203,14 +207,18 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
                               await Future.delayed(const Duration(milliseconds: 300));
                               if (!mounted) return;
-                              context.push(
+                              await context.push(
                                 '/game',
                                 extra: GameRouteArgs(
                                   stages: freshStages,
                                   stageIndex: widget.stageIndex,
                                   missionIndex: missionNo - 1,
                                 ),
-                              ).then((_) => _loadMissionProgress());
+                              );
+                              if (mounted) _loadMissionProgress();
+                              } finally {
+                                if (mounted) setState(() => _isNavigating = false);
+                              }
                             },
                       child: Opacity(
                         opacity: isLocked ? 0.45 : 1.0,
