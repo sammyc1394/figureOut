@@ -97,6 +97,20 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 사이즈 컴포넌트
+    final size = MediaQuery.sizeOf(context);
+    final screenHeight = size.height;
+    final shortestSide = size.shortestSide;
+
+    final isTablet = shortestSide >= 600;
+
+    final double imageSize =
+    (shortestSide * (isTablet ? 0.75 : 0.65)).clamp(220.0, 330.0);
+
+    final stageTitleWidth = imageSize * 0.55;
+    final stageTitleHeight = imageSize * 0.18;
+    final titleFontSize = (imageSize * 0.10).clamp(18.0, 40.0);
+
     if (!isLoaded) {
       return const Scaffold(
         backgroundColor: _missionBg,
@@ -118,27 +132,38 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
               // Stage label
               Padding(
                 padding: const EdgeInsets.only(top: 16, bottom: 8),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ColorFiltered(
-                      colorFilter: const ColorFilter.mode(
-                        Colors.white,
-                        BlendMode.srcIn,
+                child: Transform.scale(
+                  scale: 1.3,
+                  child: SizedBox(
+                  width: stageTitleWidth,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ColorFiltered(
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
+                        child: Image.asset(
+                          "assets/menu/stage/stage_name_outline.png",
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                      child: Image.asset('assets/Stage_outline.png', height: 44),
-                    ),
-                    Text(
-                      'Stage ${widget.stageIndex + 1}',
-                      style: TextStyle(
-                        fontFamily: appFontFamily,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        decoration: TextDecoration.none,
+                      Text(
+                        stage.name.isNotEmpty
+                            ? stage.name
+                            : 'Stage ${widget.stageIndex + 1}',
+                        style: TextStyle(
+                          fontFamily: appFontFamily,
+                          fontSize: titleFontSize,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          // decoration: TextDecoration.none,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
                 ),
               ),
 

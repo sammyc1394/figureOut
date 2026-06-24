@@ -119,9 +119,9 @@ class _MenuappbarState extends State<Menuappbar> {
               children: [
                 Image.asset(
                   isFull
-                      ? 'assets/HeartBox_filled.png'
-                      : 'assets/HeartBox_outline.png',
-                  height: 28,
+                      ? 'assets/HeartBox_outline.png'
+                      : 'assets/HeartBox_filled.png',
+                  height: 20,
                   fit: BoxFit.fitHeight,
                 ),
                 Padding(
@@ -132,7 +132,7 @@ class _MenuappbarState extends State<Menuappbar> {
                       fontFamily: appFontFamily,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: isFull ? Colors.white : Colors.black87,
+                      color: isFull ? const Color(0xFFEE0505) : Colors.white,
                       decoration: TextDecoration.none,
                     ),
                   ),
