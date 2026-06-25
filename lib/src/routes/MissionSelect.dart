@@ -111,6 +111,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     final stageTitleHeight = imageSize * 0.18;
     final double titleFontSize = (imageSize * 0.11).clamp(10.0, 30.0);
 
+    final arrowSize = shortestSide * 0.05;
+    final bottom = screenHeight * 0.075;
+
     if (!isLoaded) {
       return const Scaffold(
         backgroundColor: _missionBg,
@@ -291,15 +294,15 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
               // Back button
               Padding(
-                padding: const EdgeInsets.only(bottom: 24, left: 24),
+                padding: EdgeInsets.only(bottom: bottom, left: arrowSize),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
                     onTap: () => context.pop(),
                     child: Image.asset(
                       'assets/Back_button_beige.png',
-                      width: 40,
-                      height: 40,
+                      width: 37,
+                      height: 37,
                     ),
                   ),
                 ),
