@@ -109,7 +109,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
     final stageTitleWidth = imageSize * 0.55;
     final stageTitleHeight = imageSize * 0.18;
-    final titleFontSize = (imageSize * 0.11).clamp(10.0, 30.0);
+    final double titleFontSize = (imageSize * 0.11).clamp(10.0, 30.0);
 
     if (!isLoaded) {
       return const Scaffold(
@@ -133,7 +133,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 16, bottom: 36),
                 child: Transform.scale(
-                  scale: 1.2,
+                  scale: 1.1,
                   child: SizedBox(
                   width: stageTitleWidth,
                   child: Stack(
@@ -261,10 +261,10 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                 children: [
                                   Text(
                                     isBossMission ? 'Boss' : '$missionNo',
-                                    style: const TextStyle(
-                                      fontFamily: 'Gaegu',
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w600,
+                                    style: TextStyle(
+                                      fontFamily: appFontFamily,
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.w500,
                                       color: Colors.black,
                                       decoration: TextDecoration.none,
                                     ),
