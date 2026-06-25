@@ -89,6 +89,16 @@ class _MainMenuScreenState extends State<MainMenuScreen>
 
   @override
   Widget build(BuildContext context) {
+
+    final size = MediaQuery.sizeOf(context);
+    final screenHeight = size.height;
+    final shortestSide = size.shortestSide;
+
+    final isTablet = shortestSide >= 600;
+
+    final titlePlace = screenHeight * 0.25;
+    final textPlace = screenHeight * 0.1;
+
     return Scaffold(
       backgroundColor: const Color(bgColor),
       body: GestureDetector(
@@ -150,7 +160,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 100),
+                SizedBox(height: titlePlace),
                 Text(
                   'Figure',
                   textAlign: TextAlign.center,
@@ -178,7 +188,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
 
                 // 밑줄
                 Transform.translate(
@@ -221,7 +231,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                   onPressed: _refreshData,
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: textPlace),
 
                 Text(
                   'Tap to enter',
