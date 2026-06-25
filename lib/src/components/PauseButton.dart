@@ -1,9 +1,10 @@
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame_svg/flame_svg.dart';
 import 'package:flutter/material.dart';
 
 class PauseButton extends PositionComponent with TapCallbacks {
+  static final _images = Images(prefix: 'assets/');
   final VoidCallback onPressed;
 
   PauseButton({
@@ -17,14 +18,13 @@ class PauseButton extends PositionComponent with TapCallbacks {
 
   @override
   Future<void> onLoad() async {
-    final svg = await Svg.load('Pause_basic.svg'); // 준비해둔 Pause_basic.svg 경로
-    final svgComponent = SvgComponent(
-      svg: svg,
+    final sprite = await Sprite.load('Pause_button_blue.png', images: _images);
+    add(SpriteComponent(
+      sprite: sprite,
       size: size,
       anchor: Anchor.center,
       position: size / 2,
-    );
-    add(svgComponent);
+    ));
   }
 
   @override

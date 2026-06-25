@@ -76,8 +76,8 @@ class GameTimerComponent extends PositionComponent {
   }
 
   Path _buildWigglyPath(double barLeft, double barWidth, double barHeight) {
-    const amp = 0.8;
-    const freq = 0.7;
+    const amp = 0.4;
+    const freq = 0.95;
     const step = 4.0;
     final radius = barHeight / 2;
     final right = barLeft + barWidth;
@@ -129,7 +129,7 @@ class GameTimerComponent extends PositionComponent {
     final fillColor = (_flashPenaltyRemaining > 0 || isDanger)
         ? const Color(0xFFED613D)
         : isWarning
-            ? const Color(0xFFF0C400)
+            ? const Color(0xFFF2AC32)
             : const Color(0xFF63BE5D);
 
     final wigglyPath = _buildWigglyPath(barLeft, barWidth, size.y);
