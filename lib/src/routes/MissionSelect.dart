@@ -32,7 +32,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   bool isLoaded = false;
   bool _isNavigating = false;
 
-  static const _missionBg = Color(0xFF7BAED0);
+  static const _missionBg = Color(0xFF8AB9D9);
 
   @override
   void initState() {
@@ -109,7 +109,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
     final stageTitleWidth = imageSize * 0.55;
     final stageTitleHeight = imageSize * 0.18;
-    final titleFontSize = (imageSize * 0.10).clamp(18.0, 40.0);
+    final titleFontSize = (imageSize * 0.11).clamp(10.0, 30.0);
 
     if (!isLoaded) {
       return const Scaffold(
@@ -131,9 +131,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
             children: [
               // Stage label
               Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                padding: const EdgeInsets.only(top: 16, bottom: 36),
                 child: Transform.scale(
-                  scale: 1.3,
+                  scale: 1.2,
                   child: SizedBox(
                   width: stageTitleWidth,
                   child: Stack(
@@ -170,11 +170,11 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
               // Mission grid
               Expanded(
                 child: GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
                     childAspectRatio: 1,
                   ),
                   itemCount: missionNumbers.length,
@@ -263,7 +263,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                     isBossMission ? 'Boss' : '$missionNo',
                                     style: const TextStyle(
                                       fontFamily: 'Gaegu',
-                                      fontSize: 28,
+                                      fontSize: 32,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black,
                                       decoration: TextDecoration.none,
@@ -309,8 +309,8 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
         ),
         Positioned.fill(
           child: IgnorePointer(
-            child: Opacity(
-              opacity: 0.15,
+            // child: Opacity(
+              // opacity: 0.15,
               child: ColorFiltered(
                 colorFilter: const ColorFilter.matrix([
                   -1, 0, 0, 0, 255,
@@ -318,9 +318,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                    0, 0,-1, 0, 255,
                    0, 0, 0, 1,   0,
                 ]),
-                child: Image.asset('assets/noise_texture.png', fit: BoxFit.cover),
+                child: Image.asset('assets/noise_texture.png', fit: BoxFit.cover,opacity: const AlwaysStoppedAnimation(0.25),),
               ),
-            ),
+            // ),
           ),
         ),
       ],
