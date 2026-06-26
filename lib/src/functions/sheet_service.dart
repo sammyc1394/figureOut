@@ -175,7 +175,7 @@ class SheetService {
       final shape = resolveShape(normalizeShape(rawShape), ctx);
 
       final order = parseOrder(shape, ctx);
-      final energy = _parseEnergy(shape, shape.contains('Pentagon') ? 10 : 1, ctx);
+      final energy = _parseEnergy(shape, 1, ctx);
 
       final darkYN = (energy == -1);
 
