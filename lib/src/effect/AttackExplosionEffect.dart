@@ -10,6 +10,7 @@ class AttackExplosionEffect extends PositionComponent {
   late final double _cx;
   late final double _cy;
   double _elapsed = 0;
+  bool isPaused = false;
 
   static const double _minScale = 1.0;
   final double _maxScale;
@@ -48,6 +49,7 @@ class AttackExplosionEffect extends PositionComponent {
 
   @override
   void update(double dt) {
+    if (isPaused) return;
     _elapsed += dt;
     if (_elapsed >= duration) removeFromParent();
   }

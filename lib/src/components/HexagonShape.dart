@@ -39,6 +39,7 @@ class HexagonShape extends PositionComponent
   double _attackElapsed = 0.0;
   bool _attackDone = false;
   bool _penaltyFired = false;
+  bool isPaused = false;
 
   late Sprite _sprite;
   late Path _outlinePath;
@@ -218,6 +219,8 @@ class HexagonShape extends PositionComponent
   void update(double dt) {
 
     super.update(dt);
+
+    if (isPaused) return;
 
     // ============================
     // ATTACK TIMER → 즉시 자폭
