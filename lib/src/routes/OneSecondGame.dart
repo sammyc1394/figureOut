@@ -70,13 +70,11 @@ class OneSecondGame extends FlameGame
   int _currentAftermathStars = 0;
   int _currentAftermathStgIndex = 0;
   int _currentAftermathMsnIndex = 0;
-  bool _currentAftermathIsEndOfGame = false;
 
   StageResult? get currentAftermathResult => _currentAftermathResult;
   int get currentAftermathStars => _currentAftermathStars;
   int get currentAftermathStgIndex => _currentAftermathStgIndex;
   int get currentAftermathMsnIndex => _currentAftermathMsnIndex;
-  bool get currentAftermathIsEndOfGame => _currentAftermathIsEndOfGame;
 
   //stage data
   late StageData initialStage;
@@ -1689,13 +1687,6 @@ class OneSecondGame extends FlameGame
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
-    // 다음 미션/스테이지 존재 여부 계산
-    final isLastMission = _selectedMissionIndex >= maxMissionIndex;
-    final nextStageIndex = _selectedStageIndex + 1;
-    final hasNextStage = nextStageIndex < _allStages.length;
-    final nextStageHasMissions = hasNextStage && _allStages[nextStageIndex].missions.isNotEmpty;
-    _currentAftermathIsEndOfGame = isLastMission && !nextStageHasMissions;
-
     _currentAftermathResult = result;
     _currentAftermathStars = starCount;
     _currentAftermathStgIndex = stgIndex;
@@ -2634,22 +2625,18 @@ bool _isStraightLine(List<Vector2> path) {
       return;
     }
 
-    // 마지막 미션 — 다음 스테이지로 이동
+    // 마지막 미션 — 스테이지 선택 화면으로 이동
     final nextStageIndex = _selectedStageIndex + 1;
-    final hasNextStage = nextStageIndex < _allStages.length;
-    final nextStageHasMissions = hasNextStage && _allStages[nextStageIndex].missions.isNotEmpty;
+    final hasNextStage = nextStageIndex < _allStages.length &&
+        _allStages[nextStageIndex].missions.isNotEmpty;
 
-    if (nextStageHasMissions) {
-      _selectedStageIndex = nextStageIndex;
-      _selectedMissionIndex = 1;
-      maxMissionIndex = _allStages[_selectedStageIndex].missions.length;
-      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-      return;
-    }
+    // 다음 스테이지가 있으면 다음 스테이지를, 마지막 스테이지였다면 현재(마지막) 스테이지를 띄워준다.
+    final targetStageIndex = hasNextStage ? nextStageIndex : _selectedStageIndex;
 
-    // 다음 스테이지가 없거나 미션이 없음 → 스테이지 선택창으로
-    // TODO: 추후 Finish/Complete 에셋 추가 시 이 화면 전환 전에 별도 연출 추가
-    rootNavigatorKey.currentContext!.go('/stages', extra: stages);
+    rootNavigatorKey.currentContext!.go(
+      '/stages',
+      extra: StageRouteArgs(stages: stages, initialStageIndex: targetStageIndex),
+    );
   }
 
   void handleAftermathMenu() {
