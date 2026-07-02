@@ -17,6 +17,7 @@ class EncircleSliceEffect extends PositionComponent {
   static const List<double> _pillDirs = [-pi / 2, pi / 6, 5 * pi / 6];
 
   double _elapsed = 0.0;
+  bool isPaused = false;
   final double _initialAngle;
   late final double _cx, _cy, _shapeR;
 
@@ -44,6 +45,7 @@ class EncircleSliceEffect extends PositionComponent {
   @override
   void update(double dt) {
     super.update(dt);
+    if (isPaused) return;
     _elapsed += dt;
     if (_elapsed >= _totalDuration) removeFromParent();
   }
