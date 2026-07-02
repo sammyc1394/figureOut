@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:figureout/src/functions/UserRemovable.dart';
 import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'package:figureout/src/routes/OneSecondGame.dart';
@@ -9,6 +7,7 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 
 import '../effect/AttackExplosionEffect.dart';
+import '../effect/EncircleSliceEffect.dart';
 import '../functions/OverlapHighlightable.dart';
 import 'shape_path_utils.dart';
 
@@ -27,42 +26,26 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   double _attackElapsed = 0.0;
   bool _attackDone = false;
-  bool _penaltyFired = false; 
+  bool _penaltyFired = false;
   bool isPaused = false;
 
   double _blinkAlpha = 1.0;
-  double _shapeOpacity = 1.0;
+
+  // 이중 트리거 방지
+  bool _isDisappearing = false;
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
     ..style = PaintingStyle.stroke
     ..strokeWidth = 3.0;
 
-  void setBlinkAlpha(double alpha){
+  void setBlinkAlpha(double alpha) {
     if (_isDisappearing) return;
-
     _blinkAlpha = alpha.clamp(0.0, 1.0);
-
     _hpTextComponent?.textRenderer = TextPaint(
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
     );
   }
-
-  // ===== 사라짐 애니메이션 상태 (유저 제거용) =====
-  bool _isDisappearing = false;
-  double _disappearTime = 0.0;
-
-  final double _disappearDuration = 0.8;
-
-  static const double _shrinkEndT = 0.85;
-  static const double _holdEndT = 0.97;
-  static const double _minScale = 0.06;
-
-  late double _startAngle;
-  late Vector2 _startScale;
-
-  double _baseRotationSpeed = 0.0;
-  double _rotDir = 1.0;
 
   late Sprite _sprite;
   late Path _outlinePath;
@@ -75,7 +58,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     ..strokeJoin = StrokeJoin.round
     ..strokeCap = StrokeCap.round
     ..color = const Color(0xFFF2AC32);
-  // 0xFF345983
+
   final Color baseColor = const Color(0xFFAE7F2D);
   final Color dangerColor = const Color(0xFFEE0505);
 
@@ -107,7 +90,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
 
     if (!isDark && energy >= 1) {
-      // centroid of SVG triangle (top:3.5, bot:78.5 on 86h grid) = y * (3.5+78.5+78.5)/(86*3)
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.center,
@@ -122,12 +104,11 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   }
 
   // ==========================================================
-  // 유저 제거 트리거
+  // 유저 제거 트리거 — EncircleSliceEffect 스폰 후 즉시 제거
   // ==========================================================
   void triggerDisappear() {
     if (_isDisappearing) return;
 
-    // 에너지가 남아있으면 1 깎고 리턴 (아직 살아있음)
     if (energy > 1) {
       energy--;
       if (energy >= 1) {
@@ -139,9 +120,9 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       return;
     }
 
+    _isDisappearing = true;
     _hpTextComponent?.removeFromParent();
     _hpTextComponent = null;
-    _isDisappearing = true;
     wasRemovedByUser = true;
 
     final parentGame = findGame();
@@ -149,12 +130,23 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       parentGame.blinkingMap.remove(this);
     }
 
-    _disappearTime = 0.0;
-    _startScale = scale.clone();
-    _startAngle = angle;
+    // 삼각형 centroid = anchor(0.5, 0.62) = position(world)
+    const svgW = 96.0, svgH = 86.0;
+    final pivotX = size.x * (48.0 + 2.1 + 93.9) / (3 * svgW);  // size.x / 2
+    final pivotY = size.y * (3.5 + 78.5 + 78.5) / (3 * svgH);  // size.y * 0.622
 
-    _rotDir = math.Random().nextBool() ? 1.0 : -1.0;
-    _baseRotationSpeed = math.pi * 2.2;
+    parent?.add(
+      EncircleSliceEffect(
+        basePath: _buildExplosionTrianglePath(),
+        color: const Color(0xFFF2AC32),
+        position: Vector2(position.x - 2.0, position.y),
+        size: size.clone(),
+        pivot: Offset(pivotX, pivotY),
+        initialAngle: angle,
+      ),
+    );
+
+    removeFromParent();
   }
 
   @override
@@ -162,42 +154,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     super.update(dt);
     if (isPaused) return;
 
-    // ======================================================
-    // 유저 제거 애니메이션
-    // ======================================================
-    if (_isDisappearing) {
-      _disappearTime += dt;
-      final t = (_disappearTime / _disappearDuration).clamp(0.0, 1.0);
-
-      final accel = 1.0 + (t * t) * 2.2;
-      angle += (_baseRotationSpeed * accel * _rotDir) * dt;
-
-      if (t <= _shrinkEndT) {
-        final localT = (t / _shrinkEndT).clamp(0.0, 1.0);
-        final eased = Curves.easeInCubic.transform(localT);
-        final s = 1.0 - (1.0 - _minScale) * eased;
-        scale = _startScale * s;
-        _shapeOpacity = 1.0;
-      } else if (t <= _holdEndT) {
-        scale = _startScale * _minScale;
-        _shapeOpacity = 1.0;
-      } else {
-        scale = _startScale * _minScale;
-        final localT =
-            ((t - _holdEndT) / (1.0 - _holdEndT)).clamp(0.0, 1.0);
-        final eased = Curves.easeOutCubic.transform(localT);
-        _shapeOpacity = 1.0 - eased;
-      }
-
-      if (t >= 1.0) {
-        removeFromParent();
-      }
-      return;
-    }
-
-    // ======================================================
-    // 공격 타이머 → 즉시 자폭
-    // ======================================================
+    // 공격 타이머 → 즉시 자폭 (AttackExplosionEffect)
     if ((attackTime ?? 0) <= 0) return;
 
     _attackElapsed += dt;
@@ -207,10 +164,9 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
       if (!_penaltyFired) {
         _penaltyFired = true;
-        onExplode?.call(); // 시간 패널티
+        onExplode?.call();
       }
 
-      // 타이머 자폭은 유저 제거 아님
       wasRemovedByUser = false;
 
       const svgW = 96.0, svgH = 86.0;
@@ -232,9 +188,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       );
 
       removeFromParent();
-      return;
     }
-
   }
 
   bool get _attackTimeHalfLeft {
@@ -257,8 +211,9 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
   @override
   static const double _borderHalo = 0.05;
 
+  @override
   void render(Canvas canvas) {
-    final alpha = (_blinkAlpha * _shapeOpacity).clamp(0.0, 1.0);
+    final alpha = _blinkAlpha.clamp(0.0, 1.0);
 
     _sprite.render(
       canvas,
@@ -303,9 +258,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
     super.render(canvas);
 
-    if ((attackTime ?? 0) > 0 && !_attackDone
-        // && !_isDisappearing
-    ) {
+    if ((attackTime ?? 0) > 0 && !_attackDone) {
       final ratio =
           ((attackTime! - _attackElapsed) / attackTime!).clamp(0.0, 1.0);
       final drawLen = _outlineLength * ratio;
@@ -319,8 +272,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   Path _buildTrianglePath(Size s) {
     final inset = -3.0;
-    // SVG viewBox 96×86 기준 삼각형 꼭짓점
-    // top: (48, 3.5), bottomLeft: (2.1, 78.5), bottomRight: (93.9, 78.5)
     const double svgW = 96, svgH = 86;
 
     final topX   = s.width  * (48.0  / svgW);
@@ -336,7 +287,6 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       ..close();
   }
 
-  // ===== 기존 삼각형 판정 로직 유지 =====
   List<Vector2> getTriangleVertices() {
     final c = absoluteCenter;
     final hw = size.x / 2;
@@ -380,7 +330,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       ..lineTo(w * (93.9  / svgW), h * (78.5 / svgH))
       ..close();
   }
-  
+
   @override
   void onTapDown(TapDownEvent event) {
     event.continuePropagation = false;
@@ -390,4 +340,3 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     }
   }
 }
-
