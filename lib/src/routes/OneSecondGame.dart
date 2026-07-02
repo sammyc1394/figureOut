@@ -653,23 +653,14 @@ class OneSecondGame extends FlameGame
             : 0.0;
 
         if (duration == 0) {
-          // wait 0: 지금까지 나온 도형들이 전부 없어질 때까지 대기
-          await _waitForTargetsMounted(currentWave);
+          final result = await finishCurrentWave(
+            currentWave,
+            spawnedThisMission,
+          );
 
-          final clearTargets = _currentClearTargets(currentWave);
-          if (clearTargets.isNotEmpty) {
-            _initOrder();
-            await waitUntilMissionCleared(clearTargets);
-            debugPrint("current wave size : ${clearTargets.length}");
+          if (result != StageResult.success) {
+            return result;
           }
-
-          // 다크도형까지 제거위함
-          for (final comp in List<Component>.from(spawnedThisMission)) {
-            comp.removeFromParent();
-          }
-
-          currentWave.clear();
-          spawnedThisMission.clear();
           debugPrint("[WAIT] processing over");
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
@@ -712,10 +703,43 @@ class OneSecondGame extends FlameGame
     }
 
     debugPrint("[AFTER LOOP] enemy processing over");
+    return await finishCurrentWave(
+      currentWave,
+      spawnedThisMission,
+    );
+  }
+
+  Future<StageResult> finishCurrentWave(
+      Set<Component> currentWave,
+      Set<Component> spawnedThisMission,
+      ) async {
     await _waitForTargetsMounted(currentWave);
-    final finalWave = _currentClearTargets(currentWave);
-    StageResult ret = await waitUntilMissionCleared(finalWave);
-    return ret;
+
+    final clearTargets = _currentClearTargets(currentWave);
+
+    if (clearTargets.isEmpty) {
+      for (final comp in List<Component>.from(spawnedThisMission)) {
+        comp.removeFromParent();
+      }
+
+      currentWave.clear();
+      spawnedThisMission.clear();
+
+      return StageResult.success;
+    }
+
+    _initOrder();
+
+    final result = await waitUntilMissionCleared(clearTargets);
+
+    for (final comp in List<Component>.from(spawnedThisMission)) {
+      comp.removeFromParent();
+    }
+
+    currentWave.clear();
+    spawnedThisMission.clear();
+
+    return result;
   }
 
   Future<void> _waitForTargetsMounted(Iterable<Component> targets) async {
@@ -1276,6 +1300,7 @@ class OneSecondGame extends FlameGame
 
     // 1) order 퍼즐인지 아닌지 판단
     debugPrint('[GAME] order shape YN(_hasOrder) = $_hasOrder');
+    debugPrint('[GAME] _currentOrderIndex = $_currentOrderIndex, _orderedShapes.length = ${_orderedShapes.length}');
 
     // 만약 모든 순서 도형을 제거한 상태라면 남은 도형 자유 터치 가능
     if (_currentOrderIndex >= _orderedShapes.length) {
