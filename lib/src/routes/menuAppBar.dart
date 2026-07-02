@@ -132,7 +132,7 @@ class _MenuappbarState extends State<Menuappbar> {
                       fontFamily: appFontFamily,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: isFull ? const Color(0xFFEE0505) : Colors.white,
+                      color: isFull ? const Color(0xFFED613D) : Colors.white,
                       decoration: TextDecoration.none,
                     ),
                   ),
