@@ -22,6 +22,7 @@ import 'package:figureout/src/components/TriangleShape.dart';
 import 'package:figureout/src/components/GameTimerComponent.dart';
 import 'package:figureout/src/effect/AttackExplosionEffect.dart';
 import 'package:figureout/src/effect/EncircleSliceEffect.dart';
+import 'package:figureout/src/effect/CircleDisappearEffect.dart';
 
 import 'package:figureout/src/config.dart';
 
@@ -2504,6 +2505,9 @@ bool _isStraightLine(List<Vector2> path) {
     for (final c in children.whereType<EncircleSliceEffect>()) {
       c.isPaused = true;
     }
+    for (final c in children.whereType<CircleDisappearEffect>()) {
+      c.isPaused = true;
+    }
 
     for (final b in blinkingMap.values) {
       debugPrint('Pausing ${b.shape}');
@@ -2604,6 +2608,9 @@ bool _isStraightLine(List<Vector2> path) {
     c.isPaused = false;
   }
   for (final c in children.whereType<EncircleSliceEffect>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<CircleDisappearEffect>()) {
     c.isPaused = false;
   }
   for (final b in blinkingMap.values) {
