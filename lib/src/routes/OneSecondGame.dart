@@ -875,6 +875,7 @@ class OneSecondGame extends FlameGame
       attackTime: enemy.attackSeconds,
       attackDamage: enemy.attackDamage,
       angle: rectAngle,
+      zOrder: enemy.zOrder,
     );
   }
 
@@ -889,6 +890,10 @@ class OneSecondGame extends FlameGame
 
     await add(shape);
     await shape.loaded;
+
+    // z-order 적용: 각 도형의 onLoad가 크기 기반 priority를 설정하므로,
+    // load 이후에 생성(시트) 순서 + Top_/Bottom_ 대역 기반 priority로 덮어쓴다.
+    shape.priority = _computeZPriority(enemy.zOrder);
 
     // behavior attach
     if (enemy.behavior != null) {
@@ -981,8 +986,24 @@ class OneSecondGame extends FlameGame
         throw Exception("Unknown shapeType");
     }
 
-    shape.priority = _globalSpawnCounter++;
     return shape;
+  }
+
+  // 생성(시트) 순서를 유지하면서 Top_/Bottom_ 대역으로 z-order를 분리한다.
+  // bottom < normal < top 순서로 항상 정렬되고, 같은 대역 안에서는 생성 순서대로 쌓인다.
+  static const int _zBandNormalBase = 1000000;
+  static const int _zBandTopBase = 2000000;
+
+  int _computeZPriority(ShapeZOrder zOrder) {
+    final seq = _globalSpawnCounter++;
+    switch (zOrder) {
+      case ShapeZOrder.bottom:
+        return seq;
+      case ShapeZOrder.normal:
+        return _zBandNormalBase + seq;
+      case ShapeZOrder.top:
+        return _zBandTopBase + seq;
+    }
   }
 
   // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
