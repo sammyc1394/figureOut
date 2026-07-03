@@ -9,7 +9,6 @@ class AftermathOverlayWidget extends StatelessWidget {
   final int starCount;
   final int stgIndex;
   final int msnIndex;
-  final bool isEndOfGame;
   final VoidCallback onContinue;
   final VoidCallback onRetry;
   final VoidCallback onPlay;
@@ -21,7 +20,6 @@ class AftermathOverlayWidget extends StatelessWidget {
     required this.starCount,
     required this.stgIndex,
     required this.msnIndex,
-    required this.isEndOfGame,
     required this.onContinue,
     required this.onRetry,
     required this.onPlay,
@@ -190,34 +188,20 @@ class AftermathOverlayWidget extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: result == StageResult.success
-                      ? (isEndOfGame
-                          // TODO: 에셋 추가 시 이 블록을 Finish/Complete 버튼으로 교체
-                          ? [
-                              Text(
-                                'Finish',
-                                style: TextStyle(
-                                  fontFamily: appFontFamily,
-                                  fontSize: pillH * 0.55,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFE4E0D3),
-                                  decoration: TextDecoration.none,
-                                ),
-                              ),
-                            ]
-                          : [
-                              Image.asset('assets/Next_button_icon.png', width: pillH * 0.6, height: pillH * 0.6),
-                              SizedBox(width: pillW * 0.04),
-                              Text(
-                                'Next',
-                                style: TextStyle(
-                                  fontFamily: appFontFamily,
-                                  fontSize: pillH * 0.55,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFE4E0D3),
-                                  decoration: TextDecoration.none,
-                                ),
-                              ),
-                            ])
+                      ? [
+                          Image.asset('assets/Next_button_icon.png', width: pillH * 0.6, height: pillH * 0.6),
+                          SizedBox(width: pillW * 0.04),
+                          Text(
+                            'Next',
+                            style: TextStyle(
+                              fontFamily: appFontFamily,
+                              fontSize: pillH * 0.55,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFE4E0D3),
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ]
                       : [
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: pillW * 0.04, vertical: pillH * 0.12),

@@ -46,6 +46,22 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant StageSelectScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // go('/stages') 재진입 시 State가 재사용되면 initState가 다시 호출되지 않으므로,
+    // initialStageIndex가 바뀌면 해당 스테이지로 강제 이동시킨다.
+    if (widget.initialStageIndex != oldWidget.initialStageIndex &&
+        widget.initialStageIndex != _currentIndex) {
+      _currentIndex = widget.initialStageIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(widget.initialStageIndex);
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();

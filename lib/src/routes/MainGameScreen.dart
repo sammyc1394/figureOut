@@ -96,7 +96,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     starCount: g.currentAftermathStars,
                     stgIndex: g.currentAftermathStgIndex,
                     msnIndex: g.currentAftermathMsnIndex,
-                    isEndOfGame: g.currentAftermathIsEndOfGame,
                     onContinue: g.handleAftermathContinue,
                     onRetry: g.handleAftermathRetry,
                     onPlay: g.handleAftermathPlay,
