@@ -80,7 +80,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
 
   @override
   Future<void> onLoad() async {
-    priority = 100 + (1000 - size.x).toInt();
+    // z-order(priority)는 스폰 시 생성 순서 기반으로 설정된다. (크기 무관)
     await super.onLoad();
 
     _sprite = await Sprite.load('shapes/Triangle_3x.png', images: _images);

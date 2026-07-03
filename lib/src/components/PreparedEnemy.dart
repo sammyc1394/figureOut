@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 import '../behaviors/shapeBehavior.dart';
+import '../config.dart';
 
 class PreparedEnemy {
   final String shapeType;
@@ -13,6 +14,7 @@ class PreparedEnemy {
   final double? attackDamage;
   final ShapeBehavior? behavior;
   final double angle;
+  final ShapeZOrder zOrder;
 
   const PreparedEnemy({
     required this.shapeType,
@@ -25,6 +27,7 @@ class PreparedEnemy {
     required this.behavior,
     required this.customSize,
     this.angle = 0.0,
+    this.zOrder = ShapeZOrder.normal,
   });
 
   @override
