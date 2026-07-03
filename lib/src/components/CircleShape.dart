@@ -300,7 +300,7 @@ class CircleShape extends PositionComponent
         CircleDisappearEffect(
           position: position.clone(),
           radius: size.x * 0.48,
-          color: const Color(0xFFFF9D33),
+          color: const Color(0xFFED613D),
         ),
       );
 
