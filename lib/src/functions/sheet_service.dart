@@ -183,7 +183,9 @@ class SheetService {
       final movement = _safeGet(cells, shapeColumn + 2);
       final resolvedMovement = resolveMovement(movement, ctx);
 
-      final position = _safeGet(cells, shapeColumn + 3);
+      final rawPosition = _safeGet(cells, shapeColumn + 3);
+      final zOrder = _parseZOrderPrefix(rawPosition);
+      final position = _stripZOrderPrefix(rawPosition);
 
       final resolvedAttackRaw = resolveAttack(attackRaw, ctx);
       final resolvedPosition = resolvePosition(position, ctx);
@@ -211,6 +213,7 @@ class SheetService {
         order: order,
         energy: energy,
         darkYN: darkYN,
+        zOrder: zOrder,
       );
 
       currentMissionMap!
@@ -243,6 +246,23 @@ class SheetService {
   String _safeGet(List<String> cells, int index) {
     if (index < cells.length) return cells[index];
     return '';
+  }
+
+  // 위치값(G열) 앞에 붙은 Top_/Bottom_ 접두사로 z-order 힌트를 파싱한다.
+  ShapeZOrder _parseZOrderPrefix(String rawPosition) {
+    final lower = rawPosition.trimLeft().toLowerCase();
+    if (lower.startsWith('top_')) return ShapeZOrder.top;
+    if (lower.startsWith('bottom_')) return ShapeZOrder.bottom;
+    return ShapeZOrder.normal;
+  }
+
+  // Top_/Bottom_ 접두사를 제거한 순수 위치 문자열을 돌려준다.
+  String _stripZOrderPrefix(String rawPosition) {
+    final trimmed = rawPosition.trimLeft();
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('top_')) return trimmed.substring(4);
+    if (lower.startsWith('bottom_')) return trimmed.substring(7);
+    return rawPosition;
   }
 
   String _firstParsableNumber(List<String> values) {
@@ -558,6 +578,7 @@ class EnemyData {
   final int? order;
   final int energy;
   final bool darkYN;
+  final ShapeZOrder zOrder;
 
   EnemyData({
     required this.command,
@@ -570,6 +591,7 @@ class EnemyData {
     this.attackSeconds,
     this.attackDamage,
     this.order,
+    this.zOrder = ShapeZOrder.normal,
   });
 
   @override

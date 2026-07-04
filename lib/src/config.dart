@@ -34,6 +34,10 @@ const bgColor = 0xFFF2EFE6;
 enum shapes { Circle, Rectangle, Pentagon, Triangle, Hexagon }
 enum StageResult { success, fail, cancelled }
 
+// 도형 겹침(z-order) 힌트. 시트 G열 위치값 접두사(Top_/Bottom_)로 지정한다.
+// top: 항상 맨 위, bottom: 항상 맨 아래, normal: 생성(시트) 순서대로.
+enum ShapeZOrder { top, normal, bottom }
+
 enum URDField {
   shape, size, order, energy,
   positionX, positionY,

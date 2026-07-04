@@ -122,7 +122,7 @@ class RectangleShape extends PositionComponent
 
   @override
   Future<void> onLoad() async {
-    priority = 100 + (1000 - size.x).toInt();
+    // z-order(priority)는 스폰 시 생성 순서 기반으로 설정된다. (크기 무관)
     await super.onLoad();
 
     if (order != null) {
