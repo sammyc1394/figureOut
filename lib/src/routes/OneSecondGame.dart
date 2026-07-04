@@ -72,6 +72,11 @@ class OneSecondGame extends FlameGame
   int _currentAftermathStgIndex = 0;
   int _currentAftermathMsnIndex = 0;
 
+  // how-to-play intro (stage 1 mission 1)
+  Completer<void>? _howToPlayCompleter;
+  // "다시 보지 않기": 앱 실행(세션) 동안만 유지되는 플래그. 앱 재시작 시 초기화되어 다시 표시된다.
+  static bool _tutorialHiddenThisSession = false;
+
   StageResult? get currentAftermathResult => _currentAftermathResult;
   int get currentAftermathStars => _currentAftermathStars;
   int get currentAftermathStgIndex => _currentAftermathStgIndex;
@@ -572,6 +577,12 @@ class OneSecondGame extends FlameGame
 
     _stopEnemyBehaviors();
     _clearAllShapes();
+
+    // Stage 1 Mission 1: show how-to-play before the timer starts
+    final canProceed = await _awaitHowToPlayIfNeeded(stageIndex, missionIndex, runId);
+    if (!canProceed) {
+      return StageResult.cancelled;
+    }
 
     // 시간 데이터 분석
     double? missionSeconds = stage.missionTimeLimits[missionIndex];
@@ -1554,8 +1565,9 @@ class OneSecondGame extends FlameGame
       currentCircleRadius = null;
       blinkingMap.clear();
 
-      // 결과 화면도 제거
+      // 결과 / 튜토리얼 화면도 제거
       _removeAftermathOverlay();
+      _removeHowToPlayOverlay();
 
       children.whereType<BlinkingBehaviorComponent>()
           .forEach((b) => b.removeFromParent());
@@ -2480,6 +2492,7 @@ bool _isStraightLine(List<Vector2> path) {
 
   void pauseGame() {
     debugPrint("blinkingMap:${blinkingMap.values}");
+    if (overlays.isActive('howto')) return;
     if (overlays.isActive('pause')) return;
 
     if (!_missionResolved && remainingTime <= 0) {
@@ -2632,6 +2645,45 @@ bool _isStraightLine(List<Vector2> path) {
   
   void _removeAftermathOverlay() {
     if (overlays.isActive('aftermath')) overlays.remove('aftermath');
+  }
+
+  void _removeHowToPlayOverlay() {
+    if (overlays.isActive('howto')) overlays.remove('howto');
+    final completer = _howToPlayCompleter;
+    _howToPlayCompleter = null;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+  }
+
+  /// Stage 1 Mission 1 intro. Returns false if the run was cancelled while waiting.
+  Future<bool> _awaitHowToPlayIfNeeded(
+    int stageIndex,
+    int missionIndex,
+    int runId,
+  ) async {
+    if (stageIndex != 0 || missionIndex != 1 || _isContinuing) {
+      return true;
+    }
+
+    // 이번 세션에서 "다시 보지 않기"를 켰으면 건너뛴다. (앱 재시작 시엔 초기화되어 다시 표시)
+    if (_tutorialHiddenThisSession) {
+      return runId == _runToken;
+    }
+
+    _howToPlayCompleter = Completer<void>();
+    overlays.add('howto');
+    await _howToPlayCompleter!.future;
+    _howToPlayCompleter = null;
+
+    return runId == _runToken;
+  }
+
+  void handleHowToPlayContinue(bool dontShowAgain) {
+    if (dontShowAgain) {
+      _tutorialHiddenThisSession = true;
+    }
+    _removeHowToPlayOverlay();
   }
 
   void handleAftermathContinue() {

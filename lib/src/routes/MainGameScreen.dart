@@ -1,6 +1,7 @@
 
 import 'package:figureout/src/routes/OneSecondGame.dart';
 import 'package:figureout/src/routes/AftermathScreen.dart';
+import 'package:figureout/src/routes/HowToPlayOverlay.dart';
 import 'package:figureout/src/routes/PausedScreen.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
@@ -81,6 +82,12 @@ class _MainGameScreenState extends State<MainGameScreen> {
             GameWidget(
               game: oneSec,
               overlayBuilderMap: {
+                'howto': (context, game) {
+                  final g = game as OneSecondGame;
+                  return HowToPlayOverlay(
+                    onContinue: g.handleHowToPlayContinue,
+                  );
+                },
                 'pause': (context, game) {
                   final g = game as OneSecondGame;
                   return PauseOverlayWidget(
