@@ -127,9 +127,25 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
     return Stack(
       children: [
+        Positioned.fill(
+          child: Container(color: _missionBg),
+        ),
+
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.30,
+              child: Image.asset(
+                'assets/noise_texture.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ),
+
         Scaffold(
-          backgroundColor: _missionBg,
-          appBar: const Menuappbar(backgroundColor: _missionBg),
+          backgroundColor: Colors.transparent,
+          appBar: const Menuappbar(backgroundColor: Colors.transparent),
           body: Column(
             children: [
               // Stage label
@@ -308,22 +324,6 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                 ),
               ),
             ],
-          ),
-        ),
-        Positioned.fill(
-          child: IgnorePointer(
-            // child: Opacity(
-              // opacity: 0.15,
-              child: ColorFiltered(
-                colorFilter: const ColorFilter.matrix([
-                  -1, 0, 0, 0, 255,
-                   0,-1, 0, 0, 255,
-                   0, 0,-1, 0, 255,
-                   0, 0, 0, 1,   0,
-                ]),
-                child: Image.asset('assets/noise_texture.png', fit: BoxFit.cover,opacity: const AlwaysStoppedAnimation(0.25),),
-              ),
-            // ),
           ),
         ),
       ],

@@ -17,79 +17,70 @@ class PauseOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isKr = Localizations.localeOf(context).languageCode == 'ko';
+
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
       child: Container(
         color: Colors.black.withValues(alpha: 0.25),
         child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 32),
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 45),
-            decoration: BoxDecoration(
-              color: const Color(0xFF7BA6C5),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: onMenu,
-                    child: Image.asset(
-                      'assets/Home_button_beige.png',
-                      width: 44,
-                      height: 44,
-                      colorBlendMode: BlendMode.srcIn,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final boxW = constraints.maxWidth * 0.85;
+              final boxH = boxW * 0.45;
+              final iconSize = boxW * 0.12;
+              final resumeW = boxW * 0.50;
+              final gap = boxW * 0.05;
+
+              return SizedBox(
+                width: boxW,
+                height: boxH,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/Pasued_box.png',
+                      width: boxW,
+                      height: boxH,
+                      fit: BoxFit.fill,
                     ),
-                  ),
-                  const SizedBox(width: 20),
-                  GestureDetector(
-                    onTap: onResume,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5EDD8),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(
-                            'assets/Resume_button_icon.png',
-                            width: 22,
-                            height: 22,
-                            // color: const Color(0xFF555555),
-                            colorBlendMode: BlendMode.srcIn,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: onMenu,
+                          child: Image.asset(
+                            'assets/Home_button_beige.png',
+                            width: iconSize,
+                            height: iconSize,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Resume',
-                            style: TextStyle(
-                              fontFamily: appFontFamily,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF555555),
-                              decoration:TextDecoration.none
-                            ),
+                        ),
+                        SizedBox(width: gap),
+                        GestureDetector(
+                          onTap: onResume,
+                          child: Image.asset(
+                            isKr
+                                ? 'assets/kr_resume_button.png'
+                                : 'assets/resume_button.png',
+                            width: resumeW,
+                            fit: BoxFit.contain,
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(width: gap),
+                        GestureDetector(
+                          onTap: onRetry,
+                          child: Image.asset(
+                            'assets/Replay_button beige.png',
+                            width: iconSize,
+                            height: iconSize,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 20),
-                  GestureDetector(
-                    onTap: onRetry,
-                    child: Image.asset(
-                      'assets/Replay_button beige.png',
-                      width: 44,
-                      height: 44,
-                      colorBlendMode: BlendMode.srcIn,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),
