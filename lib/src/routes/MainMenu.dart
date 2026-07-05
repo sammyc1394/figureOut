@@ -111,17 +111,12 @@ class _MainMenuScreenState extends State<MainMenuScreen>
           children: [
             Positioned.fill(
               child: Opacity(
-                opacity: 0.55,
-                child: 
-                // ColorFiltered(
-                //   colorFilter: const ColorFilter.matrix([
-                //     -1, 0, 0, 0, 255,
-                //      0,-1, 0, 0, 255,
-                //      0, 0,-1, 0, 255,
-                //      0, 0, 0, 1,   0,
-                //   ]),
-                //   child: 
-                  Image.asset('assets/noise_texture.png', fit: BoxFit.cover),
+                opacity: 0.50,
+                child:
+                  Image.asset(
+                      grainTexture,
+                      fit: BoxFit.cover
+                  ),
                 ),
               ),
             // ),

@@ -99,166 +99,162 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
 
     return Stack(
       children: [
-        Scaffold(
-          backgroundColor: const Color(bgColor),
-          appBar: const Menuappbar(),
-          body: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(height: topGap),
-
-              SizedBox(
-                height: carouselHeight,
-                child: PageView.builder(
-                  controller: _pageController,
-                  clipBehavior: Clip.none,
-                  itemCount: stages.length,
-                  onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
-                  },
-                  itemBuilder: (context, index) {
-                    final svgPath = stagesSVG[index % stagesSVG.length];
-                    final stage = stages[index];
-                    final isSelected = index == _currentIndex;
-
-                    return GestureDetector(
-                      onTap: () {
-                        context.push(
-                          '/missions',
-                          extra: MissionRouteArgs(
-                            stages: stages,
-                            stageIndex: index,
-                          ),
-                        );
-                      },
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 250),
-                        opacity: isSelected ? 1.0 : 0.4,
-                        child: AnimatedScale(
-                          duration: const Duration(milliseconds: 250),
-                          scale: isSelected ? 1.3 : 0.65,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: imageSize,
-                                height: imageSize,
-                                child: Center(
-                                  child: Image.asset(
-                                    svgPath,
-                                    width: imageInnerSize,
-                                    height: imageInnerSize,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
-
-                              SizedBox(height: imageSize * 0.02),
-
-                              AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: isSelected ? 1.0 : 0.0,
-                                child: SizedBox(
-                                  width: stageTitleWidth,
-                                  height: stageTitleHeight,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Image.asset(
-                                        "assets/menu/stage/stage_name_outline.png",
-                                        fit: BoxFit.contain,
-                                      ),
-                                      Text(
-                                        stage.name.isNotEmpty
-                                            ? stage.name
-                                            : 'Stage ${index + 1}',
-                                        style: TextStyle(
-                                          fontSize: titleFontSize,
-                                          fontWeight: FontWeight.w500,
-                                          fontFamily: appFontFamily,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              SizedBox(height: bottomGap),
-
-              Padding(
-                padding: EdgeInsets.only(bottom: bottomGap),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () =>
-                        context.canPop() ? context.pop() : context.go('/'),
-                        child: SvgPicture.asset(
-                          "assets/menu/common/Arrow_prev.svg",
-                          width: arrowSize,
-                          height: arrowSize,
-                        ),
-                      ),
-                    ),
-
-                    Expanded(
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(stages.length, (index) {
-                            return Padding(
-                              padding:
-                              EdgeInsets.symmetric(horizontal: indicatorGap),
-                              child: SvgPicture.asset(
-                                _currentIndex == index
-                                    ? "assets/menu/stage/carousel_selected.svg"
-                                    : "assets/menu/stage/carousel_notSelected.svg",
-                                width: indicatorSize,
-                                height: indicatorSize,
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(width: rightSpacerWidth),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        Positioned.fill(
+          child: Container(color: const Color(bgColor)),
         ),
 
         Positioned.fill(
-          child: IgnorePointer(
             child: Opacity(
-              opacity: 0.15,
-              child: ColorFiltered(
-                colorFilter: const ColorFilter.matrix([
-                  -1, 0, 0, 0, 255,
-                  0, -1, 0, 0, 255,
-                  0, 0, -1, 0, 255,
-                  0, 0, 0, 1, 0,
-                ]),
-                child: Image.asset(
-                  'assets/noise_texture.png',
-                  fit: BoxFit.cover,
-                ),
+                opacity: 0.50,
+              child: Image.asset(
+                grainTexture,
+                fit: BoxFit.cover,
               ),
             ),
-          ),
+        ),
+
+
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: const Menuappbar(),
+          body:
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: topGap),
+
+                  SizedBox(
+                    height: carouselHeight,
+                    child: PageView.builder(
+                      controller: _pageController,
+                      clipBehavior: Clip.none,
+                      itemCount: stages.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentIndex = index);
+                      },
+                      itemBuilder: (context, index) {
+                        final svgPath = stagesSVG[index % stagesSVG.length];
+                        final stage = stages[index];
+                        final isSelected = index == _currentIndex;
+
+                        return GestureDetector(
+                          onTap: () {
+                            context.push(
+                              '/missions',
+                              extra: MissionRouteArgs(
+                                stages: stages,
+                                stageIndex: index,
+                              ),
+                            );
+                          },
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 250),
+                            opacity: isSelected ? 1.0 : 0.4,
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 250),
+                              scale: isSelected ? 1.3 : 0.65,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: imageSize,
+                                    height: imageSize,
+                                    child: Center(
+                                      child: Image.asset(
+                                        svgPath,
+                                        width: imageInnerSize,
+                                        height: imageInnerSize,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(height: imageSize * 0.02),
+
+                                  AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 200),
+                                    opacity: isSelected ? 1.0 : 0.0,
+                                    child: SizedBox(
+                                      width: stageTitleWidth,
+                                      height: stageTitleHeight,
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          Image.asset(
+                                            "assets/menu/stage/stage_name_outline.png",
+                                            fit: BoxFit.contain,
+                                          ),
+                                          Text(
+                                            stage.name.isNotEmpty
+                                                ? stage.name
+                                                : 'Stage ${index + 1}',
+                                            style: TextStyle(
+                                              fontSize: titleFontSize,
+                                              fontWeight: FontWeight.w500,
+                                              fontFamily: appFontFamily,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  SizedBox(height: bottomGap),
+
+                  Padding(
+                    padding: EdgeInsets.only(bottom: bottomGap),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: GestureDetector(
+                            onTap: () =>
+                            context.canPop() ? context.pop() : context.go('/'),
+                            child: SvgPicture.asset(
+                              "assets/menu/common/Arrow_prev.svg",
+                              width: arrowSize,
+                              height: arrowSize,
+                            ),
+                          ),
+                        ),
+
+                        Expanded(
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(stages.length, (index) {
+                                return Padding(
+                                  padding:
+                                  EdgeInsets.symmetric(horizontal: indicatorGap),
+                                  child: SvgPicture.asset(
+                                    _currentIndex == index
+                                        ? "assets/menu/stage/carousel_selected.svg"
+                                        : "assets/menu/stage/carousel_notSelected.svg",
+                                    width: indicatorSize,
+                                    height: indicatorSize,
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(width: rightSpacerWidth),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
         ),
       ],
     );

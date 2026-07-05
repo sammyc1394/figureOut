@@ -86,12 +86,14 @@ class _MenuappbarState extends State<Menuappbar> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = widget.backgroundColor ?? const Color(bgColor);
+    final bg = widget.backgroundColor ?? Colors.transparent;
     final isFull = _hearts >= maxHearts;
 
     return AppBar(
-      backgroundColor: bg,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       leadingWidth: 0,
       titleSpacing: 0,
@@ -146,13 +148,20 @@ class _MenuappbarState extends State<Menuappbar> {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: Image.asset(
-            'assets/Settings_button_beige.png',
-            width: 36,
-            height: 36,
-            fit: BoxFit.contain,
+          child:
+          // GestureDetector(
+          //   onTap: () {
+          //     debugPrint('설정 버튼 클릭됨');
+          //   },
+          //   child:
+            Image.asset(
+              'assets/Settings_button_beige.png',
+              width: 36,
+              height: 36,
+              fit: BoxFit.contain,
+            ),
           ),
-        ),
+        // ),
       ],
     );
   }

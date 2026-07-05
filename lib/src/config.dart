@@ -30,6 +30,8 @@ const fallbackFontFamily = ['Gaegu'];
 
 const bgColor = 0xFFF2EFE6;
 
+const grainTexture = 'assets/noise_texture.png';
+
 // Enums
 enum shapes { Circle, Rectangle, Pentagon, Triangle, Hexagon }
 enum StageResult { success, fail, cancelled }
