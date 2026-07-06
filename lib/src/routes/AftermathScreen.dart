@@ -28,35 +28,45 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final panelWidth = screenWidth * 0.84;
-    final panelHeight = panelWidth * (550 / 600);
+    final isKr = Localizations.localeOf(context).languageCode == 'ko';
 
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
       child: Container(
         color: Colors.black.withValues(alpha: 0.25),
         child: Center(
-          child: SizedBox(
-            width: panelWidth,
-            height: panelHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: Image.asset('assets/Results_box.png', fit: BoxFit.fill),
-                ),
-                _stageLabel(panelWidth, panelHeight),
-                if (result == StageResult.success) ...[
-                  _stars(panelWidth, panelHeight),
-                  _completedText(panelWidth, panelHeight),
-                ] else ...[
-                  _heart(panelWidth, panelHeight),
-                  _failTexts(panelWidth, panelHeight),
-                ],
-                _buttons(panelWidth, panelHeight),
-              ],
-            ),
+          child: LayoutBuilder(
+              builder:(context, constraints) {
+                final base = constraints.biggest.shortestSide;
+
+                final panelWidth = base * 0.97;
+                final panelHeight = panelWidth * (550 / 600);
+
+                return SizedBox(
+                  width: panelWidth,
+                  height: panelHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/Results_box.png',
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                      _stageLabel(panelWidth, panelHeight),
+                      if (result == StageResult.success) ...[
+                        _stars(panelWidth, panelHeight),
+                        _completedText(panelWidth, panelHeight),
+                      ] else ...[
+                        _heart(panelWidth, panelHeight),
+                        _failTexts(panelWidth, panelHeight),
+                      ],
+                      _buttons(panelWidth, panelHeight, isKr),
+                    ],
+                  ),
+                );
+              }
           ),
         ),
       ),
@@ -85,10 +95,19 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   Widget _stars(double w, double h) {
     return Positioned(
-      top: h * 0.28,
-      left: w * 0.15,
-      right: w * 0.15,
-      child: Image.asset('assets/StageScreen_threestars.png', fit: BoxFit.fitWidth),
+      top: h * 0.25,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Transform.scale(
+          scale: 0.85,
+          child: Image.asset(
+            'assets/StageScreen_threestars.png',
+            width: w * 0.70,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 
@@ -103,7 +122,7 @@ class AftermathOverlayWidget extends StatelessWidget {
           style: TextStyle(
             fontFamily: appFontFamily,
             fontSize: h * 0.09,
-            fontWeight: FontWeight.bold,
+            // fontWeight: FontWeight.bold,
             color: const Color(0xFF222222),
             decoration: TextDecoration.none,
           ),
@@ -114,7 +133,7 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   Widget _heart(double w, double h) {
     return Positioned(
-      top: h * 0.25,
+      top: h * 0.3,
       left: 0,
       right: 0,
       child: Center(
@@ -125,7 +144,7 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   Widget _failTexts(double w, double h) {
     return Positioned(
-      top: h * 0.47,
+      top: h * 0.5,
       left: 0,
       right: 0,
       child: Column(
@@ -140,7 +159,7 @@ class AftermathOverlayWidget extends StatelessWidget {
               decoration: TextDecoration.none,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 0.8),
           Text(
             'Continue from where you left off.',
             style: TextStyle(
@@ -155,18 +174,16 @@ class AftermathOverlayWidget extends StatelessWidget {
     );
   }
 
-  Widget _buttons(double w, double h) {
+  Widget _buttons(double w, double h, isKr) {
     // Matches Flame version proportions:
-    // side buttons: sq(0.12) at x=0.08/0.80, y=0.78 (top-left anchor)
-    // pill: p(0.47, 0.15) centered at p(0.5, 0.85)
-    final btnSize = w * 0.12;
+    final btnSize = w * 0.10;
     final pillW = w * 0.47;
     final pillH = h * 0.15;
 
     return Positioned(
       top: h * 0.775,
-      left: w * 0.08,
-      right: w * 0.08,
+      left: w * 0.10,
+      right: w * 0.10,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -180,60 +197,10 @@ class AftermathOverlayWidget extends StatelessWidget {
             child: SizedBox(
               width: pillW,
               height: pillH,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7BA6C5),
-                  borderRadius: BorderRadius.circular(pillH * 0.45),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: result == StageResult.success
-                      ? [
-                          Image.asset('assets/Next_button_icon.png', width: pillH * 0.6, height: pillH * 0.6),
-                          SizedBox(width: pillW * 0.04),
-                          Text(
-                            'Next',
-                            style: TextStyle(
-                              fontFamily: appFontFamily,
-                              fontSize: pillH * 0.55,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFE4E0D3),
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                        ]
-                      : [
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: pillW * 0.04, vertical: pillH * 0.12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF222222),
-                              borderRadius: BorderRadius.circular(pillH * 0.12),
-                            ),
-                            child: Text(
-                              'AD',
-                              style: TextStyle(
-                                fontFamily: appFontFamily,
-                                fontSize: pillH * 0.40,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: pillW * 0.04),
-                          Text(
-                            'Continue',
-                            style: TextStyle(
-                              fontFamily: appFontFamily,
-                              fontSize: pillH * 0.50,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                        ],
-                ),
-              ),
+              child: result == StageResult.success ?
+                Image.asset('assets/next_button.png', width: pillH, height: pillH) :
+                isKr ? Image.asset('assets/kr_continue_button.png', width: pillH, height: pillH) :
+                        Image.asset('assets/continue_button.png', width: pillH, height: pillH)
             ),
           ),
           GestureDetector(
