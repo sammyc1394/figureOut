@@ -71,7 +71,9 @@ class HexagonBurstEffect extends PositionComponent {
     if (t <= _growEnd) {
       pillHalfL = lerpDouble(startHalfLen, pillHalfLMax, growP)!;
     } else {
-      final p = Curves.easeIn.transform((t - _growEnd) / (1.0 - _growEnd));
+      final p = Curves.easeIn.transform(
+        ((t - _growEnd) / (1.0 - _growEnd)).clamp(0.0, 1.0),
+      );
       pillHalfL = lerpDouble(pillHalfLMax, startHalfLen, p)!;
     }
 
@@ -87,7 +89,8 @@ class HexagonBurstEffect extends PositionComponent {
     if (t <= 0.8) {
       opacity = 1.0;
     } else {
-      opacity = 1.0 - Curves.easeIn.transform((t - 0.8) / 0.2);
+      final fadeT = ((t - 0.8) / 0.2).clamp(0.0, 1.0);
+      opacity = 1.0 - Curves.easeIn.transform(fadeT);
     }
     if (opacity <= 0.01) return;
 

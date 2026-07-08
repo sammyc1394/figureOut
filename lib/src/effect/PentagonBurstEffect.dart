@@ -60,10 +60,12 @@ class PentagonBurstEffect extends PositionComponent {
     // then shrinks back down to a short blob before popping away.
     final double pillHalfL;
     if (t <= _growEnd) {
-      final p = Curves.easeOut.transform(t / _growEnd);
+      final p = Curves.easeOut.transform((t / _growEnd).clamp(0.0, 1.0));
       pillHalfL = lerpDouble(startHalfLen, pillHalfLMax, p)!;
     } else {
-      final p = Curves.easeIn.transform((t - _growEnd) / (1.0 - _growEnd));
+      final p = Curves.easeIn.transform(
+        ((t - _growEnd) / (1.0 - _growEnd)).clamp(0.0, 1.0),
+      );
       pillHalfL = lerpDouble(pillHalfLMax, startHalfLen, p)!;
     }
 
@@ -79,7 +81,8 @@ class PentagonBurstEffect extends PositionComponent {
     if (t <= 0.82) {
       opacity = 1.0;
     } else {
-      opacity = 1.0 - Curves.easeIn.transform((t - 0.82) / 0.18);
+      final fadeT = ((t - 0.82) / 0.18).clamp(0.0, 1.0);
+      opacity = 1.0 - Curves.easeIn.transform(fadeT);
     }
     if (opacity <= 0.01) return;
 

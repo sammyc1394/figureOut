@@ -59,7 +59,7 @@ class EncircleSliceEffect extends PositionComponent {
 
     if (t <= _t1) {
       // Phase 1: basePath rotates 90° (ease-out) + minimal scale reduction
-      final localT = t / _t1;
+      final localT = (t / _t1).clamp(0.0, 1.0);
       final progress = Curves.easeOut.transform(localT);
       final angle = _initialAngle + (pi / 2) * progress;
       final sc = lerpDouble(1.0, 0.85, progress)!;
@@ -77,7 +77,7 @@ class EncircleSliceEffect extends PositionComponent {
       // visible gaps between them; length AND spread grow together to a peak;
       // past the peak, only the length shrinks back to its starting size
       // (spread keeps drifting outward, never retreats) and only then fades.
-      final localT = (t - _t1) / (1.0 - _t1);
+      final localT = ((t - _t1) / (1.0 - _t1)).clamp(0.0, 1.0);
 
       const double growEnd = 0.55; // growth phase ends here, then shrink begins
 
@@ -98,10 +98,12 @@ class EncircleSliceEffect extends PositionComponent {
       // corner radius shrinks along with it instead of flooring the min size.
       final double lengthFactor;
       if (localT <= growEnd) {
-        final p = Curves.easeOut.transform(localT / growEnd);
+        final p = Curves.easeOut.transform((localT / growEnd).clamp(0.0, 1.0));
         lengthFactor = lerpDouble(startLen, 1.0, p)!;
       } else {
-        final p = Curves.easeIn.transform((localT - growEnd) / (1.0 - growEnd));
+        final p = Curves.easeIn.transform(
+          ((localT - growEnd) / (1.0 - growEnd)).clamp(0.0, 1.0),
+        );
         lengthFactor = lerpDouble(1.0, startLen, p)!;
       }
       final pillHalfW = pillHalfWMax * lengthFactor;
@@ -119,7 +121,8 @@ class EncircleSliceEffect extends PositionComponent {
       if (localT <= 0.8) {
         opacity = 1.0;
       } else {
-        opacity = 1.0 - Curves.easeIn.transform((localT - 0.8) / 0.2);
+        final fadeT = ((localT - 0.8) / 0.2).clamp(0.0, 1.0);
+        opacity = 1.0 - Curves.easeIn.transform(fadeT);
       }
 
       // ignore: deprecated_member_use
