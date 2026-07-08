@@ -37,54 +37,54 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay> {
       child: ColoredBox(
         color: Colors.black.withValues(alpha: 0.65),
         child: SafeArea(
-            child: Column(
-              children: [
-                const Spacer(flex: 1),
+          child: Column(
+            children: [
+              const Spacer(flex: 1),
 
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final item in _items) ...[
-                        _HowToPlayRow(
-                          svgPath: item.$1,
-                          label: item.$2,
-                          iconSize: iconSize,
-                          fontSize: fontSize,
-                        ),
-                        SizedBox(height: screenWidth * 0.075),
-                      ],
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final item in _items) ...[
+                      _HowToPlayRow(
+                        svgPath: item.$1,
+                        label: item.$2,
+                        iconSize: iconSize,
+                        fontSize: fontSize,
+                      ),
+                      SizedBox(height: screenWidth * 0.075),
                     ],
-                  ),
+                  ],
                 ),
-                const Spacer(flex: 1),
+              ),
+              const Spacer(flex: 1),
 
-                _DontShowAgainCheckbox(
-                  checked: _dontShowAgain,
-                  fontSize: fontSize,
-                  spacing: screenWidth * 0.025,
-                  onToggle: () =>
-                      setState(() => _dontShowAgain = !_dontShowAgain),
+              _DontShowAgainCheckbox(
+                checked: _dontShowAgain,
+                fontSize: fontSize,
+                spacing: screenWidth * 0.025,
+                onToggle: () =>
+                    setState(() => _dontShowAgain = !_dontShowAgain),
+              ),
+
+              SizedBox(height: screenWidth * 0.04),
+
+              Text(
+                'Tap to play!',
+                style: TextStyle(
+                  fontFamily: appFontFamily,
+                  fontSize: fontSize * 2,
+                  fontWeight: FontWeight.w200,
+                  color: Colors.white,
+                  decoration: TextDecoration.none,
                 ),
-
-                SizedBox(height: screenWidth * 0.04),
-
-                Text(
-                  'Tap to play!',
-                  style: TextStyle(
-                    fontFamily: appFontFamily,
-                    fontSize: fontSize * 2,
-                    fontWeight: FontWeight.w200,
-                    color: Colors.white,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-                SizedBox(height: screenWidth * 0.12),
-              ],
-            ),
+              ),
+              SizedBox(height: screenWidth * 0.12),
+            ],
           ),
         ),
+      ),
     );
   }
 }
