@@ -629,6 +629,7 @@ class OneSecondGame extends FlameGame
     // final preparedEnemies = <PreparedEnemy>[];
 
     debugPrint("[BEFORE LOOP] enemy processing start : ${enemies.length}");
+
     // 에너미 데이터
     // startIndex 를 굳이 파라미터에서 initialize 한 이유가 있나?
     for (int i = startIndex; i < enemies.length; i++) {
@@ -672,19 +673,23 @@ class OneSecondGame extends FlameGame
             return result;
           }
           debugPrint("[WAIT] processing over");
+
+          // wait 0 is the only real round boundary (full wave clear) — only
+          // here do we advance the continue checkpoint. Continue always
+          // replays a round from its start, at the same pacing it originally
+          // played at, so shapes reappear exactly as they did the first time.
+          _lastRoundStartIndex = i + 1;
+          debugPrint('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
         } else {
           // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
           await Future.delayed(
             Duration(milliseconds: (duration * 1000).toInt()),
           );
         }
-        
+
         // Check if failed during wait/clear
         if (_isTimeOver) return StageResult.fail;
 
-        // Update round start for continue feature
-        _lastRoundStartIndex = i + 1;
-        debugPrint('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
         continue;
       }
 
