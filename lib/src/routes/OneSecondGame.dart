@@ -2849,7 +2849,7 @@ bool _isStraightLine(List<Vector2> path) {
         ..strokeWidth = 4
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..color = const Color(0xFF222222).withValues(alpha: 0.9);
+        ..color = const Color(0xFF757575);
 
       // 1) 손떨림 제거용 1차 필터 (너무 촘촘한 포인트 제거)
       final filteredPoints = _filterDensePoints(
@@ -2866,8 +2866,8 @@ bool _isStraightLine(List<Vector2> path) {
       // 3) 시각용 Path 생성 (판정에는 userPath 그대로 사용)
       final renderPath = _buildSmoothedPath(smoothedPoints);
 
-      // 4) 점선 렌더
-      canvas.drawPath(renderPath, paint);
+      // 4) 점선 렌더 (판정 로직은 judgePath 기반이라 영향 없음)
+      _drawDashedPath(canvas, renderPath, paint: paint);
     }
   }
 }
