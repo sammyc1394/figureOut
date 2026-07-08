@@ -9,8 +9,12 @@ class CircleDisappearEffect extends PositionComponent {
   final Color color;
 
   static const int _segmentCount = 8;
-  static const double _totalDuration = 0.55;
+  static const double _totalDuration = 0.35;
   static const double _growEnd = 0.5; // peak dash length reached here, then shrink
+
+  // Spread reaches its final radius within this absolute time (independent
+  // of _totalDuration), then holds there while length/opacity keep animating.
+  static const double _spreadDuration = 0.075;
 
   // How far the S-bend's control points swing off the straight axis,
   // as a fraction of the dash's own half-length.
@@ -42,8 +46,8 @@ class CircleDisappearEffect extends PositionComponent {
 
     final t = (_elapsed / _totalDuration).clamp(0.0, 1.0);
 
-    final pillHalfH = radius * 0.085;
-    final pillHalfLMax = radius * 0.13;
+    final pillHalfH = radius * 0.059;
+    final pillHalfLMax = radius * 0.096;
 
     // Short, near-round "bean" at spawn and right before the pop — note the
     // round stroke caps already add pillHalfH of visible length past each
@@ -63,11 +67,12 @@ class CircleDisappearEffect extends PositionComponent {
       pillHalfL = lerpDouble(pillHalfLMax, startHalfLen, p)!;
     }
 
-    // Spread (distance from center) grows monotonically and visibly for the
-    // whole effect, never retreating even while the dash shrinks back down —
-    // dashes start a bit apart and keep drifting further out as they animate.
-    final spreadP = Curves.easeOut.transform(t);
-    final spread = radius * lerpDouble(0.46, 0.95, spreadP)!;
+    // Spread (distance from center) snaps out fast — full radius reached
+    // within _spreadDuration (linear, not eased, so it doesn't front-load
+    // into the very first frame) — then holds there for the remainder of
+    // the effect while only opacity/length keep animating.
+    final spreadT = (_elapsed / _spreadDuration).clamp(0.0, 1.0);
+    final spread = radius * lerpDouble(0.46, 0.95, spreadT)!;
 
     // Opacity holds full almost the whole time, then fades hard right at
     // the very end so the dashes visibly pop away (reference frame 4→5).
