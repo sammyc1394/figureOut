@@ -4,17 +4,17 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' show Curves;
 
-class CircleDisappearEffect extends PositionComponent {
+class PentagonBurstEffect extends PositionComponent {
   final double radius;
   final Color color;
 
-  static const int _segmentCount = 8;
-  static const double _totalDuration = 0.35;
-  static const double _growEnd = 0.5; // peak dash length reached here, then shrink
+  static const int _segmentCount = 5;
+  // Aligns each fragment with a pentagon vertex direction (matches
+  // PentagonShape._buildPentagonPath's -90 + i*72 degree layout).
+  static const double _angleOffset = -pi / 2;
 
-  // Spread reaches its final radius within this absolute time (independent
-  // of _totalDuration), then holds there while length/opacity keep animating.
-  static const double _spreadDuration = 0.075;
+  static const double _totalDuration = 0.55;
+  static const double _growEnd = 0.5; // peak dash length reached here, then shrink
 
   // How far the S-bend's control points swing off the straight axis,
   // as a fraction of the dash's own half-length.
@@ -23,7 +23,7 @@ class CircleDisappearEffect extends PositionComponent {
   double _elapsed = 0.0;
   bool isPaused = false;
 
-  CircleDisappearEffect({
+  PentagonBurstEffect({
     required Vector2 position,
     required this.radius,
     required this.color,
@@ -46,8 +46,8 @@ class CircleDisappearEffect extends PositionComponent {
 
     final t = (_elapsed / _totalDuration).clamp(0.0, 1.0);
 
-    final pillHalfH = radius * 0.059;
-    final pillHalfLMax = radius * 0.096;
+    final pillHalfH = radius * 0.065;
+    final pillHalfLMax = radius * 0.16;
 
     // Short, near-round "bean" at spawn and right before the pop — note the
     // round stroke caps already add pillHalfH of visible length past each
@@ -67,12 +67,11 @@ class CircleDisappearEffect extends PositionComponent {
       pillHalfL = lerpDouble(pillHalfLMax, startHalfLen, p)!;
     }
 
-    // Spread (distance from center) snaps out fast — full radius reached
-    // within _spreadDuration (linear, not eased, so it doesn't front-load
-    // into the very first frame) — then holds there for the remainder of
-    // the effect while only opacity/length keep animating.
-    final spreadT = (_elapsed / _spreadDuration).clamp(0.0, 1.0);
-    final spread = radius * lerpDouble(0.46, 0.95, spreadT)!;
+    // Spread (distance from center) grows monotonically and visibly for the
+    // whole effect, never retreating even while the dash shrinks back down —
+    // dashes start a bit apart and keep drifting further out as they animate.
+    final spreadP = Curves.easeOut.transform(t);
+    final spread = radius * lerpDouble(0.46, 0.95, spreadP)!;
 
     // Opacity holds full almost the whole time, then fades hard right at
     // the very end so the dashes visibly pop away (reference frame 4→5).
@@ -94,7 +93,7 @@ class CircleDisappearEffect extends PositionComponent {
     final dashPath = _buildDashPath(pillHalfL);
 
     for (int i = 0; i < _segmentCount; i++) {
-      final angle = (i / _segmentCount) * pi * 2;
+      final angle = _angleOffset + (i / _segmentCount) * pi * 2;
       canvas.save();
       canvas.translate(cos(angle) * spread, sin(angle) * spread);
       canvas.rotate(angle);

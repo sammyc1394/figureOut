@@ -7,6 +7,7 @@ import 'package:figureout/src/functions/blink_alpha_target.dart';
 import 'dart:math' as math;
 
 import '../effect/AttackExplosionEffect.dart';
+import '../effect/HexagonBurstEffect.dart';
 import '../functions/OverlapHighlightable.dart';
 import 'shape_path_utils.dart';
 
@@ -333,12 +334,11 @@ class HexagonShape extends PositionComponent
 
       if (_disappearT >= 1.0) {
 
-        // 일반 제거 explosion (zoom 제거)
+        // 일반 제거: 육각형 꼭짓점 방향으로 6갈래 파티클 버스트
         parent?.add(
-          AttackExplosionEffect(
-            basePath: _buildExplosionHexagonPath(),
+          HexagonBurstEffect(
             position: position.clone(),
-            size: size.clone(),
+            radius: (size.x / 2) * scale.x,
             color: const Color(0xFF398A63),
           ),
         );
