@@ -12,6 +12,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
+import '../effect/PentagonBurstEffect.dart';
 import '../functions/OverlapHighlightable.dart';
 import 'shape_path_utils.dart';
 
@@ -64,19 +65,18 @@ class PentagonShape extends PositionComponent
   static const double _pressTick = 1.0;
   Vector2? _frozenPosition;
 
+  double _shakeElapsed = 0.0;
+  static const double _shakeFrequency = 45.0;
+  static const double _shakeAngleAmplitude = 0.07;
+
   // ===============================
-  // PULSE
+  // SHAKE ENVELOPE
   // ===============================
 
-  static const Color _pulseColor = Color(0xFFFF6AD5);
-
-  static const double _pulseMaxThickness = 18.0;
   static const double _pulseAppearTime = 0.10;
   static const double _pulseDisappearTime = 0.12;
-  static const double _pulseCycleSeconds = 0.36;
 
   double _pulseThicknessT = 0.0;
-  double _pulsePhase = 0.0;
 
   // ===============================
   // GEOMETRY
@@ -195,9 +195,11 @@ class PentagonShape extends PositionComponent
         _pulseThicknessT += dt / _pulseAppearTime;
       }
 
-      _pulsePhase += dt / _pulseCycleSeconds;
+      _shakeElapsed += dt;
 
-      _pulsePhase -= _pulsePhase.floorToDouble();
+      angle = sin(_shakeElapsed * _shakeFrequency) *
+          _shakeAngleAmplitude *
+          _pulseThicknessT;
 
       _pressElapsed += dt;
 
@@ -209,6 +211,7 @@ class PentagonShape extends PositionComponent
 
         if (energy <= 0) {
           wasRemovedByUser = true;
+          _playRemoveEffect();
           removeFromParent();
           return;
         }
@@ -227,6 +230,8 @@ class PentagonShape extends PositionComponent
       }
 
       _pressElapsed = 0.0;
+      _shakeElapsed = 0.0;
+      angle = 0.0;
     }
 
     if ((attackTime ?? 0) > 0) {
@@ -345,37 +350,6 @@ class PentagonShape extends PositionComponent
 
     super.render(canvas);
 
-    if (!isDark && _pulseThicknessT > 0.0) {
-
-      final totalThickness = _pulseMaxThickness * _pulseThicknessT;
-
-      final bandW = totalThickness / 2.5;
-
-      for (int i = 0; i < 3; i++) {
-
-        final innerR = _baseRadius + bandW * i;
-        final outerR = innerR + bandW;
-
-        final ring = _buildRingEvenOdd(_center, innerR, outerR);
-
-        final phase = (_pulsePhase + i / 3.0) % 1.0;
-
-        final tri = phase < 0.5 ? (phase * 2.0) : (2.0 - phase * 2.0);
-
-        final smooth = tri * tri * (3 - 2 * tri);
-
-        final opacity = lerpDouble(0.10, 0.34, smooth)!;
-
-        final paint = Paint()
-          ..style = PaintingStyle.fill
-          ..color = _pulseColor.withValues(
-            alpha: opacity * _pulseThicknessT * _blinkAlpha,
-          );
-
-        canvas.drawPath(ring, paint);
-      }
-    }
-
     if (_isLongPressing && !isDark && energy > 0) {
 
       final c = _visualPentagonCenter
@@ -433,23 +407,6 @@ class PentagonShape extends PositionComponent
     path.close();
 
     return path;
-  }
-
-  Path _buildRingEvenOdd(
-      Offset c,
-      double innerR,
-      double outerR,
-      ) {
-
-    final outer = _buildPentagonPath(c, outerR);
-    final inner = _buildPentagonPath(c, innerR);
-
-    final ring = Path()..fillType = PathFillType.evenOdd;
-
-    ring.addPath(outer, Offset.zero);
-    ring.addPath(inner, Offset.zero);
-
-    return ring;
   }
 
   Path _buildHandDrawnCircle(
@@ -543,12 +500,12 @@ class PentagonShape extends PositionComponent
     _isLongPressing = true;
 
     _pulseThicknessT = 0.0;
-    _pulsePhase = 0.0;
     _pressElapsed = 0.0;
 
     energy--;
     if (energy <= 0) {
       wasRemovedByUser = true;
+      _playRemoveEffect();
       removeFromParent();
       return;
     }
@@ -574,6 +531,16 @@ class PentagonShape extends PositionComponent
     }
 
     return null;
+  }
+
+  void _playRemoveEffect() {
+    parent?.add(
+      PentagonBurstEffect(
+        position: position.clone(),
+        radius: _baseRadius,
+        color: const Color(0xFFF3ACB1),
+      ),
+    );
   }
 
   Path _buildExplosionPentagonPath() {
