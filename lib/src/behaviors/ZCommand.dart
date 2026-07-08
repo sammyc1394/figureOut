@@ -81,15 +81,19 @@ class ZCommand implements ShapeBehavior {
       final duration = distV / speed;
       final completer = Completer<void>();
 
-      shape.add(
-        MoveEffect.to(
-          target,
-          EffectController(duration: duration, curve: Curves.linear),
-          onComplete: () {
-            if (!completer.isCompleted) completer.complete();
-          },
-        ),
+      final effect = MoveEffect.to(
+        target,
+        EffectController(duration: duration, curve: Curves.linear),
+        onComplete: () {
+          if (!completer.isCompleted) completer.complete();
+        },
       );
+      shape.add(effect);
+      // A freshly-created effect always starts un-paused — if the shape was
+      // already paused (e.g. aftermath overlay showing) the moment this leg
+      // began, freeze it immediately instead of letting it run one leg
+      // un-paused before the next pause sweep catches it.
+      if (isShapePaused(shape)) effect.pause();
 
       await completer.future;
     }

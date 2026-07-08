@@ -1710,6 +1710,11 @@ class OneSecondGame extends FlameGame
     _missionResolved = true;
     _timerPaused = true;
 
+    // Freeze shapes in place behind the aftermath dialog — without this,
+    // fail/continue results (which don't go through _clearAllShapes below)
+    // left every shape running its normal update loop under the overlay.
+    _pauseAllGameplayComponents();
+
     if (result == StageResult.success) {
       _stopEnemyBehaviors();
       _clearAllShapes();
@@ -2509,6 +2514,16 @@ bool _isStraightLine(List<Vector2> path) {
     _timerPaused = true;
     // _timerEndedNotified = true;
 
+    _pauseAllGameplayComponents();
+
+    overlays.add('pause');
+  }
+
+  // Freezes every shape/effect/behavior component in place — used both by
+  // the manual pause overlay and by the aftermath overlay (fail/continue),
+  // which otherwise leaves shapes moving/blinking behind the blurred dialog
+  // since showAftermathScreen doesn't go through pauseGame()'s flow.
+  void _pauseAllGameplayComponents() {
     for (final c in children.whereType<CircleShape>()) {
       c.isPaused = true;
     }
@@ -2556,8 +2571,6 @@ bool _isStraightLine(List<Vector2> path) {
         b.isPaused = true;
       }
     }
-
-    overlays.add('pause');
   }
 
   void resumeGame() {
