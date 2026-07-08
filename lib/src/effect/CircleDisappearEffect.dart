@@ -60,10 +60,12 @@ class CircleDisappearEffect extends PositionComponent {
     // then shrinks back down to a short blob before popping away.
     final double pillHalfL;
     if (t <= _growEnd) {
-      final p = Curves.easeOut.transform(t / _growEnd);
+      final p = Curves.easeOut.transform((t / _growEnd).clamp(0.0, 1.0));
       pillHalfL = lerpDouble(startHalfLen, pillHalfLMax, p)!;
     } else {
-      final p = Curves.easeIn.transform((t - _growEnd) / (1.0 - _growEnd));
+      final p = Curves.easeIn.transform(
+        ((t - _growEnd) / (1.0 - _growEnd)).clamp(0.0, 1.0),
+      );
       pillHalfL = lerpDouble(pillHalfLMax, startHalfLen, p)!;
     }
 
@@ -80,7 +82,11 @@ class CircleDisappearEffect extends PositionComponent {
     if (t <= 0.82) {
       opacity = 1.0;
     } else {
-      opacity = 1.0 - Curves.easeIn.transform((t - 0.82) / 0.18);
+      // t is clamped to [0,1] above, but (t - 0.82) / 0.18 can still land a
+      // hair past 1.0 from floating-point rounding (e.g. 1.0000000000000002),
+      // and Curve.transform asserts its input is exactly within [0, 1].
+      final fadeT = ((t - 0.82) / 0.18).clamp(0.0, 1.0);
+      opacity = 1.0 - Curves.easeIn.transform(fadeT);
     }
     if (opacity <= 0.01) return;
 
