@@ -667,6 +667,7 @@ class OneSecondGame extends FlameGame
           final result = await finishCurrentWave(
             currentWave,
             spawnedThisMission,
+            runId: runId,
           );
 
           if (result != StageResult.success) {
@@ -678,6 +679,10 @@ class OneSecondGame extends FlameGame
           // here do we advance the continue checkpoint. Continue always
           // replays a round from its start, at the same pacing it originally
           // played at, so shapes reappear exactly as they did the first time.
+          // Guard against a stale run: finishCurrentWave already returns
+          // `cancelled` (not `success`) once superseded, but double-check
+          // here too so a corrupted checkpoint can never slip through.
+          if (runId != _runToken) return StageResult.cancelled;
           _lastRoundStartIndex = i + 1;
           debugPrint('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
         } else {
@@ -711,7 +716,16 @@ class OneSecondGame extends FlameGame
         prepared,
         spawnedThisMission,
         currentWave,
+        runId: runId,
       );
+
+      // This spawn's awaits (add/loaded/behavior) may take long enough that
+      // a fail->continue happened while it was in flight, superseding this
+      // run. spawnPreparedEnemy already removed the shape it just added in
+      // that case, so stop immediately instead of spawning further enemies
+      // (which would otherwise leak the *next* round's shapes into the
+      // freshly-resumed scene).
+      if (runId != _runToken) return StageResult.cancelled;
 
       final loopEnd = DateTime.now();
       debugPrint('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
@@ -721,14 +735,24 @@ class OneSecondGame extends FlameGame
     return await finishCurrentWave(
       currentWave,
       spawnedThisMission,
+      runId: runId,
     );
   }
 
   Future<StageResult> finishCurrentWave(
       Set<Component> currentWave,
-      Set<Component> spawnedThisMission,
-      ) async {
+      Set<Component> spawnedThisMission, {
+      required int runId,
+      }) async {
     await _waitForTargetsMounted(currentWave);
+
+    // A fail->continue can supersede this run while the awaits above were
+    // in flight. The new run's _hardResetMissionState() already removed
+    // every shape this (now-stale) run was tracking, which would otherwise
+    // make clearTargets look empty / already-cleared below and falsely
+    // report success — corrupting _lastRoundStartIndex for the *new* run.
+    // Bail out as cancelled before drawing any conclusion from the scene.
+    if (runId != _runToken) return StageResult.cancelled;
 
     final clearTargets = _currentClearTargets(currentWave);
 
@@ -745,7 +769,7 @@ class OneSecondGame extends FlameGame
 
     _initOrder();
 
-    final result = await waitUntilMissionCleared(clearTargets);
+    final result = await waitUntilMissionCleared(clearTargets, runId: runId);
 
     for (final comp in List<Component>.from(spawnedThisMission)) {
       comp.removeFromParent();
@@ -898,8 +922,9 @@ class OneSecondGame extends FlameGame
   Future<void> spawnPreparedEnemy(
       PreparedEnemy enemy,
       Set<Component> spawnedThisMission,
-      Set<Component> currentWave,
-      ) async {
+      Set<Component> currentWave, {
+      required int runId,
+      }) async {
     final shape = _createShapeFromPrepared(enemy);
 
     shape.position = enemy.actPosition;
@@ -915,6 +940,17 @@ class OneSecondGame extends FlameGame
     if (enemy.behavior != null) {
       ShapeBehavior behavior = enemy.behavior!;
       await behavior.apply(shape);
+    }
+
+    // The awaits above (add/loaded/behavior) can take long enough for a
+    // fail->continue to supersede this run (new _runToken) while this shape
+    // was still spawning. If that happened, don't register it — the new
+    // run already cleared and rebuilt the scene from its own checkpoint, so
+    // leaving this shape in would leak a stray (often next-round) shape
+    // into it. Just drop what we built.
+    if (runId != _runToken) {
+      shape.removeFromParent();
+      return;
     }
 
     spawnedThisMission.add(shape);
@@ -1264,7 +1300,7 @@ class OneSecondGame extends FlameGame
   }
 
   // 그냥 도형 다 죽였는지 여부
-    Future<StageResult> waitUntilMissionCleared(Set<Component> targets) async {
+    Future<StageResult> waitUntilMissionCleared(Set<Component> targets, {required int runId}) async {
       // add 직후 같은 프레임 race 방지
       await Future<void>.delayed(Duration.zero);
 
@@ -1277,13 +1313,22 @@ class OneSecondGame extends FlameGame
       // debugPrint("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
 
       while (true) {
+        // Check staleness/timeout BEFORE the visual-effects wait below, not
+        // after: a lingering unpaused effect (e.g. a top-level slice-line
+        // effect not covered by _pauseAllGameplayComponents) can otherwise
+        // keep this loop stuck in the "continue" branch, past the point
+        // where a fail->continue has already superseded this run, and it
+        // would resurface later mid-way through a *newer* run's attempt
+        // with a stale success/fail verdict computed against a scene that's
+        // no longer this run's.
+        if (runId != _runToken) return StageResult.cancelled;
+        if (_isTimeOver) return StageResult.fail;
+
       // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
         if (_hasAnyActiveVisualEffectsInTree()) {
           await Future.delayed(const Duration(milliseconds: 60));
           continue;
         }
-
-        if (_isTimeOver) return StageResult.fail;
 
         final remaining = targets.where((c) {
           // 1) 다크 도형 제외
