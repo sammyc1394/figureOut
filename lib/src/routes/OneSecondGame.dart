@@ -203,7 +203,13 @@ class OneSecondGame extends FlameGame
       }
     }
 
-    shapeCountNotifier.value = Map.unmodifiable(counts);
+    final snapshot = Map<String, int>.unmodifiable(counts);
+    // 컴포넌트 제거/추가는 Flame의 update() 도중(위젯 build phase 중)에도 발생할 수 있어,
+    // 그 자리에서 바로 notifier.value를 갱신하면 "setState() called during build" 예외가 난다.
+    // 프레임이 끝난 뒤로 미뤄서 안전하게 갱신한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      shapeCountNotifier.value = snapshot;
+    });
   }
 
   @override
