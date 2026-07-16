@@ -17,8 +17,6 @@ class PauseOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isKr = Localizations.localeOf(context).languageCode == 'ko';
-
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
       child: Container(
@@ -58,12 +56,35 @@ class PauseOverlayWidget extends StatelessWidget {
                         SizedBox(width: gap),
                         GestureDetector(
                           onTap: onResume,
-                          child: Image.asset(
-                            isKr
-                                ? 'assets/kr_resume_button.png'
-                                : 'assets/resume_button.png',
+                          child: Container(
                             width: resumeW,
-                            fit: BoxFit.contain,
+                            height: boxW * 0.14,
+                            padding: EdgeInsets.symmetric(horizontal: resumeW * 0.08),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE4E0D3),
+                              borderRadius: BorderRadius.all(Radius.circular(999)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: const Color(0xFF7BA6C5),
+                                  size: boxW * 0.09,
+                                ),
+                                SizedBox(width: resumeW * 0.04),
+                                Text(
+                                  i18n.t('resume'),
+                                  style: TextStyle(
+                                    fontFamily: appFontFamily,
+                                    fontSize: boxW * 0.055,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF232323),
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         SizedBox(width: gap),

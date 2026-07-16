@@ -39,27 +39,44 @@ void main() async {
   final deviceLocale = PlatformDispatcher.instance.locale;
   final deviceLang = deviceLocale.languageCode;
 
-  const supportedLanguages = ['en', 'ko', 'ja'];
+  const supportedLanguages = ['en', 'ko', 'ja', 'fr', 'es', 'zh-Hans', 'zh-Hant'];
+  const hantRegions = ['TW', 'HK', 'MO'];
 
-  final locale = supportedLanguages.contains(deviceLang)
-      ? deviceLang
-      : 'en'; // fallback
+  String resolveLocale() {
+    if (deviceLang == 'zh') {
+      final script = deviceLocale.scriptCode;
+      if (script == 'Hant') return 'zh-Hant';
+      if (script == 'Hans') return 'zh-Hans';
+      return hantRegions.contains(deviceLocale.countryCode) ? 'zh-Hant' : 'zh-Hans';
+    }
+    return supportedLanguages.contains(deviceLang) ? deviceLang : 'en'; // fallback
+  }
 
-    Map<String, Map<String, String>> translations;
+  final locale = resolveLocale();
+
+    // 로컬 데이터를 기본값으로 두고, 시트에 등록된 키만 덮어쓴다.
+    // (시트에 아직 키가 없는 항목도 로컬 폴백으로 항상 표시되도록)
+    final Map<String, Map<String, String>> translations = Map.of(translationData);
 
   try {
     // Google Sheet에서 번역 로드
-    translations = await TranslationSheetService()
+    final sheetTranslations = await TranslationSheetService()
         .fetchTranslations()
         .timeout(const Duration(seconds: 5));
-    if (translations.isEmpty) {
+    if (sheetTranslations.isEmpty) {
       throw Exception('Empty translation sheet');
+    }
+    // 언어별로 병합: 시트 값이 있으면 덮어쓰고, 없으면 로컬 폴백 값을 유지한다.
+    for (final entry in sheetTranslations.entries) {
+      translations[entry.key] = {
+        ...?translations[entry.key],
+        ...entry.value,
+      };
     }
     debugPrint('[i18n] Loaded translations from Google Sheet');
   } catch (e) {
-    // 실패 시 local Dart fallback
-    translations = translationData;
-    debugPrint('[i18n] Failed to load sheet, using local translations');
+    // 실패 시 local Dart fallback만 사용
+    debugPrint('[i18n] Failed to load sheet, using local translations only');
     debugPrint(e.toString());
   }
 

@@ -16,7 +16,10 @@ class TranslationSheetService {
 
   String get sheetName => 'Translations';
   String get encodedSheetName => Uri.encodeComponent(sheetName);
-  String get range => 'A2:D'; // key | ko | en | ja
+  // key | ko | en | ja | zh-Hans | zh-Hant | fr | es
+  String get range => 'A2:H';
+
+  static const _columnLocales = ['ko', 'en', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'es'];
 
   Future<Map<String, Map<String, String>>> fetchTranslations() async {
     final uri = Uri.parse(
@@ -40,11 +43,15 @@ class TranslationSheetService {
       final key = row[0]?.toString().trim();
       if (key == null || key.isEmpty) continue;
 
-      result[key] = {
-        'ko': row.length > 1 ? row[1]?.toString().trim() ?? '' : '',
-        'en': row.length > 2 ? row[2]?.toString().trim() ?? '' : '',
-        'ja': row.length > 3 ? row[3]?.toString().trim() ?? '' : '',
-      };
+      final entry = <String, String>{};
+      for (var i = 0; i < _columnLocales.length; i++) {
+        final cellIndex = i + 1; // column B is index 1, right after the key
+        final value = row.length > cellIndex ? row[cellIndex]?.toString().trim() ?? '' : '';
+        if (value.isNotEmpty) {
+          entry[_columnLocales[i]] = value;
+        }
+      }
+      result[key] = entry;
     }
 
     return result;

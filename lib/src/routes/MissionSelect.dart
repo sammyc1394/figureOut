@@ -169,9 +169,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                         ),
                       ),
                       Text(
-                        stage.name.isNotEmpty
-                            ? stage.name
-                            : 'Stage ${widget.stageIndex + 1}',
+                        '${i18n.t('stage')} ${widget.stageIndex + 1}',
                         style: TextStyle(
                           fontFamily: appFontFamily,
                           fontSize: titleFontSize,

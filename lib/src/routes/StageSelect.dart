@@ -134,7 +134,6 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                       },
                       itemBuilder: (context, index) {
                         final svgPath = stagesSVG[index % stagesSVG.length];
-                        final stage = stages[index];
                         final isSelected = index == _currentIndex;
 
                         return GestureDetector(
@@ -185,9 +184,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                             fit: BoxFit.contain,
                                           ),
                                           Text(
-                                            stage.name.isNotEmpty
-                                                ? stage.name
-                                                : 'Stage ${index + 1}',
+                                            '${i18n.t('stage')} ${index + 1}',
                                             style: TextStyle(
                                               fontSize: titleFontSize,
                                               fontWeight: FontWeight.w500,
