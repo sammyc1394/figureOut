@@ -28,8 +28,6 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isKr = Localizations.localeOf(context).languageCode == 'ko';
-
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
       child: Container(
@@ -62,7 +60,7 @@ class AftermathOverlayWidget extends StatelessWidget {
                         _heart(panelWidth, panelHeight),
                         _failTexts(panelWidth, panelHeight),
                       ],
-                      _buttons(panelWidth, panelHeight, isKr),
+                      _buttons(panelWidth, panelHeight),
                     ],
                   ),
                 );
@@ -114,11 +112,12 @@ class AftermathOverlayWidget extends StatelessWidget {
   Widget _completedText(double w, double h) {
     return Positioned(
       top: h * 0.60,
-      left: 0,
-      right: 0,
+      left: w * 0.08,
+      right: w * 0.08,
       child: Center(
         child: Text(
-          'Completed!',
+          i18n.t('level_completed'),
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: appFontFamily,
             fontSize: h * 0.09,
@@ -145,12 +144,13 @@ class AftermathOverlayWidget extends StatelessWidget {
   Widget _failTexts(double w, double h) {
     return Positioned(
       top: h * 0.5,
-      left: 0,
-      right: 0,
+      left: w * 0.08,
+      right: w * 0.08,
       child: Column(
         children: [
           Text(
-            'Almost there!',
+            i18n.t('almost_there'),
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: appFontFamily,
               fontSize: h * 0.09,
@@ -159,9 +159,10 @@ class AftermathOverlayWidget extends StatelessWidget {
               decoration: TextDecoration.none,
             ),
           ),
-          const SizedBox(height: 0.8),
+          const SizedBox(height: 4),
           Text(
-            'Continue from where you left off.',
+            i18n.t('resume_description'),
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: appFontFamily,
               fontSize: h * 0.055,
@@ -174,7 +175,7 @@ class AftermathOverlayWidget extends StatelessWidget {
     );
   }
 
-  Widget _buttons(double w, double h, isKr) {
+  Widget _buttons(double w, double h) {
     // Matches Flame version proportions:
     final btnSize = w * 0.10;
     final pillW = w * 0.47;
@@ -194,18 +195,66 @@ class AftermathOverlayWidget extends StatelessWidget {
           ),
           GestureDetector(
             onTap: result == StageResult.success ? onPlay : onContinue,
-            child: SizedBox(
-              width: pillW,
-              height: pillH,
-              child: result == StageResult.success ?
-                Image.asset('assets/next_button.png', width: pillH, height: pillH) :
-                isKr ? Image.asset('assets/kr_continue_button.png', width: pillH, height: pillH) :
-                        Image.asset('assets/continue_button.png', width: pillH, height: pillH)
-            ),
+            child: result == StageResult.success
+                ? SizedBox(
+                    width: pillW,
+                    height: pillH,
+                    child: Image.asset('assets/next_button.png', width: pillH, height: pillH),
+                  )
+                : _continueButton(pillW, pillH),
           ),
           GestureDetector(
             onTap: onRetry,
             child: Image.asset('assets/Replay_button_blue.png', width: btnSize, height: btnSize),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _continueButton(double pillW, double pillH) {
+    return Container(
+      width: pillW,
+      height: pillH,
+      padding: EdgeInsets.symmetric(horizontal: pillW * 0.06),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7BA6C5),
+        borderRadius: BorderRadius.circular(pillH / 2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: pillH * 0.16, vertical: pillH * 0.08),
+            decoration: BoxDecoration(
+              color: const Color(0xFF232323),
+              borderRadius: BorderRadius.circular(pillH * 0.15),
+            ),
+            child: Text(
+              'AD',
+              style: TextStyle(
+                fontFamily: appFontFamily,
+                fontSize: pillH * 0.3,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+          SizedBox(width: pillW * 0.05),
+          Flexible(
+            child: Text(
+              i18n.t('continue'),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: appFontFamily,
+                fontSize: pillH * 0.42,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFE4E0D3),
+                decoration: TextDecoration.none,
+              ),
+            ),
           ),
         ],
       ),
