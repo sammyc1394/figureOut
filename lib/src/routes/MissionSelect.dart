@@ -221,7 +221,8 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                   pageBuilder: (ctx, _, __) => Material(
                                     color: Colors.transparent,
                                     child: NoHeartsOverlay(
-                                      onOk: () => Navigator.of(ctx).pop(),
+                                      onClose: () => Navigator.of(ctx).pop(),
+                                      onWatchAd: () => Navigator.of(ctx).pop(),
                                     ),
                                   ),
                                 );
