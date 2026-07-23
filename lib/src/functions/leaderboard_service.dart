@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LeaderboardEntry {
@@ -107,6 +108,22 @@ class LeaderboardService {
   static double _lastRunScore = 0.0;
   static double get lastRunScore => _lastRunScore;
 
+  static bool _firebaseInitialized = false;
+
+  static Future<bool> _ensureFirebaseInitialized() async {
+    if (_firebaseInitialized) return true;
+    try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+      _firebaseInitialized = Firebase.apps.isNotEmpty;
+      return _firebaseInitialized;
+    } catch (e) {
+      debugPrint('[Firebase Init Safeguard Error] $e');
+      return false;
+    }
+  }
+
   /// 게임 판마다 점수 누적 저장 (로컬 히스토리 + Cloud Firestore 기록 생성)
   static Future<bool> saveScore(double score) async {
     _lastRunScore = score;
@@ -144,17 +161,19 @@ class LeaderboardService {
 
     // 2. Cloud Firestore 온라인 랭킹 누적 저장
     try {
-      FirebaseFirestore.instance
-          .collection('endless_leaderboard')
-          .doc(entryId)
-          .set({
-        'uuid': uuid,
-        'nickname': nickname,
-        'score': score,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)).catchError((e) {
-        debugPrint('[Firestore Sync Error] $e');
-      });
+      if (await _ensureFirebaseInitialized()) {
+        FirebaseFirestore.instance
+            .collection('endless_leaderboard')
+            .doc(entryId)
+            .set({
+          'uuid': uuid,
+          'nickname': nickname,
+          'score': score,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)).catchError((e) {
+          debugPrint('[Firestore Sync Error] $e');
+        });
+      }
     } catch (e) {
       debugPrint('[Firestore Save Error] $e');
     }
@@ -165,19 +184,22 @@ class LeaderboardService {
   /// 내 점수의 파이어베이스 실시간 순위 구하기 (1위, 2위, 5위...)
   static Future<int> getPlayerRank(double score) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('endless_leaderboard')
-          .get()
-          .timeout(const Duration(seconds: 4));
+      if (await _ensureFirebaseInitialized()) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('endless_leaderboard')
+            .get()
+            .timeout(const Duration(seconds: 4));
 
-      int higherCount = 0;
-      for (final doc in snapshot.docs) {
-        final docScore = (doc.data()['score'] as num?)?.toDouble() ?? 0.0;
-        if (docScore > score) {
-          higherCount++;
+        int higherCount = 0;
+        for (final doc in snapshot.docs) {
+          final docScore = (doc.data()['score'] as num?)?.toDouble() ?? 0.0;
+          if (docScore > score) {
+            higherCount++;
+          }
         }
+        return higherCount + 1;
       }
-      return higherCount + 1;
+      return 1;
     } catch (e) {
       debugPrint('[Rank Fetch Error] $e');
       return 1;
@@ -210,35 +232,37 @@ class LeaderboardService {
     ];
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('endless_leaderboard')
-          .get()
-          .timeout(const Duration(seconds: 4));
+      if (await _ensureFirebaseInitialized()) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('endless_leaderboard')
+            .get()
+            .timeout(const Duration(seconds: 4));
 
-      final docs = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return LeaderboardEntry(
-          uuid: data['uuid'] ?? doc.id,
-          nickname: data['nickname'] ?? '익명',
-          score: (data['score'] as num?)?.toDouble() ?? 0.0,
-          date: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        );
-      }).toList();
+        final docs = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return LeaderboardEntry(
+            uuid: data['uuid'] ?? doc.id,
+            nickname: data['nickname'] ?? '익명',
+            score: (data['score'] as num?)?.toDouble() ?? 0.0,
+            date: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          );
+        }).toList();
 
-      final combined = <LeaderboardEntry>[...docs];
-      for (final loc in localEntries) {
-        if (!combined.any((e) => e.uuid == loc.uuid)) {
-          combined.add(loc);
+        final combined = <LeaderboardEntry>[...docs];
+        for (final loc in localEntries) {
+          if (!combined.any((e) => e.uuid == loc.uuid)) {
+            combined.add(loc);
+          }
         }
-      }
-      for (final sample in globalSampleEntries) {
-        if (!combined.any((e) => e.nickname == sample.nickname)) {
-          combined.add(sample);
+        for (final sample in globalSampleEntries) {
+          if (!combined.any((e) => e.nickname == sample.nickname)) {
+            combined.add(sample);
+          }
         }
-      }
 
-      combined.sort((a, b) => b.score.compareTo(a.score));
-      return combined.take(limit).toList();
+        combined.sort((a, b) => b.score.compareTo(a.score));
+        return combined.take(limit).toList();
+      }
     } catch (e) {
       debugPrint('[Leaderboard Fetch Error] $e');
     }

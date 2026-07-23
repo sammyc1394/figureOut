@@ -964,7 +964,11 @@ class OneSecondGame extends FlameGame
       await behavior.apply(shape);
     }
     if (enemy.isBlinking) {
-      await add(BlinkingBehaviorComponent(target: shape, cycleTime: 1.8));
+      await add(BlinkingBehaviorComponent(
+        shape: shape,
+        visibleDuration: 1.5,
+        invisibleDuration: 1.5,
+      ));
     }
 
     // The awaits above (add/loaded/behavior) can take long enough for a
@@ -1048,8 +1052,6 @@ class OneSecondGame extends FlameGame
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
           order: enemy.order,
-          onInteracted: _onOrderInteracted,
-          onRemoved: shapePoppedReward,
         );
 
       case "Pentagon":
@@ -1062,8 +1064,6 @@ class OneSecondGame extends FlameGame
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
           order: enemy.order,
-          onInteracted: _onOrderInteracted,
-          onRemoved: shapePoppedReward,
         );
 
       case "Hexagon":
@@ -1076,8 +1076,6 @@ class OneSecondGame extends FlameGame
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
           order: enemy.order,
-          onInteracted: _onOrderInteracted,
-          onRemoved: shapePoppedReward,
         );
 
       default:
