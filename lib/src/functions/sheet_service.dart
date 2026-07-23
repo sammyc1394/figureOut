@@ -598,6 +598,7 @@ class EnemyData {
   final int? order;
   final int energy;
   final bool darkYN;
+  final bool isBlinking;
   final ShapeZOrder zOrder;
 
   EnemyData({
@@ -608,6 +609,7 @@ class EnemyData {
     required this.mission,
     required this.energy,
     required this.darkYN,
+    this.isBlinking = false,
     this.attackSeconds,
     this.attackDamage,
     this.order,

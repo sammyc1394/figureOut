@@ -27,7 +27,12 @@ class GameTimerComponent extends PositionComponent {
           anchor: Anchor.topLeft,
         );
 
+  bool isCountUpMode = false;
+
   String _formatTime(double time) {
+    if (isCountUpMode) {
+      return '${time.toStringAsFixed(2)}s';
+    }
     final int seconds = time.floor();
     final int minutes = seconds ~/ 60;
     final int remainingSeconds = seconds % 60;

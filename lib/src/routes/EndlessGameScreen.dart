@@ -182,13 +182,13 @@ class EndlessOneSecondGame extends OneSecondGame {
     survivedTimeNotifier.value = 0.0;
     _isEndlessActive = true;
 
-    // 60초 타이머 세팅
+    // 60초 타이머 세팅 및 0.01초 카운트업 타이머 설정
     initialMaxTime = 60.0;
     currentMissionTime = 60.0;
     remainingTime = 60.0;
 
-    timerBar.totalTime = 60.0;
-    timerBar.updateTime(60.0);
+    timerBar.isCountUpMode = true;
+    timerBar.updateTime(0.0);
 
     _startEndlessSpawnLoop();
   }
@@ -201,29 +201,32 @@ class EndlessOneSecondGame extends OneSecondGame {
         break;
       }
 
-      final enemy = controller.generateRandomEnemy(elapsedGameTime, 1);
-      final flipY = (Vector2 v) => Vector2(v.x, -v.y);
-      final toPlayArea = (Vector2 v, double r, {bool clampInside = true}) {
-        return Vector2(
-          playArea.position.x + v.x * playAreaScaleX,
-          playArea.position.y + v.y * playAreaScaleY,
-        );
-      };
+      final burstCount = controller.getBurstCount(elapsedGameTime);
+      for (int i = 0; i < burstCount; i++) {
+        final enemy = controller.generateRandomEnemy(elapsedGameTime, 1);
+        final flipY = (Vector2 v) => Vector2(v.x, -v.y);
+        final toPlayArea = (Vector2 v, double r, {bool clampInside = true}) {
+          return Vector2(
+            playArea.position.x + v.x * playAreaScaleX,
+            playArea.position.y + v.y * playAreaScaleY,
+          );
+        };
 
-      final prepared = buildPreparedEnemy(
-        enemy: enemy,
-        flipY: flipY,
-        toPlayArea: toPlayArea,
-        checkBehavior: (mov, actPos) => null,
-      );
-
-      if (prepared != null) {
-        await spawnPreparedEnemy(
-          prepared,
-          {},
-          {},
-          runId: 0,
+        final prepared = buildPreparedEnemy(
+          enemy: enemy,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+          checkBehavior: checkBehavior,
         );
+
+        if (prepared != null) {
+          await spawnPreparedEnemy(
+            prepared,
+            {},
+            {},
+            runId: 0,
+          );
+        }
       }
 
       final interval = controller.getSpawnInterval(elapsedGameTime);
@@ -237,6 +240,7 @@ class EndlessOneSecondGame extends OneSecondGame {
     if (_isEndlessActive) {
       elapsedGameTime += dt;
       survivedTimeNotifier.value = elapsedGameTime;
+      timerBar.updateTime(elapsedGameTime);
 
       if (currentMissionTime <= 0) {
         _isEndlessActive = false;

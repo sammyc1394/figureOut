@@ -25,20 +25,35 @@ class EndlessGameController {
     'Z(-50,100,2.0)',
   ];
 
-  /// 경과 시간에 따른 스폰 간격 (1.8초 -> 0.6초)
+  /// 경과 시간에 따른 스폰 간격 (1.2배 빠른 1.5초 -> 0.45초)
   double getSpawnInterval(double elapsedSeconds) {
-    final interval = 1.8 - (elapsedSeconds / 180.0) * 1.2;
-    return interval.clamp(0.6, 1.8);
+    final baseInterval = 1.8 - (elapsedSeconds / 180.0) * 1.2;
+    final interval = baseInterval / 1.2;
+    return interval.clamp(0.45, 1.5);
+  }
+
+  /// 한 번에 스폰할 도형 개수 (1개 ~ 3개 버스트 스폰)
+  int getBurstCount(double elapsedSeconds) {
+    if (elapsedSeconds >= 45.0) {
+      return _random.nextInt(3) + 1; // 1 ~ 3개
+    } else if (elapsedSeconds >= 15.0) {
+      return _random.nextDouble() < 0.45 ? 2 : 1; // 1 ~ 2개
+    }
+    return 1;
   }
 
   /// 무작위 EnemyData 생성 (경과 시간 elapsedSeconds 기반 난이도 스케일링)
   EnemyData generateRandomEnemy(double elapsedSeconds, int missionIndex) {
-    // 15초 이후부터 검은 도형 출현 (약 15%~20%)
+    // 15초 이후부터 검은 도형 출현 (약 18%)
     final isDark = (elapsedSeconds >= 15.0) && (_random.nextDouble() < 0.18);
     final shapeName = _shapeTypesPool[_random.nextInt(_shapeTypesPool.length)];
 
-    // 에너지는 일반 1~3, 다크는 -1
-    final energy = isDark ? -1 : (_random.nextInt(3) + 1);
+    // 에너지는 일반 1~3, 삼각형은 HP 1~2로 제한, 다크는 -1
+    int energy = isDark ? -1 : (_random.nextInt(3) + 1);
+    if (shapeName == 'Triangle' && !isDark) {
+      energy = _random.nextInt(2) + 1; // 1 or 2
+    }
+
     final scale = (0.8 + _random.nextDouble() * 0.4).toStringAsFixed(1);
     final fullShapeStr = '${shapeName}_scale($scale)_e($energy)';
 
@@ -47,29 +62,29 @@ class EndlessGameController {
     final posY = _random.nextInt(441) - 220;
     final positionStr = '($posX,$posY)';
 
-    // 시간대별 기믹 추가
-    // 0 ~ 30초: 정적 도형
-    // 30 ~ 45초: 움직이는 도형 추가
-    // 45 ~ 60초: 사라지는(Blinking) 도형 추가
-    // 60 ~ 75초: 움직이면서 사라지는 도형 추가
-    // 75초 이상: 순서(Order) 도형 추가
+    // 시간대별 기믹 적용:
+    // 0 ~ 15초: 기본 정적 도형
+    // 15 ~ 30초: 검은 도형 + 움직이는 도형 (Z, C, B, D)
+    // 30 ~ 45초: 사라지는(Blinking) 도형 추가
+    // 45 ~ 60초: 움직이면서 사라지는 도형 동시 출현
+    // 60초 이상: 순서(Order 1, 2, 3...) 도형 추가
     String movementStr = '';
     bool isBlinking = false;
     int? order;
 
-    if (elapsedSeconds >= 30.0) {
-      final shouldMove = (elapsedSeconds >= 60.0) || (_random.nextDouble() < 0.65);
+    if (elapsedSeconds >= 15.0) {
+      final shouldMove = (elapsedSeconds >= 45.0) || (_random.nextDouble() < 0.7);
       if (shouldMove) {
         movementStr = _movementPool[_random.nextInt(_movementPool.length)];
       }
     }
 
-    if (elapsedSeconds >= 45.0) {
-      isBlinking = (elapsedSeconds >= 60.0) || (_random.nextDouble() < 0.5);
+    if (elapsedSeconds >= 30.0) {
+      isBlinking = (elapsedSeconds >= 45.0) || (_random.nextDouble() < 0.55);
     }
 
-    if (elapsedSeconds >= 75.0) {
-      if (_random.nextDouble() < 0.35) {
+    if (elapsedSeconds >= 60.0) {
+      if (_random.nextDouble() < 0.4) {
         order = _random.nextInt(3) + 1; // 1, 2, 3 순서
       }
     }
@@ -88,6 +103,7 @@ class EndlessGameController {
       mission: missionIndex,
       energy: energy,
       darkYN: isDark,
+      isBlinking: isBlinking,
       attackSeconds: double.tryParse(attackSec),
       attackDamage: 1.0,
       order: order,
