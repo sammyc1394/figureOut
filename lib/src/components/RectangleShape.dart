@@ -53,6 +53,7 @@ class RectangleShape extends PositionComponent
   late Path _outlinePath;
   late Path _wobblePath;
   late double _outlineLength;
+  double _darkLifespan = 0.0;
 
   final Paint _attackPaint = Paint()
     ..style = PaintingStyle.stroke
@@ -171,10 +172,15 @@ class RectangleShape extends PositionComponent
   void update(double dt) {
     super.update(dt);
 
-    if ((attackTime ?? 0) <= 0) return;
     if (isPaused) return;
-    if (isDark) return;
-    if (!isAttackable) return;
+
+    if (isDark) {
+      _darkLifespan += dt;
+      if (_darkLifespan >= (attackTime ?? 3.0)) {
+        removeFromParent();
+        return;
+      }
+    }
 
     _attackElapsed += dt;
 

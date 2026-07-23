@@ -124,6 +124,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     final stage = stages[widget.stageIndex];
     final missions = stage.missions;
     final missionNumbers = missions.keys.toList()..sort();
+    if (missionNumbers.isEmpty && (stage.name.toLowerCase().contains('special') || stage.name.toLowerCase().contains('endless') || stage.name.contains('무한'))) {
+      missionNumbers.add(1);
+    }
 
     return Stack(
       children: [
@@ -168,14 +171,22 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                           fit: BoxFit.contain,
                         ),
                       ),
-                      Text(
-                        '${i18n.t('stage')} ${widget.stageIndex + 1}',
-                        style: TextStyle(
-                          fontFamily: appFontFamily,
-                          fontSize: titleFontSize,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                          // decoration: TextDecoration.none,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            (stage.name.toLowerCase().contains('special') || (!stage.name.startsWith('s') && !stage.name.startsWith('S') && stage.name.isNotEmpty))
+                                ? stage.name
+                                : '${i18n.t('stage')} ${widget.stageIndex + 1}',
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontFamily: appFontFamily,
+                              fontSize: titleFontSize,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -200,6 +211,13 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                     final isBossMission = stage.missionIsBoss[missionNo] ?? false;
                     final isLocked = _isBossLocked(stage, missionNo);
                     final isCleared = _isMissionCleared(missionNo);
+
+                    final missionTitle = stage.missionTitle[missionNo] ?? '';
+                    final isEndlessCard = stage.name.toLowerCase().contains('special') ||
+                        stage.name.toLowerCase().contains('endless') ||
+                        missionTitle.toLowerCase().contains('special') ||
+                        missionTitle.toLowerCase().contains('endless') ||
+                        missionTitle.contains('무한');
 
                     return GestureDetector(
                       onTap: isLocked
@@ -250,14 +268,19 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
                               await Future.delayed(const Duration(milliseconds: 300));
                               if (!mounted) return;
-                              await context.push(
-                                '/game',
-                                extra: GameRouteArgs(
-                                  stages: freshStages,
-                                  stageIndex: widget.stageIndex,
-                                  missionIndex: missionNo - 1,
-                                ),
-                              );
+
+                              if (isEndlessCard) {
+                                await context.push('/endless');
+                              } else {
+                                await context.push(
+                                  '/game',
+                                  extra: GameRouteArgs(
+                                    stages: freshStages,
+                                    stageIndex: widget.stageIndex,
+                                    missionIndex: missionNo - 1,
+                                  ),
+                                );
+                              }
                               if (mounted) _loadMissionProgress();
                               } finally {
                                 if (mounted) setState(() => _isNavigating = false);
@@ -277,14 +300,17 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    isBossMission ? 'Boss' : '$missionNo',
-                                    style: TextStyle(
-                                      fontFamily: appFontFamily,
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.black,
-                                      decoration: TextDecoration.none,
+                                  Padding(
+                                    padding: EdgeInsets.only(top: isEndlessCard ? 8.0 : 0.0),
+                                    child: Text(
+                                      isEndlessCard ? '∞' : (isBossMission ? 'Boss' : '$missionNo'),
+                                      style: TextStyle(
+                                        fontFamily: appFontFamily,
+                                        fontSize: isEndlessCard ? 46 : 40,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                        decoration: TextDecoration.none,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
