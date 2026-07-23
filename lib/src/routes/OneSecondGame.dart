@@ -113,6 +113,7 @@ class OneSecondGame extends FlameGame
 
   bool _timerPaused = false;
   bool _isPausedGlobally = false;
+  bool get isPausedGlobally => _isPausedGlobally;
 
   bool _isTimeOver = false;
   
@@ -421,6 +422,20 @@ class OneSecondGame extends FlameGame
       timerBar.updateTime(0);
       _onTimeOver();
     }
+  }
+
+  void resetGameState() {
+    _isTimeOver = false;
+    _timerEndedNotified = false;
+  }
+
+  // 시간 보상 (+1초)
+  void addTimeReward(double seconds) {
+    if (_isTimeOver) return;
+    final maxLimit = initialMaxTime > 0 ? initialMaxTime : 60.0;
+    currentMissionTime = math.min(maxLimit, currentMissionTime + seconds);
+    remainingTime = currentMissionTime;
+    updateTimerUI();
   }
 
   //스폰 중단
@@ -970,8 +985,19 @@ class OneSecondGame extends FlameGame
   PositionComponent _createShapeFromPrepared(PreparedEnemy enemy) {
     PositionComponent? shape;
 
-    double tp = enemy.attackDamage ?? 5;
-    penalty() => applyTimePenalty(tp.abs());
+    final isDark = enemy.isDark;
+    darkTouchPenalty() => applyTimePenalty(10.0);
+    timeoutPenalty() {
+      if (!isDark) {
+        applyTimePenalty(1.0);
+      }
+    }
+    shapePoppedReward() {
+      if (!isDark) {
+        addTimeReward(1.0);
+      }
+      _onOrderedShapeRemoved();
+    }
 
     bool isAttackable = false;
     if (enemy.attackTime != null) isAttackable = true;
@@ -984,26 +1010,27 @@ class OneSecondGame extends FlameGame
           enemy.energy,
           isDark: enemy.isDark,
           isAttackable: isAttackable,
-          onForbiddenTouch: penalty,
+          onForbiddenTouch: darkTouchPenalty,
           attackTime: enemy.attackTime,
-          onExplode: penalty,
+          onExplode: timeoutPenalty,
           customSize: enemy.customSize,
           order: enemy.order,
           onInteracted: _onOrderInteracted,
-          onRemoved: _onOrderedShapeRemoved,
+          onRemoved: shapePoppedReward,
         );
       case "Rectangle":
         shape = RectangleShape(
           enemy.actPosition,
           enemy.energy,
           isDark: enemy.isDark,
-          onForbiddenTouch: penalty,
+          onForbiddenTouch: darkTouchPenalty,
           isAttackable: isAttackable,
           attackTime: enemy.attackTime,
-          onExplode: penalty,
+          onExplode: timeoutPenalty,
           customSize: enemy.customSize,
           order: enemy.order,
           onInteracted: _onOrderInteracted,
+          onRemoved: shapePoppedReward,
           angle: enemy.angle,
         );
 
@@ -1012,9 +1039,9 @@ class OneSecondGame extends FlameGame
           enemy.actPosition,
           enemy.energy,
           isDark: enemy.isDark,
-          onForbiddenTouch: penalty,
+          onForbiddenTouch: darkTouchPenalty,
           attackTime: enemy.attackTime,
-          onExplode: penalty,
+          onExplode: timeoutPenalty,
           customSize: enemy.customSize,
         );
 
@@ -1023,9 +1050,9 @@ class OneSecondGame extends FlameGame
           enemy.actPosition,
           enemy.energy,
           isDark: enemy.isDark,
-          onForbiddenTouch: penalty,
+          onForbiddenTouch: darkTouchPenalty,
           attackTime: enemy.attackTime,
-          onExplode: penalty,
+          onExplode: timeoutPenalty,
           customSize: enemy.customSize,
         );
 
@@ -1034,9 +1061,9 @@ class OneSecondGame extends FlameGame
           enemy.actPosition,
           enemy.energy,
           isDark: enemy.isDark,
-          onForbiddenTouch: penalty,
+          onForbiddenTouch: darkTouchPenalty,
           attackTime: enemy.attackTime,
-          onExplode: penalty,
+          onExplode: timeoutPenalty,
           customSize: enemy.customSize,
         );
 
@@ -1044,7 +1071,7 @@ class OneSecondGame extends FlameGame
         throw Exception("Unknown shapeType");
     }
 
-    return shape;
+    return shape!;
   }
 
   // 생성(시트) 순서를 유지하면서 Top_/Bottom_ 대역으로 z-order를 분리한다.
@@ -1966,7 +1993,7 @@ class OneSecondGame extends FlameGame
     for (final comp in comps) {
 
       if (_isDarkShape(comp)) {
-        applyTimePenalty(5);
+        applyTimePenalty(10);
         continue;
       }
 

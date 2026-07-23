@@ -25,7 +25,7 @@ class SheetService {
     final sheetNames = preloadedSheetNames ?? await fetchSheetNames();
 
     final stageSheetNames = sheetNames
-        .where((name) => name.startsWith('Stage') || name.startsWith('Stages'))
+        .where((name) => name.toLowerCase().contains('stage'))
         .toList();
 
     final targetSheetNames =
@@ -78,7 +78,7 @@ class SheetService {
 
       // ===== Stage 시작 =====
       if (cell != null && (cell.startsWith('s') || cell.startsWith('S'))) {
-        final stgTitle = cell;
+        final stgTitle = (name.toLowerCase().contains('special') || cell.length > 4) ? name : cell;
         final rewardFromS = '';
         final timeFromS = '';
 
@@ -219,6 +219,26 @@ class SheetService {
       currentMissionMap!
           .putIfAbsent(currentMission, () => [])
           .add(enemy);
+    }
+
+    if (stages.isEmpty && (name.toLowerCase().contains('special') || name.toLowerCase().contains('endless') || name.contains('무한'))) {
+      final defaultStage = StageData(
+        name: name,
+        reward: '',
+        timeLimit: '180',
+        missions: {1: []},
+        missionTimeLimits: {1: 180.0},
+        missionTitle: {1: '무한모드'},
+        missionIsBoss: {1: false},
+      );
+      stages.add(defaultStage);
+    } else {
+      for (final stg in stages) {
+        if (stg.missions.isEmpty && (stg.name.toLowerCase().contains('special') || stg.name.toLowerCase().contains('endless') || stg.name.contains('무한'))) {
+          stg.missions[1] = [];
+          stg.missionTitle[1] = '무한모드';
+        }
+      }
     }
 
     return stages;

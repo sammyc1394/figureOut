@@ -66,7 +66,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     try {
       final allSheetNames = await sheetService.fetchSheetNames().timeout(const Duration(seconds: 8));
       final stageNames = allSheetNames
-          .where((n) => n.startsWith('Stage') || n.startsWith('Stages'))
+          .where((n) => n.toLowerCase().contains('stage'))
           .toList();
       cachedStageSheetNames = stageNames.isNotEmpty ? stageNames : allSheetNames;
       cachedStages = await sheetService

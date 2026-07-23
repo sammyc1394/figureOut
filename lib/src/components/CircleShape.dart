@@ -52,6 +52,7 @@ class CircleShape extends PositionComponent
   final Color dangerColor = const Color(0xFFEE0505);
 
   double _blinkAlpha = 1.0;
+  double _darkLifespan = 0.0;
 
   final Paint _overlapOutlinePaint = Paint()
     ..color = Colors.black
@@ -116,8 +117,14 @@ class CircleShape extends PositionComponent
     super.update(dt);
 
     if (isPaused) return;
-    if (isDark) return;
-    if (!isAttackable) return;
+
+    if (isDark) {
+      _darkLifespan += dt;
+      if (_darkLifespan >= (attackTime ?? 3.0)) {
+        removeFromParent();
+        return;
+      }
+    }
 
     // // ------------------------------------------------------------
     // // 즉시 공격 및 공격도형 제거 이펙트 적용
