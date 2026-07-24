@@ -74,15 +74,27 @@ class LeaderboardService {
     final prefs = await SharedPreferences.getInstance();
     String? nickname = prefs.getString(_keyNickname);
 
-    if (forceRefresh || nickname == null || nickname.isEmpty || !nickname.contains('먹는')) {
-      final rand = math.Random();
-      final food = _foods[rand.nextInt(_foods.length)];
-      final animal = _animals[rand.nextInt(_animals.length)];
-      final num = rand.nextInt(9000) + 1000;
-      nickname = '$food먹는 $animal$num';
-
-      await prefs.setString(_keyNickname, nickname);
+    if (forceRefresh || nickname == null || nickname.isEmpty) {
+      nickname = await generateRandomNickname();
     }
+    return nickname;
+  }
+
+  /// 사용자 닉네임 직접 수정 및 저장
+  static Future<void> updateNickname(String newNickname) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyNickname, newNickname.trim());
+  }
+
+  /// 무작위 새로운 닉네임 생성 및 저장
+  static Future<String> generateRandomNickname() async {
+    final rand = math.Random();
+    final food = _foods[rand.nextInt(_foods.length)];
+    final animal = _animals[rand.nextInt(_animals.length)];
+    final num = rand.nextInt(9000) + 1000;
+    final nickname = '$food먹는 $animal$num';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyNickname, nickname);
     return nickname;
   }
 

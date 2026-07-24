@@ -276,10 +276,9 @@ class EndlessOneSecondGame extends OneSecondGame {
     resetGameState();
     startEndlessMode();
   }
-}
 
 /// 기존 게임 에셋(Results_box.png 등)을 사용하는 무한모드 결과 오버레이
-class _EndlessAftermathOverlay extends StatelessWidget {
+class _EndlessAftermathOverlay extends StatefulWidget {
   final double score;
   final int rank;
   final bool isHighScore;
@@ -295,6 +294,75 @@ class _EndlessAftermathOverlay extends StatelessWidget {
     required this.onRetry,
     required this.onMenu,
   });
+
+  @override
+  State<_EndlessAftermathOverlay> createState() => _EndlessAftermathOverlayState();
+}
+
+class _EndlessAftermathOverlayState extends State<_EndlessAftermathOverlay> {
+  late String _currentNickname;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentNickname = widget.nickname;
+  }
+
+  void _showEditNicknameDialog(BuildContext context) {
+    final controller = TextEditingController(text: _currentNickname);
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('✏️ 닉네임 수정', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                maxLength: 12,
+                decoration: const InputDecoration(
+                  labelText: '사용할 닉네임',
+                  hintText: '예: 피자먹는 고양이1234',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final newRandom = await LeaderboardService.generateRandomNickname();
+                  controller.text = newRandom;
+                },
+                icon: const Icon(Icons.casino, size: 18),
+                label: const Text('무작위 닉네임 생성'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final trimmed = controller.text.trim();
+                if (trimmed.isNotEmpty) {
+                  await LeaderboardService.updateNickname(trimmed);
+                  await LeaderboardService.saveScore(widget.score);
+                  setState(() {
+                    _currentNickname = trimmed;
+                  });
+                }
+                if (ctx.mounted) Navigator.of(ctx).pop();
+              },
+              child: const Text('저장'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showLeaderboardDialog(BuildContext context) {
     showDialog(
@@ -336,6 +404,7 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                           ),
                         );
                       }
+
                       return ListView.builder(
                         itemCount: list.length,
                         itemBuilder: (context, index) {
@@ -457,7 +526,7 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                     ),
                   ),
 
-                  // 본문 정보 (첫째 줄: 순위, 둘째 줄: 닉네임, 셋째 줄: 생존시간)
+                  // 본문 정보 (첫째 줄: 순위, 둘째 줄: 닉네임 터치/더블클릭 수정, 셋째 줄: 생존시간)
                   Positioned(
                     top: panelHeight * 0.28,
                     left: panelWidth * 0.08,
@@ -485,12 +554,12 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '🏆 순위: $rank위',
+                                  '🏆 순위: ${widget.rank}위',
                                   style: TextStyle(
                                     fontFamily: appFontFamily,
                                     fontSize: panelHeight * 0.065,
                                     fontWeight: FontWeight.bold,
-                                    color: rank <= 3 ? Colors.deepOrange : const Color(0xFF222222),
+                                    color: widget.rank <= 3 ? Colors.deepOrange : const Color(0xFF222222),
                                     decoration: TextDecoration.none,
                                   ),
                                 ),
@@ -510,18 +579,37 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: panelHeight * 0.02),
-                        Text(
-                          '플레이어: $nickname',
-                          style: TextStyle(
-                            fontFamily: appFontFamily,
-                            fontSize: panelHeight * 0.06,
-                            color: const Color(0xFF333333),
-                            decoration: TextDecoration.none,
+                        GestureDetector(
+                          onTap: () => _showEditNicknameDialog(context),
+                          onDoubleTap: () => _showEditNicknameDialog(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '플레이어: $_currentNickname',
+                                  style: TextStyle(
+                                    fontFamily: appFontFamily,
+                                    fontSize: panelHeight * 0.055,
+                                    color: const Color(0xFF333333),
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.edit, size: 16, color: Color(0xFF64748B)),
+                              ],
+                            ),
                           ),
                         ),
                         SizedBox(height: panelHeight * 0.02),
                         Text(
-                          '생존 시간: ${score.toStringAsFixed(1)}초',
+                          '생존 시간: ${widget.score.toStringAsFixed(1)}초',
                           style: TextStyle(
                             fontFamily: appFontFamily,
                             fontSize: panelHeight * 0.075,
@@ -543,7 +631,7 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         GestureDetector(
-                          onTap: onMenu,
+                          onTap: widget.onMenu,
                           child: Image.asset(
                             'assets/Home_button_blue.png',
                             width: panelWidth * 0.12,
@@ -551,7 +639,7 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                           ),
                         ),
                         GestureDetector(
-                          onTap: onRetry,
+                          onTap: widget.onRetry,
                           child: Container(
                             width: panelWidth * 0.48,
                             height: panelHeight * 0.16,
@@ -600,7 +688,7 @@ class _EndlessAftermathOverlay extends StatelessWidget {
                           ),
                         ),
                         GestureDetector(
-                          onTap: onRetry,
+                          onTap: widget.onRetry,
                           child: Image.asset(
                             'assets/Replay_button_blue.png',
                             width: panelWidth * 0.12,

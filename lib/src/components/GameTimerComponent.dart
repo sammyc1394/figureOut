@@ -71,7 +71,7 @@ class GameTimerComponent extends PositionComponent {
     if (!_ready) return;
 
     if (isCountUpMode) {
-      timerText.text = '${recordTime.floor()}';
+      timerText.text = _formatTime(recordTime);
     } else {
       timerText.text = _formatTime(currentTime);
     }
