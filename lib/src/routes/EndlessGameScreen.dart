@@ -276,6 +276,7 @@ class EndlessOneSecondGame extends OneSecondGame {
     resetGameState();
     startEndlessMode();
   }
+}
 
 /// 기존 게임 에셋(Results_box.png 등)을 사용하는 무한모드 결과 오버레이
 class _EndlessAftermathOverlay extends StatefulWidget {
