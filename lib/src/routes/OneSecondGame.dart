@@ -121,6 +121,7 @@ class OneSecondGame extends FlameGame
   static const double minTimeLimit = 10.0;
   double initialMaxTime = 0.0;
   double currentMissionTime = 0.0;
+  double elapsedGameTime = 0.0;
   double _lastRoundStartTime = 0.0;
   int _lastRoundStartIndex = 0;
   bool _isContinuing = false;
@@ -427,6 +428,7 @@ class OneSecondGame extends FlameGame
   void resetGameState() {
     _isTimeOver = false;
     _timerEndedNotified = false;
+    elapsedGameTime = 0.0;
   }
 
   // 시간 보상 (+1초)
