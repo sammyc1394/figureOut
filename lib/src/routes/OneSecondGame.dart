@@ -1728,7 +1728,7 @@ class OneSecondGame extends FlameGame
   }
 
   void updateTimerUI() {
-    timerBar.updateTime(currentMissionTime);
+    timerBar.updateTime(currentMissionTime, record: elapsedGameTime);
     remainingTime = currentMissionTime; // Sync with legacy if needed
   }
 

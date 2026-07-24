@@ -182,13 +182,14 @@ class EndlessOneSecondGame extends OneSecondGame {
     survivedTimeNotifier.value = 0.0;
     _isEndlessActive = true;
 
-    // 60초 타이머 세팅 및 0.01초 카운트업 타이머 설정
+    // 60초 남은체력 타이머 세팅 & 1초 단위 레코드 텍스트 설정
     initialMaxTime = 60.0;
     currentMissionTime = 60.0;
     remainingTime = 60.0;
 
+    timerBar.totalTime = 60.0;
     timerBar.isCountUpMode = true;
-    timerBar.updateTime(0.0);
+    timerBar.updateTime(60.0, record: 0.0);
 
     _startEndlessSpawnLoop();
   }
@@ -239,10 +240,15 @@ class EndlessOneSecondGame extends OneSecondGame {
     super.update(dt);
     if (_isEndlessActive) {
       elapsedGameTime += dt;
+      currentMissionTime -= dt;
+      if (currentMissionTime > 60.0) {
+        currentMissionTime = 60.0;
+      }
       survivedTimeNotifier.value = elapsedGameTime;
-      timerBar.updateTime(elapsedGameTime);
+      updateTimerUI();
 
       if (currentMissionTime <= 0) {
+        currentMissionTime = 0.0;
         _isEndlessActive = false;
         onGameOver(elapsedGameTime);
       }
