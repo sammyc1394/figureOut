@@ -27,6 +27,9 @@ class GameTimerComponent extends PositionComponent {
           anchor: Anchor.topLeft,
         );
 
+  bool isCountUpMode = false;
+  double recordTime = 0.0;
+
   String _formatTime(double time) {
     final int seconds = time.floor();
     final int minutes = seconds ~/ 60;
@@ -39,7 +42,7 @@ class GameTimerComponent extends PositionComponent {
     await super.onLoad();
 
     timerText = TextComponent(
-      text: _formatTime(currentTime),
+      text: isCountUpMode ? '${recordTime.floor()}' : _formatTime(currentTime),
       anchor: Anchor.centerRight,
       position: Vector2(_textAreaWidth - 8, size.y / 2),
       priority: 10,
@@ -60,10 +63,18 @@ class GameTimerComponent extends PositionComponent {
     updateTime(currentTime);
   }
 
-  void updateTime(double remaining) {
+  void updateTime(double remaining, {double? record}) {
     currentTime = remaining;
+    if (record != null) {
+      recordTime = record;
+    }
     if (!_ready) return;
-    timerText.text = _formatTime(currentTime);
+
+    if (isCountUpMode) {
+      timerText.text = _formatTime(recordTime);
+    } else {
+      timerText.text = _formatTime(currentTime);
+    }
   }
 
   @override

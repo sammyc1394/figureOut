@@ -13,6 +13,7 @@ class PreparedEnemy {
   final double? attackTime;
   final double? attackDamage;
   final ShapeBehavior? behavior;
+  final bool isBlinking;
   final double angle;
   final ShapeZOrder zOrder;
 
@@ -26,6 +27,7 @@ class PreparedEnemy {
     required this.order,
     required this.behavior,
     required this.customSize,
+    this.isBlinking = false,
     this.angle = 0.0,
     this.zOrder = ShapeZOrder.normal,
   });

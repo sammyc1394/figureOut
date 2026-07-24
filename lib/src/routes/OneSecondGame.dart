@@ -121,6 +121,7 @@ class OneSecondGame extends FlameGame
   static const double minTimeLimit = 10.0;
   double initialMaxTime = 0.0;
   double currentMissionTime = 0.0;
+  double elapsedGameTime = 0.0;
   double _lastRoundStartTime = 0.0;
   int _lastRoundStartIndex = 0;
   bool _isContinuing = false;
@@ -427,6 +428,7 @@ class OneSecondGame extends FlameGame
   void resetGameState() {
     _isTimeOver = false;
     _timerEndedNotified = false;
+    elapsedGameTime = 0.0;
   }
 
   // 시간 보상 (+1초)
@@ -933,6 +935,7 @@ class OneSecondGame extends FlameGame
       actPosition: actPosition,
       order: order,
       behavior: behavior,
+      isBlinking: enemy.isBlinking,
       attackTime: enemy.attackSeconds,
       attackDamage: enemy.attackDamage,
       angle: rectAngle,
@@ -961,6 +964,13 @@ class OneSecondGame extends FlameGame
     if (enemy.behavior != null) {
       ShapeBehavior behavior = enemy.behavior!;
       await behavior.apply(shape);
+    }
+    if (enemy.isBlinking) {
+      await add(BlinkingBehaviorComponent(
+        shape: shape,
+        visibleDuration: 1.5,
+        invisibleDuration: 1.5,
+      ));
     }
 
     // The awaits above (add/loaded/behavior) can take long enough for a
@@ -1043,6 +1053,7 @@ class OneSecondGame extends FlameGame
           attackTime: enemy.attackTime,
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
+          order: enemy.order,
         );
 
       case "Pentagon":
@@ -1054,6 +1065,7 @@ class OneSecondGame extends FlameGame
           attackTime: enemy.attackTime,
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
+          order: enemy.order,
         );
 
       case "Hexagon":
@@ -1065,6 +1077,7 @@ class OneSecondGame extends FlameGame
           attackTime: enemy.attackTime,
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
+          order: enemy.order,
         );
 
       default:
@@ -1717,7 +1730,7 @@ class OneSecondGame extends FlameGame
   }
 
   void updateTimerUI() {
-    timerBar.updateTime(currentMissionTime);
+    timerBar.updateTime(currentMissionTime, record: elapsedGameTime);
     remainingTime = currentMissionTime; // Sync with legacy if needed
   }
 
