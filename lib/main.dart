@@ -17,12 +17,14 @@ import 'package:go_router/go_router.dart';
 
 
 // our library
+import 'package:firebase_core/firebase_core.dart';
 import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:figureout/src/routes/MainGameScreen.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/MissionSelect.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
+import 'package:figureout/src/routes/EndlessGameScreen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -117,6 +119,12 @@ void main() async {
     debugPrint('[Logger] Missing Google Sheet credentials. Logger disabled.');
   }
 
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('[Firebase Init Error] $e');
+  }
+
   Flame.device.fullScreen();
 
   runApp(figureoutMain());
@@ -169,6 +177,10 @@ class figureoutMain extends StatelessWidget {
               missionIndex: data.missionIndex,
             );
           },
+        ),
+        GoRoute(
+          path: '/endless',
+          builder: (context, state) => const EndlessGameScreen(),
         ),
       ],
     );

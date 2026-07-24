@@ -183,13 +183,22 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                             "assets/menu/stage/stage_name_outline.png",
                                             fit: BoxFit.contain,
                                           ),
-                                          Text(
-                                            '${i18n.t('stage')} ${index + 1}',
-                                            style: TextStyle(
-                                              fontSize: titleFontSize,
-                                              fontWeight: FontWeight.w500,
-                                              fontFamily: appFontFamily,
-                                              color: Colors.black,
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Text(
+                                                (stages[index].name.toLowerCase().contains('special') || (!stages[index].name.startsWith('s') && !stages[index].name.startsWith('S') && stages[index].name.isNotEmpty))
+                                                    ? stages[index].name
+                                                    : '${i18n.t('stage')} ${index + 1}',
+                                                maxLines: 1,
+                                                style: TextStyle(
+                                                  fontSize: titleFontSize,
+                                                  fontWeight: FontWeight.w500,
+                                                  fontFamily: appFontFamily,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ],
