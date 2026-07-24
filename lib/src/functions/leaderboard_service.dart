@@ -193,25 +193,17 @@ class LeaderboardService {
     return isNewHigh;
   }
 
-  /// 내 점수의 파이어베이스 실시간 순위 구하기 (1위, 2위, 5위...)
+  /// 내 점수의 통합 순위 구하기 (명예의 전당과 100% 동일한 순위 산출)
   static Future<int> getPlayerRank(double score) async {
     try {
-      if (await _ensureFirebaseInitialized()) {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('endless_leaderboard')
-            .get()
-            .timeout(const Duration(seconds: 4));
-
-        int higherCount = 0;
-        for (final doc in snapshot.docs) {
-          final docScore = (doc.data()['score'] as num?)?.toDouble() ?? 0.0;
-          if (docScore > score) {
-            higherCount++;
-          }
+      final topScores = await fetchTopScores(limit: 100);
+      int higherCount = 0;
+      for (final entry in topScores) {
+        if (entry.score > score) {
+          higherCount++;
         }
-        return higherCount + 1;
       }
-      return 1;
+      return higherCount + 1;
     } catch (e) {
       debugPrint('[Rank Fetch Error] $e');
       return 1;

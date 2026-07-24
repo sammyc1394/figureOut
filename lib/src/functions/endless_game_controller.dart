@@ -5,14 +5,18 @@ import 'sheet_service.dart';
 class EndlessGameController {
   final math.Random _random = math.Random();
 
-  // 원 빈도 증가, 삼각형 1/3로 축소된 가중치 풀
+  // 원 빈도 대폭 증가, 오각형 빈도 축소된 가중치 풀
   static const List<String> _shapeTypesPool = [
     'Circle',
     'Circle',
     'Circle',
+    'Circle',
+    'Circle',
+    'Circle',
     'Rectangle',
-    'Pentagon',
-    'Triangle', // 1/3 비율
+    'Rectangle',
+    'Triangle',
+    'Pentagon', // 오각형 비율 축소 (1/11)
     'Hexagon',
   ];
 
@@ -90,10 +94,15 @@ class EndlessGameController {
       }
     }
 
-    // 공격 시간: 검은 도형은 무조건 0.5초 ~ 3.0초 사이 자폭! 일반 도형은 3.0초 ~ 4.5초
-    final double attackVal = isDark
-        ? (0.5 + _random.nextDouble() * 2.5)
-        : (3.0 + _random.nextDouble() * 1.5);
+    // 공격 시간: 검은 도형은 0.5s~3s, 오각형은 HP + 1.5s~3.0s (여유 보장!), 기타 3.0s~4.5s
+    double attackVal;
+    if (isDark) {
+      attackVal = 0.5 + _random.nextDouble() * 2.5;
+    } else if (shapeName == 'Pentagon') {
+      attackVal = energy + 1.5 + _random.nextDouble() * 1.5;
+    } else {
+      attackVal = 3.0 + _random.nextDouble() * 1.5;
+    }
     final attackSec = attackVal.toStringAsFixed(1);
 
     return EnemyData(
