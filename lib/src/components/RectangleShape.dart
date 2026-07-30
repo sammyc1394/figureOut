@@ -174,13 +174,15 @@ class RectangleShape extends PositionComponent
 
     if (isPaused) return;
 
-    if (isDark) {
+    if (isDark && attackTime != null) {
       _darkLifespan += dt;
-      if (_darkLifespan >= (attackTime ?? 3.0)) {
+      if (_darkLifespan >= attackTime!) {
         removeFromParent();
         return;
       }
     }
+
+    if ((attackTime ?? 0) <= 0 || !isAttackable) return;
 
     _attackElapsed += dt;
 

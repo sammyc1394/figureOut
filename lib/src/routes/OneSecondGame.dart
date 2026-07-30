@@ -522,7 +522,10 @@ class OneSecondGame extends FlameGame
           c is PentagonShape ||
           c is TriangleShape ||
           c is HexagonShape ||
-          c is Effect) {
+          c is Effect ||
+          c is AttackExplosionEffect ||
+          c is EncircleSliceEffect ||
+          c is CircleDisappearEffect) {
         c.removeFromParent();
       }
     }
@@ -2800,7 +2803,10 @@ bool _isStraightLine(List<Vector2> path) {
     _resumeFromFailure();
   }
 
-  void handleAftermathRetry() => onRefresh();
+  void handleAftermathRetry() {
+    _removeAftermathOverlay();
+    runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+  }
 
   void handleAftermathPlay() {
     _removeAftermathOverlay();
@@ -2848,7 +2854,7 @@ bool _isStraightLine(List<Vector2> path) {
 
   void handlePauseRetry() {
     resumeGame();
-    onRefresh();
+    runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
   }
 
   void handlePauseMenu() {
