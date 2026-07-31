@@ -14,6 +14,7 @@ import 'package:flutter/material.dart' hide Matrix4;
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/PentagonBurstEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 class PentagonShape extends PositionComponent
@@ -204,9 +205,8 @@ class PentagonShape extends PositionComponent
       _pressElapsed += dt;
 
       if (_pressElapsed >= _pressTick) {
-
         _pressElapsed -= _pressTick;
-
+        AudioManager.instance.playPentagonHold();
         energy--;
 
         if (energy <= 0) {
@@ -498,6 +498,7 @@ class PentagonShape extends PositionComponent
     }
 
     _isLongPressing = true;
+    AudioManager.instance.playPentagonHold();
 
     _pulseThicknessT = 0.0;
     _pressElapsed = 0.0;

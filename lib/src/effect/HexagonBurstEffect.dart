@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' show Curves;
+import '../services/audio_manager.dart';
 
 class HexagonBurstEffect extends PositionComponent {
   final double radius;
@@ -32,6 +33,12 @@ class HexagonBurstEffect extends PositionComponent {
           position: position,
           anchor: Anchor.center,
         );
+
+  @override
+  void onMount() {
+    super.onMount();
+    AudioManager.instance.playHexagonPop();
+  }
 
   @override
   void update(double dt) {
