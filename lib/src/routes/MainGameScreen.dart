@@ -9,6 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import '../functions/analytics_service.dart';
 import '../functions/sheet_service.dart';
 
 class MainGameScreen extends StatefulWidget {
@@ -36,11 +37,25 @@ class _MainGameScreenState extends State<MainGameScreen> {
     super.initState();
     _decreaseHeartOnStart();
 
+    _runAnalytics();
+
     oneSec = OneSecondGame(
       navigatorContext: context,
       stages: widget.stages,
       stageIndex: widget.stageIndex,
       missionIndex: widget.missionIndex,
+    );
+  }
+
+  Future<void> _runAnalytics() async {
+    print("[ANALYTICS] running analytics - stage start");
+
+    await AnalyticsService.instance.logEvent(
+      'stage_start',
+      properties: {
+        'stage_id': widget.stageIndex + 1,
+        'mission_id': widget.missionIndex + 1,
+      },
     );
   }
 
