@@ -1,4 +1,5 @@
 
+import 'package:figureout/src/functions/analytics_service.dart';
 import 'package:figureout/src/functions/logger_service.dart';
 import 'package:flame/flame.dart';
 import 'dart:ui';
@@ -38,7 +39,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: "assets/.env", isOptional: true);
-  
+
+  await AnalyticsService.instance.init(
+    // apiKey: dotenv.env['AMPLITUDE_API_KEY'],
+  );
+
+  AnalyticsService.instance.logEvent(
+    'app_open',
+  );
+
   final deviceLocale = PlatformDispatcher.instance.locale;
   final deviceLang = deviceLocale.languageCode;
 
