@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' show Curves;
+import '../services/audio_manager.dart';
 
 class PentagonBurstEffect extends PositionComponent {
   final double radius;
@@ -31,6 +32,12 @@ class PentagonBurstEffect extends PositionComponent {
           position: position,
           anchor: Anchor.center,
         );
+
+  @override
+  void onMount() {
+    super.onMount();
+    AudioManager.instance.playPentagonBurst();
+  }
 
   @override
   void update(double dt) {

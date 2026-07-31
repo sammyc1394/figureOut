@@ -12,6 +12,7 @@ import '../effect/AttackExplosionEffect.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 class RectangleShape extends PositionComponent
@@ -375,6 +376,7 @@ class RectangleShape extends PositionComponent
     debugPrint("=== slice check : $isSliced ============");
     if (isSliced) {
       applyValidInteraction();
+      AudioManager.instance.playRectanglePop();
     } else {
       onForbiddenTouch?.call();
       return;

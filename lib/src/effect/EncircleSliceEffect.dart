@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' show Curves;
+import '../services/audio_manager.dart';
 
 class EncircleSliceEffect extends PositionComponent {
   final Path basePath;
@@ -40,6 +41,12 @@ class EncircleSliceEffect extends PositionComponent {
     }
     _shapeR = (size.x + size.y) / 4;
     this.position = Vector2(position.x - _cx, position.y - _cy);
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    AudioManager.instance.playTrianglePop();
   }
 
   @override

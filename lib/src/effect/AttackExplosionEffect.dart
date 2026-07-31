@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import '../services/audio_manager.dart';
 
 class AttackExplosionEffect extends PositionComponent {
   final Path basePath;
@@ -45,6 +46,12 @@ class AttackExplosionEffect extends PositionComponent {
       _cy = (bounds.top + bounds.bottom) / 2;
     }
     this.position = Vector2(position.x - _cx, position.y - _cy);
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    AudioManager.instance.playPopSound();
   }
 
   @override

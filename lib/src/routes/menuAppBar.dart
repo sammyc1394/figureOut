@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import '../services/audio_manager.dart';
 
 class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
@@ -147,21 +148,40 @@ class _MenuappbarState extends State<Menuappbar> {
       centerTitle: false,
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child:
-          // GestureDetector(
-          //   onTap: () {
-          //     debugPrint('설정 버튼 클릭됨');
-          //   },
-          //   child:
-            Image.asset(
-              'assets/Settings_button_beige.png',
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () async {
+              await AudioManager.instance.toggleBGM();
+              setState(() {});
+            },
+            child: Container(
               width: 36,
               height: 36,
-              fit: BoxFit.contain,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE4E0D3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                AudioManager.instance.isBgmEnabled
+                    ? Icons.music_note_rounded
+                    : Icons.music_off_rounded,
+                color: AudioManager.instance.isBgmEnabled
+                    ? const Color(0xFFED613D)
+                    : Colors.grey,
+                size: 22,
+              ),
             ),
           ),
-        // ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: Image.asset(
+            'assets/Settings_button_beige.png',
+            width: 36,
+            height: 36,
+            fit: BoxFit.contain,
+          ),
+        ),
       ],
     );
   }

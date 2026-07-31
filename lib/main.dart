@@ -27,6 +27,7 @@ import 'package:figureout/src/routes/MissionSelect.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:figureout/src/routes/EndlessGameScreen.dart';
 import 'package:figureout/src/routes/route_args.dart';
+import 'package:figureout/src/services/audio_manager.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -135,6 +136,9 @@ void main() async {
   }
 
   Flame.device.fullScreen();
+
+  await AudioManager.instance.init();
+  await AudioManager.instance.setBgmTrack(5);
 
   runApp(figureoutMain());
 }
