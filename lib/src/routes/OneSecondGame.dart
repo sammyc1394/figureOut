@@ -36,6 +36,7 @@ import '../behaviors/DDrCommand.dart';
 import '../behaviors/LCommand.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
+import '../effect/PenaltyEffect.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
 import 'route_args.dart';
@@ -116,7 +117,10 @@ class OneSecondGame extends FlameGame
   bool get isPausedGlobally => _isPausedGlobally;
 
   bool _isTimeOver = false;
-  
+
+  // effect
+  late ForbiddenShapeEffect forbiddenShapeEffect;
+
   // For Continue feature
   static const double minTimeLimit = 10.0;
   double initialMaxTime = 0.0;
@@ -251,7 +255,6 @@ class OneSecondGame extends FlameGame
     }
   }
 
-
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -341,6 +344,11 @@ class OneSecondGame extends FlameGame
     )
       ..priority = 3000;
     add(timerBar);
+
+    forbiddenShapeEffect = ForbiddenShapeEffect()
+      ..size = size;
+
+    add(forbiddenShapeEffect);
 
     try {
       // _allStages = await sheetService.fetchData();
@@ -999,7 +1007,10 @@ class OneSecondGame extends FlameGame
     PositionComponent? shape;
 
     final isDark = enemy.isDark;
-    darkTouchPenalty() => applyTimePenalty(10.0);
+    darkTouchPenalty() {
+      applyTimePenalty(10.0);
+      forbiddenShapeEffect.flash();
+    }
     timeoutPenalty() {
       if (!isDark) {
         applyTimePenalty(1.0);
@@ -2010,6 +2021,7 @@ class OneSecondGame extends FlameGame
 
       if (_isDarkShape(comp)) {
         applyTimePenalty(10);
+        forbiddenShapeEffect.flash();
         continue;
       }
 
