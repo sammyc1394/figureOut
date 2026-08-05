@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import '../services/ad_manager.dart';
+import '../services/heart_service.dart';
 import 'menuAppBar.dart';
 import 'route_args.dart';
 import 'NoHeartsOverlay.dart';
@@ -240,7 +242,25 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                     color: Colors.transparent,
                                     child: NoHeartsOverlay(
                                       onClose: () => Navigator.of(ctx).pop(),
-                                      onWatchAd: () => Navigator.of(ctx).pop(),
+                                      onWatchAd: () {
+                                        bool rewardEarned = false;
+                                        AdManager.instance.showRewardedAd(
+                                          onUserEarnedReward: () {
+                                            rewardEarned = true;
+                                          },
+                                          onAdClosed: () async {
+                                            // 보상을 받은 경우에만 하트를 충전한다.
+                                            if (rewardEarned) {
+                                              await HeartService.addHeart();
+                                            }
+                                            if (ctx.mounted) Navigator.of(ctx).pop();
+                                          },
+                                          onAdUnavailable: () {
+                                            // 아직 광고가 로드되지 않음: 다이얼로그는 유지하고
+                                            // 다음 로드는 AdManager 내부에서 자동으로 재시도된다.
+                                          },
+                                        );
+                                      },
                                     ),
                                   ),
                                 );
