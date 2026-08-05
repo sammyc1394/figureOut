@@ -415,11 +415,13 @@ class OneSecondGame extends FlameGame
 
   //시간 패널티
   void applyTimePenalty(double seconds) {
+    print("[Time penalty check] seconds : $seconds");
     if (_isTimeOver) return;
         
     // Sync both legacy and new timer variables
     currentMissionTime = math.max(0, currentMissionTime - seconds);
-    remainingTime = currentMissionTime; 
+    remainingTime = currentMissionTime;
+    print("[Time penalty check] currentMissionTime calculated: $currentMissionTime");
 
     updateTimerUI();
     timerBar.flashPenalty();
@@ -1008,12 +1010,12 @@ class OneSecondGame extends FlameGame
 
     final isDark = enemy.isDark;
     darkTouchPenalty() {
-      applyTimePenalty(10.0);
+      applyTimePenalty((enemy.attackDamage ?? 10.0).abs());
       forbiddenShapeEffect.flash();
     }
     timeoutPenalty() {
       if (!isDark) {
-        applyTimePenalty(1.0);
+        applyTimePenalty((enemy.attackDamage?? 1.0).abs());
       }
     }
     shapePoppedReward() {
@@ -1025,7 +1027,6 @@ class OneSecondGame extends FlameGame
 
     bool isAttackable = false;
     if (enemy.attackTime != null) isAttackable = true;
-
 
     switch (enemy.shapeType) {
       case "Circle":
@@ -2394,42 +2395,6 @@ bool _isStraightLine(List<Vector2> path) {
 
   // ==== temporary functions ======================================================================================
 
-  // @override
-  // void update(double dt) {
-  //   super.update(dt);
-
-  //   if (remainingTime > 0) {
-  //     _accumulator += dt;
-  //     if (_accumulator >= 1.0) {
-  //       _accumulator -= 1.0;
-  //       remainingTime -= 1;
-
-  //       if (remainingTime != _lastShownTime) {
-  //         _lastShownTime = remainingTime;
-  //         // 필요할 때만 로그
-  //         debugPrint('remainingTime: $remainingTime');
-  //         timerBar.updateTime(remainingTime);
-  //       }
-
-  //       if (remainingTime <= 10) isTimeCritical = true;
-
-  //       if (remainingTime <= 0 && !_timerEndedNotified) {
-  //         _timerEndedNotified = true;
-  //         // 마지막으로 0초 반영 후 더 이상 건드리지 않음
-  //         timerBar.updateTime(0);
-  //         // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
-  //         // debugPrint("Time's up!");
-  //       }
-  //       // if (remainingTime <= 10) isTimeCritical = true;
-  //       // if (remainingTime <= 0) {
-  //       //   remainingTime = 0;
-  //       //   debugPrint("Time's up!");
-  //       // }
-  //       // timerBar.updateTime(remainingTime);
-  //     }
-  //   }
-  // }
-
   // [CHANGED] 도형별 정밀 히트판정으로 교체 (bounding box → 실제 형태)
   bool _doesPathTouchComponent(
     PositionComponent comp,
@@ -2865,9 +2830,20 @@ bool _isStraightLine(List<Vector2> path) {
   void handlePauseResume() => resumeGame();
 
   void handlePauseRetry() {
-    resumeGame();
-    runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
-  }
+    overlays.remove('pause');
+
+    _isPausedGlobally = false;
+    _timerPaused = false;
+    _pendingResult = null;
+    _missionResolved = false;
+
+    _isMissionRunning = false;
+    _runToken++;
+
+    runStageWithAftermath(
+      _selectedStageIndex,
+      _selectedMissionIndex,
+    );  }
 
   void handlePauseMenu() {
     _removeAftermathOverlay();
