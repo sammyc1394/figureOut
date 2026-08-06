@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import '../functions/analytics_service.dart';
 import '../functions/sheet_service.dart';
+import '../services/ad_manager.dart';
 
 class MainGameScreen extends StatefulWidget {
   final List<StageData> stages;
@@ -55,6 +56,27 @@ class _MainGameScreenState extends State<MainGameScreen> {
       properties: {
         'stage_id': widget.stageIndex + 1,
         'mission_id': widget.missionIndex + 1,
+      },
+    );
+  }
+
+  /// 체크포인트 이어하기(Continue) 전에 리워드 광고를 먼저 보여준다.
+  /// 체크포인트 재개 로직(g.handleAftermathContinue) 자체는 건드리지 않는다.
+  void _continueAfterAd(OneSecondGame g) {
+    bool rewardEarned = false;
+    AdManager.instance.showRewardedAd(
+      onUserEarnedReward: () {
+        rewardEarned = true;
+      },
+      onAdClosed: () {
+        if (rewardEarned) {
+          g.handleAftermathContinue();
+        }
+        // 보상을 못 받았으면(광고를 중간에 닫음) 화면은 그대로 두어 다시 시도할 수 있게 한다.
+      },
+      onAdUnavailable: () {
+        // 광고가 아직 준비되지 않았을 때 진행이 막히지 않도록 바로 이어서 진행한다.
+        g.handleAftermathContinue();
       },
     );
   }
@@ -118,7 +140,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     starCount: g.currentAftermathStars,
                     stgIndex: g.currentAftermathStgIndex,
                     msnIndex: g.currentAftermathMsnIndex,
-                    onContinue: g.handleAftermathContinue,
+                    onContinue: () => _continueAfterAd(g),
                     onRetry: g.handleAftermathRetry,
                     onPlay: g.handleAftermathPlay,
                     onMenu: g.handleAftermathMenu,
