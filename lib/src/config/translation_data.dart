@@ -4,6 +4,42 @@ final Map<String, Map<String, String>> translationData = {
     'ko': '이동',
     'ja': 'リンク',
   },
+  'settings_title': {
+    'en': 'Settings',
+    'ko': '설정',
+  },
+  'settings_how_to_play': {
+    'en': 'How To Play',
+    'ko': '플레이 방법',
+  },
+  'settings_language': {
+    'en': 'Language',
+    'ko': '언어',
+  },
+  'settings_sunny_games': {
+    'en': "Sunny's Games and Apps",
+    'ko': '써니의 게임과 앱',
+  },
+  'settings_instagram': {
+    'en': 'Instagram',
+    'ko': 'Instagram',
+  },
+  'settings_twitter': {
+    'en': 'X (Twitter)',
+    'ko': 'X (Twitter)',
+  },
+  'settings_terms': {
+    'en': 'Terms of Service',
+    'ko': '이용약관',
+  },
+  'settings_privacy': {
+    'en': 'Privacy Policy',
+    'ko': '개인정보처리방침',
+  },
+  'settings_restart_notice': {
+    'en': 'Returning to the main menu to apply the new language.',
+    'ko': '새 언어를 적용하기 위해 메인 메뉴로 돌아갑니다.',
+  },
   'ad_button_confirm': {
     'en': 'Watch Ad',
     'ko': '광고 보기',

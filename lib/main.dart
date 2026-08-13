@@ -15,6 +15,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 // our library
@@ -26,6 +27,8 @@ import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/MissionSelect.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:figureout/src/routes/EndlessGameScreen.dart';
+import 'package:figureout/src/routes/SettingsScreen.dart';
+import 'package:figureout/src/routes/SunnyGamesScreen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
@@ -52,7 +55,6 @@ void main() async {
   final deviceLocale = PlatformDispatcher.instance.locale;
   final deviceLang = deviceLocale.languageCode;
 
-  const supportedLanguages = ['en', 'ko', 'ja', 'fr', 'es', 'zh-Hans', 'zh-Hant'];
   const hantRegions = ['TW', 'HK', 'MO'];
 
   String resolveLocale() {
@@ -65,7 +67,11 @@ void main() async {
     return supportedLanguages.contains(deviceLang) ? deviceLang : 'en'; // fallback
   }
 
-  final locale = resolveLocale();
+  final prefs = await SharedPreferences.getInstance();
+  final savedLocale = prefs.getString(localeOverridePrefsKey);
+  final locale = (savedLocale != null && supportedLanguages.contains(savedLocale))
+      ? savedLocale
+      : resolveLocale();
 
     // 로컬 데이터를 기본값으로 두고, 시트에 등록된 키만 덮어쓴다.
     // (시트에 아직 키가 없는 항목도 로컬 폴백으로 항상 표시되도록)
@@ -93,6 +99,7 @@ void main() async {
     debugPrint(e.toString());
   }
 
+  cachedTranslations = translations;
   i18n = LocalizationService(
     locale,
     translations,
@@ -146,8 +153,37 @@ void main() async {
   runApp(figureoutMain());
 }
 
-class figureoutMain extends StatelessWidget {
+class figureoutMain extends StatefulWidget {
   const figureoutMain({super.key});
+
+  /// 언어 변경처럼 앱 전체를 새로 그려야 할 때 호출한다.
+  /// 내비게이션 스택을 초기 위치('/')로 리셋하며 다시 빌드한다.
+  static void restart(BuildContext context) {
+    context.findAncestorStateOfType<_figureoutMainState>()?._restart();
+  }
+
+  @override
+  State<figureoutMain> createState() => _figureoutMainState();
+}
+
+class _figureoutMainState extends State<figureoutMain> {
+  Key _rebuildKey = UniqueKey();
+
+  void _restart() {
+    setState(() => _rebuildKey = UniqueKey());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return KeyedSubtree(
+      key: _rebuildKey,
+      child: const _FigureoutApp(),
+    );
+  }
+}
+
+class _FigureoutApp extends StatelessWidget {
+  const _FigureoutApp();
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +195,16 @@ class figureoutMain extends StatelessWidget {
         GoRoute(
           path: '/',
           builder: (context, state) => const MainMenuScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
+          routes: [
+            GoRoute(
+              path: 'sunny-games',
+              builder: (context, state) => const SunnyGamesScreen(),
+            ),
+          ],
         ),
         GoRoute(
           path: '/stages',
