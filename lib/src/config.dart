@@ -54,6 +54,22 @@ enum MovementValueType {
 
 late LocalizationService i18n;
 
+// 언어 선택 화면에서 사용하는 지원 언어 목록과 표시 이름
+const List<String> supportedLanguages = ['en', 'ko', 'ja', 'fr', 'es', 'zh-Hans', 'zh-Hant'];
+const Map<String, String> languageDisplayNames = {
+  'en': 'English',
+  'ko': '한국어',
+  'ja': '日本語',
+  'fr': 'Français',
+  'es': 'Español',
+  'zh-Hans': '简体中文',
+  'zh-Hant': '繁體中文',
+};
+const String localeOverridePrefsKey = 'locale_override';
+
+// main()에서 병합된 번역 데이터를 담아 두어, 앱 재시작 없이 언어를 바꿀 때 재사용한다.
+Map<String, Map<String, String>> cachedTranslations = {};
+
 const int maxHearts = 5;
 // 테스트: 30초, 실서비스: 1800 (30분)
 const int heartRefillIntervalSec = 5;

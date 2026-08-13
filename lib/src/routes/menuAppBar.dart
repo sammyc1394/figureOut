@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
@@ -175,11 +176,14 @@ class _MenuappbarState extends State<Menuappbar> {
         ),
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: Image.asset(
-            'assets/Settings_button_beige.png',
-            width: 36,
-            height: 36,
-            fit: BoxFit.contain,
+          child: GestureDetector(
+            onTap: () => context.push('/settings'),
+            child: Image.asset(
+              'assets/Settings_button_beige.png',
+              width: 36,
+              height: 36,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ],

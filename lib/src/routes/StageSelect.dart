@@ -152,7 +152,9 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                             child: AnimatedScale(
                               duration: const Duration(milliseconds: 250),
                               scale: isSelected ? 1.3 : 0.65,
-                              child: Column(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   SizedBox(
@@ -206,6 +208,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                     ),
                                   ),
                                 ],
+                                ),
                               ),
                             ),
                           ),
