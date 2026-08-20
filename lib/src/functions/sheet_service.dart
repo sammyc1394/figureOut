@@ -350,22 +350,28 @@ class SheetService {
   }
 
   String resolveRandom(String str, URDField field, RandomContext ctx) {
-    return ctx.resolveRandom(str, field);
+    String ret = ctx.resolveRandom(str, field);
+    return ret;
   }
 
   String resolvePosition(String str, RandomContext ctx) {
-    return str.replaceAllMapped(
-      RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
-          (match) {
-        final xRaw = match.group(1)!.trim();
-        final yRaw = match.group(2)!.trim();
+    if (!str.contains('RD') && !str.contains('URD')) {
+      return str;
+    }
 
-        final x = resolveRandom(xRaw, URDField.positionX, ctx);
-        final y = resolveRandom(yRaw, URDField.positionY, ctx);
+    final match = RegExp(
+      r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
+    ).firstMatch(str)!;
 
-        return '($x,$y)';
-      },
-    );
+    final xRaw = match.group(1)!.trim();
+    final yRaw = match.group(2)!.trim();
+
+    debugPrint("[resolvePosition] (xRaw, yRaw) = ($xRaw, $yRaw)");
+
+    final x = resolveRandom(xRaw, URDField.positionX, ctx);
+    final y = resolveRandom(yRaw, URDField.positionY, ctx);
+
+    return '($x,$y)';
   }
 
   String resolveAttack(String str, RandomContext ctx) {
