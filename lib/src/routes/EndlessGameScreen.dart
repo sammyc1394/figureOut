@@ -8,6 +8,7 @@ import '../config.dart';
 import '../functions/sheet_service.dart';
 import '../functions/endless_game_controller.dart';
 import '../functions/leaderboard_service.dart';
+import '../services/play_time_tracker.dart';
 import 'OneSecondGame.dart';
 import 'MainGameScreen.dart';
 import 'HowToPlayOverlay.dart';
@@ -20,17 +21,36 @@ class EndlessGameScreen extends StatefulWidget {
   State<EndlessGameScreen> createState() => _EndlessGameScreenState();
 }
 
-class _EndlessGameScreenState extends State<EndlessGameScreen> {
+class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindingObserver {
   late EndlessOneSecondGame endlessGame;
   bool _initialized = false;
   double _finalScore = 0.0;
   bool _isHighScore = false;
   String _userNickname = '익명';
+  final _playTimeTracker = PlayTimeTracker();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _playTimeTracker.start();
     _initGame();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _playTimeTracker.resume();
+    } else {
+      _playTimeTracker.pause();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _playTimeTracker.stopAndPersist();
+    super.dispose();
   }
 
   Future<void> _initGame() async {
