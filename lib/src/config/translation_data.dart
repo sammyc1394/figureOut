@@ -12,6 +12,22 @@ final Map<String, Map<String, String>> translationData = {
     'en': 'How To Play',
     'ko': '플레이 방법',
   },
+  'settings_user_data': {
+    'en': 'User Data',
+    'ko': '사용자 데이터',
+  },
+  'settings_user_data_start_date': {
+    'en': 'Start Date',
+    'ko': '시작일',
+  },
+  'settings_user_data_use_count': {
+    'en': 'Play Count',
+    'ko': '플레이 횟수',
+  },
+  'settings_user_data_play_time': {
+    'en': 'Play Time',
+    'ko': '플레이 시간',
+  },
   'settings_language': {
     'en': 'Language',
     'ko': '언어',

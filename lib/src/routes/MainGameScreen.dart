@@ -12,6 +12,7 @@ import '../config.dart';
 import '../functions/analytics_service.dart';
 import '../functions/sheet_service.dart';
 import '../services/ad_manager.dart';
+import '../services/play_time_tracker.dart';
 
 class MainGameScreen extends StatefulWidget {
   final List<StageData> stages;
@@ -29,13 +30,16 @@ class MainGameScreen extends StatefulWidget {
   State<MainGameScreen> createState() => _MainGameScreenState();
 }
 
-class _MainGameScreenState extends State<MainGameScreen> {
+class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObserver {
   bool _initialized = false;
   late OneSecondGame oneSec;
+  final _playTimeTracker = PlayTimeTracker();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _playTimeTracker.start();
     _decreaseHeartOnStart();
 
     _runAnalytics();
@@ -46,6 +50,22 @@ class _MainGameScreenState extends State<MainGameScreen> {
       stageIndex: widget.stageIndex,
       missionIndex: widget.missionIndex,
     );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _playTimeTracker.resume();
+    } else {
+      _playTimeTracker.pause();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _playTimeTracker.stopAndPersist();
+    super.dispose();
   }
 
   Future<void> _runAnalytics() async {

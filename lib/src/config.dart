@@ -67,6 +67,11 @@ const Map<String, String> languageDisplayNames = {
 };
 const String localeOverridePrefsKey = 'locale_override';
 
+// User Data 화면(Settings > User Data)에서 보여줄 사용 기록 저장 키
+const String userDataStartDatePrefsKey = 'user_data_start_date';
+const String userDataUseCountPrefsKey = 'user_data_use_count';
+const String userDataPlayTimeSecondsPrefsKey = 'user_data_play_time_seconds';
+
 // main()에서 병합된 번역 데이터를 담아 두어, 앱 재시작 없이 언어를 바꿀 때 재사용한다.
 Map<String, Map<String, String>> cachedTranslations = {};
 

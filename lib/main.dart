@@ -29,6 +29,7 @@ import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:figureout/src/routes/EndlessGameScreen.dart';
 import 'package:figureout/src/routes/SettingsScreen.dart';
 import 'package:figureout/src/routes/SunnyGamesScreen.dart';
+import 'package:figureout/src/routes/UserDataScreen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
@@ -72,6 +73,18 @@ void main() async {
   final locale = (savedLocale != null && supportedLanguages.contains(savedLocale))
       ? savedLocale
       : resolveLocale();
+
+  // Settings > User Data 화면에 표시할 사용 기록 갱신
+  if (prefs.getString(userDataStartDatePrefsKey) == null) {
+    await prefs.setString(
+      userDataStartDatePrefsKey,
+      DateTime.now().toIso8601String(),
+    );
+  }
+  await prefs.setInt(
+    userDataUseCountPrefsKey,
+    (prefs.getInt(userDataUseCountPrefsKey) ?? 0) + 1,
+  );
 
     // 로컬 데이터를 기본값으로 두고, 시트에 등록된 키만 덮어쓴다.
     // (시트에 아직 키가 없는 항목도 로컬 폴백으로 항상 표시되도록)
@@ -200,6 +213,10 @@ class _FigureoutApp extends StatelessWidget {
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
           routes: [
+            GoRoute(
+              path: 'user-data',
+              builder: (context, state) => const UserDataScreen(),
+            ),
             GoRoute(
               path: 'sunny-games',
               builder: (context, state) => const SunnyGamesScreen(),

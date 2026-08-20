@@ -79,6 +79,11 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const _RowDivider(),
                     _SettingsRow(
+                      label: i18n.t('settings_user_data'),
+                      onTap: () => context.push('/settings/user-data'),
+                    ),
+                    const _RowDivider(),
+                    _SettingsRow(
                       label: i18n.t('settings_language'),
                       trailingText: languageDisplayNames[i18n.locale],
                       onTap: () => _showLanguagePicker(context),
