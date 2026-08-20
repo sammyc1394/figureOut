@@ -44,6 +44,14 @@ final Map<String, Map<String, String>> translationData = {
     'en': 'X (Twitter)',
     'ko': 'X (Twitter)',
   },
+  'settings_open_source_info': {
+    'en': 'Open Source Info',
+    'ko': '오픈소스 정보',
+  },
+  'settings_app_version': {
+    'en': 'App Version',
+    'ko': '앱 버전',
+  },
   'settings_terms': {
     'en': 'Terms of Service',
     'ko': '이용약관',

@@ -27,6 +27,7 @@ import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/MissionSelect.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:figureout/src/routes/EndlessGameScreen.dart';
+import 'package:figureout/src/routes/OpenSourceInfoScreen.dart';
 import 'package:figureout/src/routes/SettingsScreen.dart';
 import 'package:figureout/src/routes/SunnyGamesScreen.dart';
 import 'package:figureout/src/routes/UserDataScreen.dart';
@@ -216,6 +217,10 @@ class _FigureoutApp extends StatelessWidget {
             GoRoute(
               path: 'user-data',
               builder: (context, state) => const UserDataScreen(),
+            ),
+            GoRoute(
+              path: 'open-source-info',
+              builder: (context, state) => const OpenSourceInfoScreen(),
             ),
             GoRoute(
               path: 'sunny-games',

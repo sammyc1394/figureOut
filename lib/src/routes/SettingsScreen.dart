@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -103,6 +104,25 @@ class SettingsScreen extends StatelessWidget {
                       label: i18n.t('settings_twitter'),
                       onTap: () => _launchUrl(_twitterUrl),
                     ),
+                    const _RowDivider(),
+                    _SettingsRow(
+                      label: i18n.t('settings_open_source_info'),
+                      onTap: () => context.push('/settings/open-source-info'),
+                    ),
+                    const _RowDivider(),
+                    FutureBuilder<PackageInfo>(
+                      future: PackageInfo.fromPlatform(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          debugPrint('[Settings] PackageInfo failed: ${snapshot.error}');
+                        }
+                        final info = snapshot.data;
+                        return _SettingsRow(
+                          label: i18n.t('settings_app_version'),
+                          trailingText: info != null ? 'V ${info.version}' : '',
+                        );
+                      },
+                    ),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -169,49 +189,50 @@ class SettingsScreen extends StatelessWidget {
 class _SettingsRow extends StatelessWidget {
   final String label;
   final String? trailingText;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _SettingsRow({
     required this.label,
-    required this.onTap,
+    this.onTap,
     this.trailingText,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontFamily: appFontFamily,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: appFontFamily,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
               ),
             ),
-            if (trailingText != null) ...[
-              Text(
-                trailingText!,
-                style: TextStyle(
-                  fontFamily: appFontFamily,
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
+          ),
+          if (trailingText != null) ...[
+            Text(
+              trailingText!,
+              style: TextStyle(
+                fontFamily: appFontFamily,
+                fontSize: 16,
+                color: Colors.black54,
               ),
-              const SizedBox(width: 4),
-            ],
-            const Icon(Icons.chevron_right_rounded, color: Colors.black45),
+            ),
+            const SizedBox(width: 4),
           ],
-        ),
+          if (onTap != null)
+            const Icon(Icons.chevron_right_rounded, color: Colors.black45),
+        ],
       ),
     );
+
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, child: row);
   }
 }
 
