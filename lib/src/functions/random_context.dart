@@ -10,7 +10,7 @@ class RandomContext {
     if (!str.contains('RD')) return str;
 
     return str.replaceAllMapped(
-      RegExp(r'(URD|RD)\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)'),
+      RegExp(r'^(URD|RD)\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$'),
       (match) {
         final type = match.group(1);
         final min = double.parse(match.group(2)!);

@@ -436,7 +436,9 @@ class SheetService {
     switch (type) {
       case MovementValueType.positionSpeed:
         return cmd.replaceAllMapped(
-          RegExp(r'\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
+          RegExp(
+            r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
+          ),
               (match) {
             final x = resolveRandom(match.group(1)!, URDField.positionX, ctx);
             final y = resolveRandom(match.group(2)!, URDField.positionY, ctx);
@@ -447,7 +449,9 @@ class SheetService {
 
       case MovementValueType.speedRadius:
         return cmd.replaceAllMapped(
-          RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
+          RegExp(
+            r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
+          ),
               (match) {
             final r = resolveRandom(match.group(1)!, URDField.movementRadius, ctx);
             final s = resolveRandom(match.group(2)!, URDField.movementSpeed, ctx);
@@ -457,7 +461,9 @@ class SheetService {
 
       case MovementValueType.secPair:
         return cmd.replaceAllMapped(
-          RegExp(r'\(\s*([^,]+)\s*,\s*([^)]+)\s*\)'),
+          RegExp(
+            r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
+          ),
               (match) {
             final a = resolveRandom(match.group(1)!, URDField.movementAsec, ctx);
             final b = resolveRandom(match.group(2)!, URDField.movementBsec, ctx);
