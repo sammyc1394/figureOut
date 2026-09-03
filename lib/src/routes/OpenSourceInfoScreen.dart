@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config.dart';
+import '../theme_mode_scope.dart';
 
 class _OssPackage {
   final String name;
@@ -37,8 +38,9 @@ class OpenSourceInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
     return Scaffold(
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(isDarkMode ? darkBgColor : bgColor),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,7 +64,7 @@ class OpenSourceInfoScreen extends StatelessWidget {
                       fontFamily: appFontFamily,
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                 ],
@@ -72,8 +74,10 @@ class OpenSourceInfoScreen extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 itemCount: _ossPackages.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(color: Colors.black12, height: 1),
+                separatorBuilder: (_, __) => Divider(
+                  color: isDarkMode ? Colors.white24 : Colors.black12,
+                  height: 1,
+                ),
                 itemBuilder: (context, index) {
                   final package = _ossPackages[index];
                   return Padding(
@@ -87,7 +91,7 @@ class OpenSourceInfoScreen extends StatelessWidget {
                               fontFamily: appFontFamily,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: isDarkMode ? Colors.white70 : Colors.black87,
                             ),
                           ),
                         ),
@@ -96,7 +100,7 @@ class OpenSourceInfoScreen extends StatelessWidget {
                           style: TextStyle(
                             fontFamily: appFontFamily,
                             fontSize: 16,
-                            color: Colors.black54,
+                            color: isDarkMode ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ],

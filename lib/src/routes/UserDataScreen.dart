@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import '../theme_mode_scope.dart';
 
 class UserDataScreen extends StatelessWidget {
   const UserDataScreen({super.key});
@@ -30,8 +31,10 @@ class UserDataScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
+    final dividerColor = isDarkMode ? Colors.white24 : Colors.black12;
     return Scaffold(
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(isDarkMode ? darkBgColor : bgColor),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,7 +58,7 @@ class UserDataScreen extends StatelessWidget {
                       fontFamily: appFontFamily,
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                 ],
@@ -77,12 +80,12 @@ class UserDataScreen extends StatelessWidget {
                         label: i18n.t('settings_user_data_start_date'),
                         value: startDate,
                       ),
-                      const Divider(color: Colors.black12, height: 1),
+                      Divider(color: dividerColor, height: 1),
                       _UserDataRow(
                         label: i18n.t('settings_user_data_use_count'),
                         value: '$useCount',
                       ),
-                      const Divider(color: Colors.black12, height: 1),
+                      Divider(color: dividerColor, height: 1),
                       _UserDataRow(
                         label: i18n.t('settings_user_data_play_time'),
                         value: playTime,
@@ -107,6 +110,7 @@ class _UserDataRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
@@ -118,7 +122,7 @@ class _UserDataRow extends StatelessWidget {
                 fontFamily: appFontFamily,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
           ),
@@ -127,7 +131,7 @@ class _UserDataRow extends StatelessWidget {
             style: TextStyle(
               fontFamily: appFontFamily,
               fontSize: 16,
-              color: Colors.black54,
+              color: isDarkMode ? Colors.white54 : Colors.black54,
             ),
           ),
         ],

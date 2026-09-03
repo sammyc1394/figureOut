@@ -25,6 +25,7 @@ import 'package:figureout/src/effect/EncircleSliceEffect.dart';
 import 'package:figureout/src/effect/CircleDisappearEffect.dart';
 
 import 'package:figureout/src/config.dart';
+import 'package:figureout/src/theme_mode_scope.dart';
 
 import 'package:figureout/src/functions/sheet_service.dart';
 import 'package:figureout/src/functions/OrbitingComponent.dart';
@@ -341,6 +342,7 @@ class OneSecondGame extends FlameGame
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
       position: Vector2(20, 80),
       sizePx: Vector2(size.x - 40, 20),
+      isDarkMode: ThemeModeScope.of(navigatorContext),
     )
       ..priority = 3000;
     add(timerBar);

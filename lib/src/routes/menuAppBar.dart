@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import '../services/audio_manager.dart';
+import '../theme_mode_scope.dart';
 
 class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
@@ -158,8 +159,10 @@ class _MenuappbarState extends State<Menuappbar> {
             child: Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE4E0D3),
+              decoration: BoxDecoration(
+                color: ThemeModeScope.of(context)
+                    ? const Color(0xFF3A362D)
+                    : const Color(0xFFE4E0D3),
                 shape: BoxShape.circle,
               ),
               child: Icon(

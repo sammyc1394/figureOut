@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 
 class WigglyUnderlinePainter extends CustomPainter {
   final int seed;
+  final Color color;
 
-  WigglyUnderlinePainter({this.seed = 1});
+  WigglyUnderlinePainter({this.seed = 1, this.color = Colors.black});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black
+      ..color = color
       ..strokeWidth = 2.4
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -35,6 +36,6 @@ class WigglyUnderlinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant WigglyUnderlinePainter oldDelegate) {
-    return oldDelegate.seed != seed;
+    return oldDelegate.seed != seed || oldDelegate.color != color;
   }
 }

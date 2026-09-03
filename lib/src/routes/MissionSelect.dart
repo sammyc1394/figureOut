@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import '../services/ad_manager.dart';
 import '../services/heart_service.dart';
+import '../theme_mode_scope.dart';
 import 'menuAppBar.dart';
 import 'route_args.dart';
 import 'NoHeartsOverlay.dart';
@@ -99,6 +100,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
+    final missionBg = isDarkMode ? const Color(darkBgColor) : _missionBg;
+
     // 사이즈 컴포넌트
     final size = MediaQuery.sizeOf(context);
     final screenHeight = size.height;
@@ -117,9 +121,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     final bottom = screenHeight * 0.075;
 
     if (!isLoaded) {
-      return const Scaffold(
-        backgroundColor: _missionBg,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: missionBg,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
     final stages = widget.stages;
@@ -133,7 +137,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
     return Stack(
       children: [
         Positioned.fill(
-          child: Container(color: _missionBg),
+          child: Container(color: missionBg),
         ),
 
         Positioned.fill(
