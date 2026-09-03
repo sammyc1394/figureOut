@@ -13,6 +13,7 @@ import '../functions/analytics_service.dart';
 import '../functions/sheet_service.dart';
 import '../services/ad_manager.dart';
 import '../services/play_time_tracker.dart';
+import '../theme_mode_scope.dart';
 
 class MainGameScreen extends StatefulWidget {
   final List<StageData> stages;
@@ -130,10 +131,12 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final isDarkMode = ThemeModeScope.of(context);
+
     return PopScope(
       canPop: false,
       child: ColoredBox(
-        color: const Color(bgColor),
+        color: Color(isDarkMode ? darkBgColor : bgColor),
         child: Stack(
           children: [
             GameWidget(
@@ -170,7 +173,7 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
               backgroundBuilder: (context) => Stack(
                 fit: StackFit.expand,
                 children: [
-                  ColoredBox(color: const Color(bgColor)),
+                  ColoredBox(color: Color(isDarkMode ? darkBgColor : bgColor)),
                   Opacity(
                     opacity: 0.15,
                     child: ColorFiltered(
@@ -258,6 +261,7 @@ class _ShapeCountItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -266,11 +270,11 @@ class _ShapeCountItem extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           'X$count',
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Gaegu',
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF555555),
+            color: isDarkMode ? const Color(0xFFCCCCCC) : const Color(0xFF555555),
             decoration: TextDecoration.none,
           ),
         ),

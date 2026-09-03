@@ -16,10 +16,13 @@ class GameTimerComponent extends PositionComponent {
   static const double _epsilon = 1e-3;
   static const double _textAreaWidth = 60.0;
 
+  final bool isDarkMode;
+
   GameTimerComponent({
     required this.totalTime,
     required Vector2 position,
     Vector2? sizePx,
+    this.isDarkMode = false,
   })  : currentTime = totalTime,
         super(
           position: position,
@@ -51,7 +54,7 @@ class GameTimerComponent extends PositionComponent {
           fontFamily: appFontFamily,
           fontSize: 18,
           height: 21 / 16,
-          color: Colors.black,
+          color: isDarkMode ? Colors.white : Colors.black,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -189,11 +192,11 @@ class GameTimerComponent extends PositionComponent {
         period: durationSec,
         onTick: () {
           timerText.textRenderer = TextPaint(
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Moulpali',
               fontSize: 16,
               height: 21 / 16,
-              color: Colors.black,
+              color: isDarkMode ? Colors.white : Colors.black,
               fontWeight: FontWeight.bold,
             ),
           );

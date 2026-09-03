@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:figureout/main.dart';
 import '../config.dart';
 import '../functions/localization_service.dart';
+import '../theme_mode_scope.dart';
 import 'HowToPlayOverlay.dart';
 
 // Sunny Innovation Lab 공용 링크 (General Settings 기획서 slide 5)
@@ -28,8 +29,10 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
+    final textColor = isDarkMode ? Colors.white : Colors.black;
     return Scaffold(
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(isDarkMode ? darkBgColor : bgColor),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
                       fontFamily: appFontFamily,
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: textColor,
                     ),
                   ),
                 ],
@@ -88,6 +91,14 @@ class SettingsScreen extends StatelessWidget {
                       label: i18n.t('settings_language'),
                       trailingText: languageDisplayNames[i18n.locale],
                       onTap: () => _showLanguagePicker(context),
+                    ),
+                    const _RowDivider(),
+                    _SettingsRow(
+                      label: i18n.t('settings_theme'),
+                      trailingText: ThemeModeScope.of(context)
+                          ? i18n.t('settings_theme_dark')
+                          : i18n.t('settings_theme_light'),
+                      onTap: () => _showThemePicker(context),
                     ),
                     const _RowDivider(),
                     _SettingsRow(
@@ -184,6 +195,59 @@ class SettingsScreen extends StatelessWidget {
     Navigator.of(sheetContext).pop();
     figureoutMain.restart(sheetContext);
   }
+
+  void _showThemePicker(BuildContext context) {
+    final currentlyDark = ThemeModeScope.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Color(currentlyDark ? darkBgColor : bgColor),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final textColor = currentlyDark ? Colors.white : Colors.black;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final dark in [false, true])
+                ListTile(
+                  title: Text(
+                    dark
+                        ? i18n.t('settings_theme_dark')
+                        : i18n.t('settings_theme_light'),
+                    style: TextStyle(
+                      fontFamily: appFontFamily,
+                      fontSize: 18,
+                      color: textColor,
+                      fontWeight: dark == currentlyDark
+                          ? FontWeight.w800
+                          : FontWeight.w400,
+                    ),
+                  ),
+                  trailing: dark == currentlyDark
+                      ? const Icon(Icons.check, color: Color(0xFFED613D))
+                      : null,
+                  onTap: () => _changeTheme(sheetContext, dark),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 언어 변경과 달리 테마 변경은 앱을 재시작하지 않는다: isDarkModeNotifier 값만
+  // 갱신하면 ThemeModeScope를 구독 중인 화면들이 제자리에서 다시 그려지고,
+  // 현재 화면/네비게이션 스택은 그대로 유지된다.
+  Future<void> _changeTheme(BuildContext sheetContext, bool dark) async {
+    Navigator.of(sheetContext).pop();
+    if (dark == isDarkModeNotifier.value) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(themeModePrefsKey, dark);
+    isDarkModeNotifier.value = dark;
+  }
 }
 
 class _SettingsRow extends StatelessWidget {
@@ -199,6 +263,7 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
     final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
@@ -210,7 +275,7 @@ class _SettingsRow extends StatelessWidget {
                 fontFamily: appFontFamily,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
           ),
@@ -220,13 +285,16 @@ class _SettingsRow extends StatelessWidget {
               style: TextStyle(
                 fontFamily: appFontFamily,
                 fontSize: 16,
-                color: Colors.black54,
+                color: isDarkMode ? Colors.white54 : Colors.black54,
               ),
             ),
             const SizedBox(width: 4),
           ],
           if (onTap != null)
-            const Icon(Icons.chevron_right_rounded, color: Colors.black45),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDarkMode ? Colors.white38 : Colors.black45,
+            ),
         ],
       ),
     );
@@ -241,7 +309,10 @@ class _RowDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(color: Colors.black12, height: 1);
+    return Divider(
+      color: ThemeModeScope.of(context) ? Colors.white24 : Colors.black12,
+      height: 1,
+    );
   }
 }
 

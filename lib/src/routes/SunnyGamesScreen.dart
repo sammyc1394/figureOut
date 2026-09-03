@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
+import '../theme_mode_scope.dart';
 
 class _SunnyApp {
   final String name;
@@ -66,8 +67,9 @@ class SunnyGamesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
     return Scaffold(
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(isDarkMode ? darkBgColor : bgColor),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +93,7 @@ class SunnyGamesScreen extends StatelessWidget {
                       fontFamily: appFontFamily,
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                 ],
@@ -101,8 +103,10 @@ class SunnyGamesScreen extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 itemCount: _sunnyApps.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(color: Colors.black12, height: 1),
+                separatorBuilder: (_, __) => Divider(
+                  color: isDarkMode ? Colors.white24 : Colors.black12,
+                  height: 1,
+                ),
                 itemBuilder: (context, index) {
                   final app = _sunnyApps[index];
                   return InkWell(
@@ -118,7 +122,9 @@ class SunnyGamesScreen extends StatelessWidget {
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE4E0D3),
+                              color: isDarkMode
+                                  ? const Color(0xFF3A362D)
+                                  : const Color(0xFFE4E0D3),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             alignment: Alignment.center,
@@ -138,7 +144,7 @@ class SunnyGamesScreen extends StatelessWidget {
                                     fontFamily: appFontFamily,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.black87,
+                                    color: isDarkMode ? Colors.white70 : Colors.black87,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -146,15 +152,18 @@ class SunnyGamesScreen extends StatelessWidget {
                                   app.desc,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.black54,
+                                    color: isDarkMode ? Colors.white54 : Colors.black54,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: Colors.black45),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: isDarkMode ? Colors.white38 : Colors.black45,
+                          ),
                         ],
                       ),
                     ),

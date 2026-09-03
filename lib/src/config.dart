@@ -29,6 +29,7 @@ String appFontFamily = 'Gaegu';
 const fallbackFontFamily = ['Gaegu'];
 
 const bgColor = 0xFFF2EFE6;
+const darkBgColor = 0xFF1E1C18;
 
 const grainTexture = 'assets/noise_texture.png';
 
@@ -66,6 +67,10 @@ const Map<String, String> languageDisplayNames = {
   'zh-Hant': '繁體中文',
 };
 const String localeOverridePrefsKey = 'locale_override';
+
+// 설정 화면(Settings > Theme)에서 다크/라이트 모드를 전환할 때 쓰는 저장 키.
+// 실제 상태는 theme_mode_scope.dart의 isDarkModeNotifier가 들고 있다.
+const String themeModePrefsKey = 'theme_mode';
 
 // User Data 화면(Settings > User Data)에서 보여줄 사용 기록 저장 키
 const String userDataStartDatePrefsKey = 'user_data_start_date';

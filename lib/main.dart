@@ -9,6 +9,7 @@ import 'package:figureout/src/config.dart';
 import 'package:figureout/src/config/translation_data.dart';
 import 'package:figureout/src/functions/localization_service.dart';
 import 'package:figureout/src/functions/translation_sheet_service.dart';
+import 'package:figureout/src/theme_mode_scope.dart';
 
 // common libraries
 import 'package:flutter/gestures.dart';
@@ -74,6 +75,8 @@ void main() async {
   final locale = (savedLocale != null && supportedLanguages.contains(savedLocale))
       ? savedLocale
       : resolveLocale();
+
+  isDarkModeNotifier.value = prefs.getBool(themeModePrefsKey) ?? false;
 
   // Settings > User Data 화면에 표시할 사용 기록 갱신
   if (prefs.getString(userDataStartDatePrefsKey) == null) {
@@ -269,15 +272,27 @@ class _FigureoutApp extends StatelessWidget {
       ],
     );
 
-    return MaterialApp.router(
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-      title: "figure out",
-      theme: ThemeData(
-        scaffoldBackgroundColor:Color(bgColor),
-        appBarTheme: AppBarTheme(
-          backgroundColor: Color(bgColor),
-        ),
+    // ThemeModeScope 아래의 Builder만 isDarkModeNotifier에 실제로 구독(depend)한다.
+    // 테마를 바꿔도 router는 재생성되지 않고, 화면들은 각자 ThemeModeScope.of(context)로
+    // 구독해서 제자리에서 다시 그려지므로 네비게이션 스택이 유지된다.
+    return ThemeModeScope(
+      notifier: isDarkModeNotifier,
+      child: Builder(
+        builder: (context) {
+          final dark = ThemeModeScope.of(context);
+          return MaterialApp.router(
+            routerConfig: router,
+            debugShowCheckedModeBanner: false,
+            title: "figure out",
+            theme: ThemeData(
+              brightness: dark ? Brightness.dark : Brightness.light,
+              scaffoldBackgroundColor: Color(dark ? darkBgColor : bgColor),
+              appBarTheme: AppBarTheme(
+                backgroundColor: Color(dark ? darkBgColor : bgColor),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

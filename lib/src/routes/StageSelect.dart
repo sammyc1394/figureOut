@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../config.dart';
 import '../functions/sheet_service.dart';
+import '../theme_mode_scope.dart';
 import 'route_args.dart';
 
 class StageSelectScreen extends StatefulWidget {
@@ -69,6 +70,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
     final stages = widget.stages;
 
     final size = MediaQuery.sizeOf(context);
@@ -100,7 +102,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
     return Stack(
       children: [
         Positioned.fill(
-          child: Container(color: const Color(bgColor)),
+          child: Container(color: Color(isDarkMode ? darkBgColor : bgColor)),
         ),
 
         Positioned.fill(
@@ -181,10 +183,21 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                       child: Stack(
                                         alignment: Alignment.center,
                                         children: [
-                                          Image.asset(
-                                            "assets/menu/stage/stage_name_outline.png",
-                                            fit: BoxFit.contain,
-                                          ),
+                                          isDarkMode
+                                              ? ColorFiltered(
+                                                  colorFilter: const ColorFilter.mode(
+                                                    Colors.white,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                                  child: Image.asset(
+                                                    "assets/menu/stage/stage_name_outline.png",
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                )
+                                              : Image.asset(
+                                                  "assets/menu/stage/stage_name_outline.png",
+                                                  fit: BoxFit.contain,
+                                                ),
                                           Padding(
                                             padding: const EdgeInsets.symmetric(horizontal: 14.0),
                                             child: FittedBox(
@@ -198,7 +211,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                                   fontSize: titleFontSize,
                                                   fontWeight: FontWeight.w500,
                                                   fontFamily: appFontFamily,
-                                                  color: Colors.black,
+                                                  color: isDarkMode ? Colors.white : Colors.black,
                                                 ),
                                               ),
                                             ),

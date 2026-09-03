@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../config.dart';
 import '../effect/WigglyUnderlinePainter.dart';
+import '../theme_mode_scope.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -90,6 +91,9 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   @override
   Widget build(BuildContext context) {
 
+    final isDarkMode = ThemeModeScope.of(context);
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+
     final size = MediaQuery.sizeOf(context);
     final screenHeight = size.height;
     final shortestSide = size.shortestSide;
@@ -100,7 +104,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     final textPlace = screenHeight * 0.1;
 
     return Scaffold(
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(isDarkMode ? darkBgColor : bgColor),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque, // 빈 영역 터치도 인식
         onTap: _isLoading ? null : () {
@@ -163,7 +167,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                     fontFamily: appFontFamily,
                     fontSize: 80,
                     fontWeight: FontWeight.w400,
-                    color: Colors.black,
+                    color: textColor,
                     height: 1.0,
                   ),
                 ),
@@ -177,7 +181,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                       fontFamily: appFontFamily,
                       fontSize: 80,
                       fontWeight: FontWeight.w400,
-                      color: Colors.black,
+                      color: textColor,
                       height: 1.0,
                     ),
                   ),
@@ -195,7 +199,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                         angle: -0.06,
                         child: CustomPaint(
                           size: const Size(220, 10),
-                          painter: WigglyUnderlinePainter(seed: 1),
+                          painter: WigglyUnderlinePainter(seed: 1, color: textColor),
                         ),
                       ),
 
@@ -207,7 +211,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                           angle: -0.06,
                           child: CustomPaint(
                             size: const Size(220, 10),
-                            painter: WigglyUnderlinePainter(seed: 1),
+                            painter: WigglyUnderlinePainter(seed: 1, color: textColor),
                           ),
                         ),
                       ),
@@ -222,7 +226,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                     : IconButton(
                   icon: const Icon(Icons.refresh),
                   iconSize: 40,
-                  color: Colors.black87,
+                  color: isDarkMode ? Colors.white70 : Colors.black87,
                   onPressed: _refreshData,
                 ),
 
@@ -234,7 +238,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                     fontFamily: appFontFamily,
                     fontWeight: FontWeight.w400,
                     fontSize: 32,
-                    color: Colors.black,
+                    color: textColor,
                   ),
                 ),
 

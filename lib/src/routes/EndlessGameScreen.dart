@@ -9,6 +9,7 @@ import '../functions/sheet_service.dart';
 import '../functions/endless_game_controller.dart';
 import '../functions/leaderboard_service.dart';
 import '../services/play_time_tracker.dart';
+import '../theme_mode_scope.dart';
 import 'OneSecondGame.dart';
 import 'MainGameScreen.dart';
 import 'HowToPlayOverlay.dart';
@@ -79,10 +80,12 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ThemeModeScope.of(context);
+
     if (!_initialized) {
-      return const Scaffold(
-        backgroundColor: Color(bgColor),
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: Color(isDarkMode ? darkBgColor : bgColor),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -98,7 +101,7 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
         }
       },
       child: ColoredBox(
-        color: const Color(bgColor),
+        color: Color(isDarkMode ? darkBgColor : bgColor),
         child: Stack(
           children: [
             GameWidget(
@@ -137,7 +140,7 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
               backgroundBuilder: (context) => Stack(
                 fit: StackFit.expand,
                 children: [
-                  ColoredBox(color: const Color(bgColor)),
+                  ColoredBox(color: Color(isDarkMode ? darkBgColor : bgColor)),
                   Opacity(
                     opacity: 0.15,
                     child: ColorFiltered(
