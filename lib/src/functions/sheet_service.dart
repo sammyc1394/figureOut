@@ -10,6 +10,14 @@ class SheetService {
   final String sheetId;
   final String apiKey;
 
+  // 랜덤 파싱 정규식 상수화(공격, 이동명령, 위치 등 파싱할때 사용)
+  static final RegExp _twoValueRegex = RegExp(
+    r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
+  );
+  static final RegExp _threeValueRegex = RegExp(
+    r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
+  );
+
   SheetService()
       : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
         apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '';
@@ -321,32 +329,41 @@ class SheetService {
   }
 
   int? parseOrder(String shape, RandomContext ctx) {
-    // debugPrint("[ORDER] before parse order = $shape");
     if (!shape.contains('_')) return null;
 
     final rest = shape.substring(shape.indexOf('_') + 1);
 
-    final rdRegex = RegExp(r'\b(?:URD|RD)\(\s*-?\d+\s*,\s*-?\d+\s*\)');
+    final firstOpen = rest.indexOf('(');
 
-    final match = rdRegex.firstMatch(rest);
+    String orderRaw;
 
-    if (match != null) {
-      final orderRaw = match.group(0)!;
-      final resolved = resolveRandom(orderRaw, URDField.order, ctx);
-      final ret = int.tryParse(resolved);
-      debugPrint("[ORDER] order parse done = $ret - $orderRaw");
-      return ret;
+    if (firstOpen == -1) {
+      // 2
+      orderRaw = rest;
+    } else {
+      final firstClose = rest.indexOf(')', firstOpen);
+
+      if (firstClose == -1) return null;
+
+      // 괄호 안에 ','가 있으면 order 자체의 랜덤식
+      // RD(1,5), RND(1,5), URD(1,5)
+      final inside = rest.substring(firstOpen + 1, firstClose);
+
+      if (inside.contains(',')) {
+        orderRaw = rest.substring(0, firstClose + 1);
+      } else {
+        // 2(3) -> (3)은 energy
+        orderRaw = rest.substring(0, firstOpen);
+      }
     }
 
-    // RD/URD 없으면 일반 숫자 처리
-    final numberMatch = RegExp(r'-?\d+').firstMatch(rest);
-    if (numberMatch != null) {
-      final ret = int.tryParse(numberMatch.group(0)!);
-      debugPrint("[ORDER] order parse done = $ret");
-      return ret;
-    }
+    final resolved = resolveRandom(
+      orderRaw,
+      URDField.order,
+      ctx,
+    );
 
-    return null;
+    return int.tryParse(resolved);
   }
 
   String resolveRandom(String str, URDField field, RandomContext ctx) {
@@ -355,13 +372,11 @@ class SheetService {
   }
 
   String resolvePosition(String str, RandomContext ctx) {
-    if (!str.contains('RD') && !str.contains('URD')) {
+    if (!str.contains('RD') && !str.contains('RND') && !str.contains('URD')) {
       return str;
     }
 
-    final match = RegExp(
-      r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
-    ).firstMatch(str)!;
+    final match = _twoValueRegex.firstMatch(str)!;
 
     final xRaw = match.group(1)!.trim();
     final yRaw = match.group(2)!.trim();
@@ -377,7 +392,7 @@ class SheetService {
   String resolveAttack(String str, RandomContext ctx) {
 
     return str.replaceAllMapped(
-      RegExp(r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)'),
+      _twoValueRegex,
           (match) {
         final secRaw = match.group(1)!.trim();
         final damageRaw = match.group(2)!.trim();
@@ -397,7 +412,7 @@ class SheetService {
 
     // order/energy 없는 케이스
     if (underscoreIndex == -1) {
-      return resolveRandom(rawShape, URDField.shape, ctx);
+      return resolveRandom(rawShape, URDField.size, ctx);
     }
 
     final basePart = rawShape.substring(0, underscoreIndex);
@@ -436,9 +451,7 @@ class SheetService {
     switch (type) {
       case MovementValueType.positionSpeed:
         return cmd.replaceAllMapped(
-          RegExp(
-            r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
-          ),
+          _threeValueRegex,
               (match) {
             final x = resolveRandom(match.group(1)!, URDField.positionX, ctx);
             final y = resolveRandom(match.group(2)!, URDField.positionY, ctx);
@@ -449,9 +462,7 @@ class SheetService {
 
       case MovementValueType.speedRadius:
         return cmd.replaceAllMapped(
-          RegExp(
-            r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
-          ),
+          _twoValueRegex,
               (match) {
             final r = resolveRandom(match.group(1)!, URDField.movementRadius, ctx);
             final s = resolveRandom(match.group(2)!, URDField.movementSpeed, ctx);
@@ -461,9 +472,7 @@ class SheetService {
 
       case MovementValueType.secPair:
         return cmd.replaceAllMapped(
-          RegExp(
-            r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
-          ),
+          _twoValueRegex,
               (match) {
             final a = resolveRandom(match.group(1)!, URDField.movementAsec, ctx);
             final b = resolveRandom(match.group(2)!, URDField.movementBsec, ctx);
@@ -527,12 +536,9 @@ class SheetService {
 
   // 일반 에너지 파싱(양수). 다크면 굳이 쓰지 않음.
   int _parseEnergy(String s, int def, RandomContext ctx) {
-    // print("[ENERGY] energy parse start = $s");
-    // 1. 마지막 ')' 위치 찾기
     final end = s.lastIndexOf(')');
     if (end == -1) return def;
 
-    // 2. 해당 ')'에 대응하는 '(' 찾기 (뒤에서부터)
     int depth = 0;
     int start = -1;
 
@@ -541,6 +547,7 @@ class SheetService {
         depth++;
       } else if (s[i] == '(') {
         depth--;
+
         if (depth == 0) {
           start = i;
           break;
@@ -550,26 +557,15 @@ class SheetService {
 
     if (start == -1) return def;
 
-    // 3. 괄호 안 내용 추출
-    final inner = s.substring(start + 1, end).trim();
+    final energyRaw = s.substring(start + 1, end).trim();
 
-    // 4. RD / URD 처리
-    if (inner.contains('RD')) {
-      final resolved = resolveRandom(inner, URDField.energy, ctx);
-      final ret = int.tryParse(resolved) ?? def;
-      // print("[ENERGY] energy parse = $ret - RD");
-      return ret;
-    }
+    final resolved = resolveRandom(
+      energyRaw,
+      URDField.energy,
+      ctx,
+    );
 
-    // 5. 일반 숫자 처리 (공백/소수 대응)
-    final numberMatch = RegExp(r'-?\d+').firstMatch(inner);
-    if (numberMatch != null) {
-      final ret = int.tryParse(numberMatch.group(0)!) ?? def;
-      // print("[ENERGY] energy parse = $ret");
-      return ret;
-    }
-
-    return def;
+    return int.tryParse(resolved) ?? def;
   }
 }
 
