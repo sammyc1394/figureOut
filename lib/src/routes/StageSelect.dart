@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config.dart';
+import '../functions/analytics_service.dart';
 import '../functions/sheet_service.dart';
 import '../theme_mode_scope.dart';
 import 'route_args.dart';
@@ -139,13 +140,19 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                         final isSelected = index == _currentIndex;
 
                         return GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             context.push(
                               '/missions',
                               extra: MissionRouteArgs(
                                 stages: stages,
                                 stageIndex: index,
                               ),
+                            );
+                            await AnalyticsService.instance.logEvent(
+                              'Stage_Clicked',
+                              properties: {
+                                'stage_number': index,
+                              },
                             );
                           },
                           child: AnimatedOpacity(
