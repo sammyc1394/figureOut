@@ -46,6 +46,7 @@ class AnalyticsService {
     final amplitude = _amplitude;
 
     if (amplitude == null) {
+      debugPrint('[Analytics] mock event: $eventName $properties');
       return;
     }
 

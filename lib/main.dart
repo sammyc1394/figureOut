@@ -48,7 +48,7 @@ void main() async {
   await dotenv.load(fileName: "assets/.env", isOptional: true);
 
   await AnalyticsService.instance.init(
-    // apiKey: dotenv.env['AMPLITUDE_API_KEY'],
+    apiKey: dotenv.env['AMPLITUDE_API'],
   );
 
   AnalyticsService.instance.logEvent(
