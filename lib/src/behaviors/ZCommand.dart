@@ -5,12 +5,27 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/animation.dart';
 
+// Z 경로의 한 줄: Z(...) 이동 구간이거나, 구간 사이의 "Wait n" 정지.
+class _ZStep {
+  _ZStep.move(this.zLine) : waitSeconds = null;
+
+  _ZStep.wait(this.waitSeconds) : zLine = null;
+
+  final String? zLine;
+  final double? waitSeconds;
+}
+
 class ZCommand implements ShapeBehavior {
   late final String movementRaw;
 
   late final Vector2 Function(Vector2) flipY;
   late final Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea;
   late final Vector2 Function(Vector2) worldToVirtualPlay;
+
+  // 경로를 끝까지 이동하면 완료된다. Repeat/Back 경로는 끝이 없으므로 루프를
+  // 시작하는 순간 완료 처리한다. TimingCommand가 이걸 기다렸다가
+  // "이동이 끝난 뒤" Disappear(n) 카운트다운을 시작한다.
+  final Completer<void> _sequenceCompleter = Completer<void>();
 
   ZCommand({
     required this.movementRaw,
@@ -19,6 +34,12 @@ class ZCommand implements ShapeBehavior {
     required this.worldToVirtualPlay,
   });
 
+  Future<void> get sequenceDone => _sequenceCompleter.future;
+
+  void _markSequenceDone() {
+    if (!_sequenceCompleter.isCompleted) _sequenceCompleter.complete();
+  }
+
   @override
   Future<void> apply(PositionComponent shape) async {
     // 🔥 기존과 동일하게 "비동기 실행만 시작"
@@ -26,6 +47,14 @@ class ZCommand implements ShapeBehavior {
   }
 
   Future<void> _run(PositionComponent shape) async {
+    try {
+      await _runPath(shape);
+    } finally {
+      _markSequenceDone();
+    }
+  }
+
+  Future<void> _runPath(PositionComponent shape) async {
     while (!shape.isMounted) {
       await Future<void>.delayed(Duration.zero);
     }
@@ -51,12 +80,25 @@ class ZCommand implements ShapeBehavior {
     final bool hasRepeat = lines.any(isRepeatLine);
     final bool hasBack = lines.any(isBackLine);
 
-    final zLines = lines.where((e) => e.startsWith('Z')).toList();
-    if (zLines.isEmpty) return;
-
     final zReg = RegExp(
       r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(?:(-?\d+(?:\.\d+)?)\s*,\s*)?(\d+(?:\.\d+)?)\s*\)$',
     );
+
+    // 시트에 적힌 순서 그대로의 경로: Z(...) 구간 + 구간 사이의 "Wait n" 정지.
+    // (맨 앞의 Wait는 TimingCommand가 먼저 떼어 가므로, 여기서 보이는 Wait는
+    // 두 구간 사이에서 도형을 그 자리에 세워 두는 것.)
+    final steps = <_ZStep>[];
+    for (final line in lines) {
+      if (zReg.hasMatch(line)) {
+        steps.add(_ZStep.move(line));
+        continue;
+      }
+      final waitSeconds = parseWaitLine(line);
+      if (waitSeconds != null) {
+        steps.add(_ZStep.wait(waitSeconds));
+      }
+    }
+    if (!steps.any((step) => step.zLine != null)) return;
 
     Future<void> moveLinear(Vector2 target, double speed, {double? priorityValue}) async {
       if (!shape.isMounted) return;
@@ -103,10 +145,16 @@ class ZCommand implements ShapeBehavior {
       final List<double> speeds = [];
       final List<double?> priorities = [];
 
-      for (final z in zLines) {
+      for (final step in steps) {
         if (!shape.isMounted) return;
 
-        final m = zReg.firstMatch(z);
+        final waitSeconds = step.waitSeconds;
+        if (waitSeconds != null) {
+          await waitShapeSeconds(shape, waitSeconds);
+          continue;
+        }
+
+        final m = zReg.firstMatch(step.zLine!);
         if (m == null) continue;
 
         final zx = double.parse(m.group(1)!);
@@ -159,6 +207,7 @@ class ZCommand implements ShapeBehavior {
     final bool loopForever = hasRepeat || hasBack;
 
     if (loopForever) {
+      _markSequenceDone();
       while (shape.isMounted) {
         await runOnce();
       }

@@ -437,6 +437,8 @@ class SheetService {
 
     final resolved = commands.map((cmd) {
       final prefix = getMovementPrefix(cmd);
+      // 타이밍 줄(Wait n / Disappear(n))이나 Repeat/Back만 있는 셀: 랜덤값이 없으니 그대로.
+      if (prefix.isEmpty) return cmd;
       final type = detectMovementTypeFromPrefix(prefix);
 
       final resolvedCmd = resolveMovementByType(cmd, type, ctx);
@@ -508,9 +510,24 @@ class SheetService {
     return movement.split(RegExp(r'\s*,\s*(?=[A-Z])'));
   }
 
+  // 이동 셀은 "Wait 2 / Z(200, 0, 100)" 처럼 타이밍 줄(Wait n, Disappear(n))이나
+  // Repeat/Back 으로 시작할 수 있다. 이런 줄에는 랜덤 범위가 없으므로 건너뛰고,
+  // 첫 번째 실제 이동 명령의 접두사를 돌려준다. 이동 명령이 없으면 ''.
   String getMovementPrefix(String cmd) {
-    if (cmd.startsWith('DR')) return 'DR';
-    return cmd.substring(0, 1);
+    for (final line in cmd.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || _isTimingOrLoopLine(trimmed)) continue;
+      if (trimmed.startsWith('DR')) return 'DR';
+      return trimmed.substring(0, 1);
+    }
+    return '';
+  }
+
+  bool _isTimingOrLoopLine(String line) {
+    final lower = line.toLowerCase();
+    if (lower.startsWith('wait') || lower.startsWith('disappear')) return true;
+    final letters = lower.replaceAll(RegExp(r'[^a-z]'), '');
+    return letters == 'repeat' || letters == 'back';
   }
 
   MovementValueType detectMovementTypeFromPrefix(String prefix) {

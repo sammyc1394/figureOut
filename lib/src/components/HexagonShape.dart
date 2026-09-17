@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/HexagonBurstEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import 'shape_path_utils.dart';
 
 enum HexagonState {
@@ -19,7 +20,8 @@ enum HexagonState {
 }
 
 class HexagonShape extends PositionComponent
-    with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
+    with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget
+    implements ResizableShape {
 
   static final _images = Images(prefix: 'assets/');
 
@@ -112,13 +114,7 @@ class HexagonShape extends PositionComponent
     await super.onLoad();
 
     _sprite = await Sprite.load('shapes/Hexagon_3x.png', images: _images);
-    _outlinePath = _buildHexagonPath(size.toSize());
-
-    _outlineLength =
-        _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
-    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
-
-    _attackPaint.strokeWidth = size.x * 0.06;
+    _rebuildGeometry();
 
     _currentHp = energy;
 
@@ -134,6 +130,25 @@ class HexagonShape extends PositionComponent
       );
       add(_hpTextComponent!);
     }
+  }
+
+  // 사이즈 변경 명령(S)용: size를 바꾸고 size에서 파생된 캐시를 다시 만든다.
+  @override
+  void setShapeSize(Vector2 newSize) {
+    size.setFrom(newSize);
+    // onLoad 전이면 onLoad가 새 size로 만들어 준다.
+    if (!isLoaded) return;
+    _rebuildGeometry();
+  }
+
+  // size에서 파생되지만 매 프레임 계산하지 않고 캐시해 두는 값들.
+  void _rebuildGeometry() {
+    _outlinePath = _buildHexagonPath(size.toSize());
+    _outlineLength =
+        _outlinePath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
+    _attackPaint.strokeWidth = size.x * 0.06;
+    _hpTextComponent?.position = size / 2;
   }
 
   Path _buildHexagonPath(Size s) {

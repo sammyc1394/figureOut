@@ -9,9 +9,12 @@ import 'package:flutter/material.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/EncircleSliceEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import 'shape_path_utils.dart';
 
-class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
+class TriangleShape extends PositionComponent
+    with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget
+    implements ResizableShape {
   static final _images = Images(prefix: 'assets/');
 
   int energy = 0;
@@ -84,10 +87,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     await super.onLoad();
 
     _sprite = await Sprite.load('shapes/Triangle_3x.png', images: _images);
-    _outlinePath = _buildTrianglePath(size.toSize());
-    _outlineLength =
-        _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
-    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
+    _rebuildGeometry();
 
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
@@ -101,6 +101,25 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       );
       add(_hpTextComponent!);
     }
+  }
+
+  // 사이즈 변경 명령(S)용: size를 바꾸고 size에서 파생된 캐시를 다시 만든다.
+  @override
+  void setShapeSize(Vector2 newSize) {
+    size.setFrom(newSize);
+    // onLoad 전이면 onLoad가 새 size로 만들어 준다.
+    if (!isLoaded) return;
+    _rebuildGeometry();
+  }
+
+  // size에서 파생되지만 매 프레임 계산하지 않고 캐시해 두는 값들.
+  void _rebuildGeometry() {
+    _outlinePath = _buildTrianglePath(size.toSize());
+    _outlineLength =
+        _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
+    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
+    _hpTextComponent?.position =
+        Vector2(size.x / 2, size.y * (3.5 + 78.5 * 2) / (86 * 3));
   }
 
   // ==========================================================

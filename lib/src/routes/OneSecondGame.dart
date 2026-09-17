@@ -35,11 +35,13 @@ import 'package:go_router/go_router.dart';
 import '../behaviors/CCommand.dart';
 import '../behaviors/DDrCommand.dart';
 import '../behaviors/LCommand.dart';
+import '../behaviors/TimingCommand.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../effect/PenaltyEffect.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import 'route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -865,35 +867,46 @@ class OneSecondGame extends FlameGame
     String shapeType = "";
     Vector2 size = Vector2.zero();
     double rectAngle = 0.0;
+    // 사이즈 변경 "Circle S(4, 7, 9) (1)": 사이즈 4로 생성되어 9초에 걸쳐 7이 된다.
+    final sizeChange = _parseSizeChange(enemy.shape);
+    Vector2? sizeChangeTarget;
     debugPrint("[PreparedEnemy] enemy name : ${enemy.shape}");
     if (enemy.shape.startsWith('Circle')) {
-      final scale = _parseScale(enemy.shape);
-      size = Vector2.all(80 * scale);
+      final sized = _indexedSize(Vector2.all(80), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
 
       debugPrint("[PreparedEnemy] size = (${size.x}, ${size.y})");
 
       shapeType = "Circle";
 
     } else if (enemy.shape.startsWith('Rectangle')) {
-      size = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
+      // 사각형은 w:h로 크기를 정하므로 S(...)가 있을 때만 사이즈 인덱스 배율을 곱한다.
+      final base = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
+      size = sizeChange == null ? base : base * sizeChange.startScale;
+      sizeChangeTarget =
+          sizeChange == null ? null : base * sizeChange.endScale;
       shapeType = "Rectangle";
       rectAngle = _parseRectAngle(enemy.shape);
 
     } else if (enemy.shape.startsWith('Pentagon')) {
-      final scale = _parseScale(enemy.shape);
-      size = Vector2.all(100 * scale);
+      final sized = _indexedSize(Vector2.all(100), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
 
       shapeType = "Pentagon";
 
     } else if (enemy.shape.startsWith('Triangle')) {
-      final scale = _parseScale(enemy.shape);
-      size = Vector2.all(70 * scale);
+      final sized = _indexedSize(Vector2.all(70), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
 
       shapeType = "Triangle";
 
     } else if (enemy.shape.startsWith('Hexagon')) {
-      final scale = _parseScale(enemy.shape);
-      size = Vector2.all(100 * scale);
+      final sized = _indexedSize(Vector2.all(100), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
 
       shapeType = "Hexagon";
 
@@ -955,6 +968,8 @@ class OneSecondGame extends FlameGame
       attackDamage: enemy.attackDamage,
       angle: rectAngle,
       zOrder: enemy.zOrder,
+      sizeChangeTarget: sizeChangeTarget,
+      sizeChangeSeconds: sizeChange?.seconds,
     );
   }
 
@@ -974,6 +989,8 @@ class OneSecondGame extends FlameGame
     // z-order 적용: 각 도형의 onLoad가 크기 기반 priority를 설정하므로,
     // load 이후에 생성(시트) 순서 + Top_/Bottom_ 대역 기반 priority로 덮어쓴다.
     shape.priority = _computeZPriority(enemy.zOrder);
+
+    _attachSizeChange(shape, enemy);
 
     // behavior attach
     if (enemy.behavior != null) {
@@ -1131,15 +1148,74 @@ class OneSecondGame extends FlameGame
     if (m != null) {
       print ("[Scale parse] m not null : $m ");
       final val = int.parse(m.group(1)!);
-      if (val <= 8) {
-        return val * 0.25;
-      } else {
-        // 8번이 2.0이므로, 거기서부터 0.5씩 증가
-        return 2.0 + (val - 8) * 0.5;
-      }
+      return _scaleForSizeIndex(val.toDouble());
     }
     print ("[Scale parse] m null : 1.0 ");
     return 1.0; // 기본값 (Circle == Circle4)
+  }
+
+  // 사이즈 인덱스 -> 배율 (1~8: 0.25씩 증가, 8번이 2.0이므로 9부터는 0.5씩 증가)
+  double _scaleForSizeIndex(double val) {
+    if (val <= 8) return val * 0.25;
+    return 2.0 + (val - 8) * 0.5;
+  }
+
+  // 1-1) 사이즈 변경 파싱: "Circle S(4, 7, 9) (1)" -> S(start, end, seconds)
+  //      사이즈 인덱스 start로 생성되어 seconds초에 걸쳐 end 사이즈가 된다.
+  //      (공백은 normalizeShape에서 이미 제거됨: "CircleS(4,7,9)(1)")
+  _SizeChange? _parseSizeChange(String s) {
+    final m = RegExp(
+      r'S\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+      caseSensitive: false,
+    ).firstMatch(s);
+    if (m == null) return null;
+
+    return _SizeChange(
+      startScale: _scaleForSizeIndex(double.parse(m.group(1)!)),
+      endScale: _scaleForSizeIndex(double.parse(m.group(2)!)),
+      seconds: double.parse(m.group(3)!),
+    );
+  }
+
+  // 인덱스로 크기를 정하는 도형(원/오각형/삼각형/육각형)의 생성 크기와,
+  // S(...)가 있으면 목표 크기. base = 인덱스 4(100%)일 때의 크기.
+  ({Vector2 size, Vector2? target}) _indexedSize(
+    Vector2 base,
+    String shape,
+    _SizeChange? change,
+  ) {
+    if (change == null) {
+      return (size: base * _parseScale(shape), target: null);
+    }
+    return (size: base * change.startScale, target: base * change.endScale);
+  }
+
+  // 사이즈 변경(S)이 있으면 스폰 직후부터 seconds초에 걸쳐 크기를 선형으로 바꾼다.
+  // 도형의 게임 시간을 쓰므로 일시정지 중에는 멈춘다 (ShapeTimerComponent).
+  static const double _sizeChangeMinStep = 0.5;
+
+  void _attachSizeChange(PositionComponent shape, PreparedEnemy enemy) {
+    final target = enemy.sizeChangeTarget;
+    final seconds = enemy.sizeChangeSeconds;
+    if (target == null || seconds == null || shape is! ResizableShape) return;
+
+    final resizable = shape as ResizableShape;
+    final from = shape.size.clone();
+    var last = from.clone();
+
+    shape.add(ShapeTimerComponent(
+      duration: seconds,
+      onTick: (progress) {
+        final next = Vector2(
+          from.x + (target.x - from.x) * progress,
+          from.y + (target.y - from.y) * progress,
+        );
+        // 외곽선 Path 재계산이 공짜는 아니라서 0.5px 미만의 변화는 건너뛴다.
+        if (progress < 1.0 && (next - last).length < _sizeChangeMinStep) return;
+        last = next;
+        resizable.setShapeSize(next);
+      },
+    ));
   }
 
   // 2) Rectangle 직접 크기 파싱 (Rectangle40:200 or Rectangle40:200@45)
@@ -1165,6 +1241,45 @@ class OneSecondGame extends FlameGame
   }
 
   ShapeBehavior? checkBehavior(
+      String raw,
+      Vector2 actPosition
+      ) {
+    // 이동 셀의 타이밍 줄(앞쪽 "Wait n", "Disappear(n)")을 먼저 떼어낸 뒤
+    // 남은 이동 명령만 기존 방식으로 해석하고, 타이밍이 있으면 TimingCommand로 감싼다.
+    final timing = TimingCommand.parse(raw);
+    final behavior = _checkMovementBehavior(timing.movement, actPosition);
+    if (!timing.hasTiming) return behavior;
+
+    debugPrint(
+      "[Behavior check] timing: wait=${timing.waitSeconds}s, disappear=${timing.disappearSeconds}s",
+    );
+    return TimingCommand(
+      waitSeconds: timing.waitSeconds,
+      disappearSeconds: timing.disappearSeconds,
+      inner: behavior,
+      onDisappear: _disappearShape,
+    );
+  }
+
+  // Disappear(n): 도형이 스스로 사라진다 — 패널티/보상 없이 웨이브에서 빠진다.
+  // D/DR로 숨어 있던 도형이 다시 나타나지 않도록 blink 컴포넌트도 함께 정리하고,
+  // 순서 도형이면 남은 순서가 막히지 않도록 순서 목록에서도 뺀다.
+  void _disappearShape(PositionComponent shape) {
+    final blinking = blinkingMap.remove(shape);
+    blinking?.removeFromParent();
+
+    if (shape is OrderableShape) {
+      final index = _orderedShapes.indexOf(shape as OrderableShape);
+      if (index >= 0) {
+        _orderedShapes.removeAt(index);
+        if (index < _currentOrderIndex) _currentOrderIndex--;
+      }
+    }
+
+    shape.removeFromParent();
+  }
+
+  ShapeBehavior? _checkMovementBehavior(
       String raw,
       Vector2 actPosition
       ) {
@@ -2975,4 +3090,18 @@ bool _isStraightLine(List<Vector2> path) {
       _drawDashedPath(canvas, renderPath, paint: paint);
     }
   }
+}
+
+
+// 사이즈 변경 명령 S(start, end, seconds)의 파싱 결과 (배율은 사이즈 인덱스를 배율로 바꾼 값).
+class _SizeChange {
+  const _SizeChange({
+    required this.startScale,
+    required this.endScale,
+    required this.seconds,
+  });
+
+  final double startScale;
+  final double endScale;
+  final double seconds;
 }

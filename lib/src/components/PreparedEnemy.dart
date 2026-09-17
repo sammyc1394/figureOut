@@ -17,6 +17,11 @@ class PreparedEnemy {
   final double angle;
   final ShapeZOrder zOrder;
 
+  // 사이즈 변경 (Circle S(4, 7, 9) (1)): customSize로 생성된 뒤
+  // sizeChangeSeconds초에 걸쳐 sizeChangeTarget 크기가 된다. 둘 다 null이면 고정 크기.
+  final Vector2? sizeChangeTarget;
+  final double? sizeChangeSeconds;
+
   const PreparedEnemy({
     required this.shapeType,
     required this.energy,
@@ -30,6 +35,8 @@ class PreparedEnemy {
     this.isBlinking = false,
     this.angle = 0.0,
     this.zOrder = ShapeZOrder.normal,
+    this.sizeChangeTarget,
+    this.sizeChangeSeconds,
   });
 
   @override

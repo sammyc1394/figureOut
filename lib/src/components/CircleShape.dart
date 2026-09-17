@@ -8,13 +8,14 @@ import 'package:figureout/src/functions/blink_alpha_target.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/CircleDisappearEffect.dart';
 import 'shape_path_utils.dart';
 
 class CircleShape extends PositionComponent
     with TapCallbacks, UserRemovable, HasGameRef, OverlapHighlightable, BlinkAlphaTarget
-    implements OrderableShape {
+    implements OrderableShape, ResizableShape {
 
   static final _images = Images(prefix: 'assets/');
 
@@ -33,6 +34,8 @@ class CircleShape extends PositionComponent
   final int? order;
 
   late PositionComponent _orderBadge;
+  CircleComponent? _orderBadgeBg;
+  TextComponent? _orderBadgeText;
   TextComponent? _hpTextComponent;
 
   late Sprite _sprite;
@@ -109,7 +112,23 @@ class CircleShape extends PositionComponent
     }
 
     _sprite = await Sprite.load('shapes/Circle_3x.png', images: _images);
+    _rebuildGeometry();
+  }
+
+  // 사이즈 변경 명령(S)용: size를 바꾸고 size에서 파생된 캐시를 다시 만든다.
+  @override
+  void setShapeSize(Vector2 newSize) {
+    size.setFrom(newSize);
+    // onLoad 전이면 onLoad가 새 size로 만들어 준다.
+    if (!isLoaded) return;
+    _rebuildGeometry();
+  }
+
+  // size에서 파생되지만 매 프레임 계산하지 않고 캐시해 두는 값들.
+  void _rebuildGeometry() {
     _wobblePath = ShapePathUtils.wobble(_buildCirclePath(), amplitude: size.x * 0.009);
+    _hpTextComponent?.position = size / 2;
+    if (order != null) _layoutOrderBadge();
   }
 
   @override
@@ -316,30 +335,19 @@ class CircleShape extends PositionComponent
     }
   }
 
-  void _addOrderBadge(int order) {
-    const badgeSizeRatio = 0.32;
-    final badgeSize = size.x * badgeSizeRatio;
+  static const double _badgeSizeRatio = 0.32;
 
-    _orderBadge = PositionComponent(
-      size: Vector2.all(badgeSize),
-      anchor: Anchor.center,
-      position: Vector2(
-        badgeSize * 0.6,
-        badgeSize * 0.6,
-      ),
-    );
+  void _addOrderBadge(int order) {
+    _orderBadge = PositionComponent(anchor: Anchor.center);
 
     final bg = CircleComponent(
-      radius: badgeSize / 2,
       paint: Paint()..color = const Color(0xFFFFA94D),
       anchor: Anchor.center,
-      position: _orderBadge.size / 2,
     );
 
     final text = TextComponent(
       text: order.toString(),
       anchor: Anchor.center,
-      position: _orderBadge.size / 2,
       textRenderer: TextPaint(
         style: TextStyle(
           fontSize: 16,
@@ -350,8 +358,27 @@ class CircleShape extends PositionComponent
       ),
     );
 
+    _orderBadgeBg = bg;
+    _orderBadgeText = text;
+    _layoutOrderBadge();
+
     _orderBadge.add(bg);
     _orderBadge.add(text);
     add(_orderBadge);
+  }
+
+  // 뱃지 크기/위치는 도형 size를 따라간다 (사이즈 변경 시에도 호출).
+  void _layoutOrderBadge() {
+    final badgeSize = size.x * _badgeSizeRatio;
+    _orderBadge.size = Vector2.all(badgeSize);
+    _orderBadge.position = Vector2(badgeSize * 0.6, badgeSize * 0.6);
+
+    final center = _orderBadge.size / 2;
+    final bg = _orderBadgeBg;
+    if (bg != null) {
+      bg.radius = badgeSize / 2;
+      bg.position = center;
+    }
+    _orderBadgeText?.position = center;
   }
 }

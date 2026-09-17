@@ -90,6 +90,17 @@ Shape size numbers map to percentage scale:
 - `9` = 250%
 - `10` = 300%
 
+Size change replaces the size number with `S(start, end, seconds)`:
+
+```text
+Circle S(4, 7, 9) (1)
+Pentagon S(6, 2, 4) (2)
+```
+
+The shape spawns at size `start` and grows or shrinks to size `end` over
+`seconds` seconds (same size scale as above). An order suffix still follows
+it: `Circle S(4, 7, 9)_01 (1)`.
+
 Rectangle supports aspect ratio and angle:
 
 ```text
@@ -121,6 +132,24 @@ Supported movement commands:
 - `DR(visible, hidden)`: repeat visible and hidden timing, then reappear at a random position
 - `Repeat`: loop the path from the start
 - `Back`: move back through the path in reverse order
+- `Wait n`: before the movement, delays its start by `n` seconds; between two
+  `Z` legs, holds the shape in place for `n` seconds
+- `Disappear(n)`: fades the shape out and removes it `n` seconds after its `Z`
+  path ends (for `B`/`C`/`D`/`DR`/`L`/`M` and `Repeat`/`Back` paths, `n`
+  seconds after the movement starts); no penalty or reward, and it no longer
+  blocks `Wait 0`
+
+Timing lines share the movement cell, one command per line:
+
+```text
+Wait 2
+Z(200, 0, 100)
+```
+
+```text
+Z(160, 0, 250)
+Disappear(3)
+```
 
 ## Random Data
 
