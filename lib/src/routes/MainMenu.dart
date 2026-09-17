@@ -233,7 +233,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 SizedBox(height: textPlace),
 
                 Text(
-                  'Tap to enter',
+                  i18n.t('main_menu_tap_to_enter'),
                   style: TextStyle(
                     fontFamily: appFontFamily,
                     fontWeight: FontWeight.w400,

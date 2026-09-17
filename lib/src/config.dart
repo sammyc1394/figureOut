@@ -68,9 +68,11 @@ const Map<String, String> languageDisplayNames = {
 };
 const String localeOverridePrefsKey = 'locale_override';
 
-// 설정 화면(Settings > Theme)에서 다크/라이트 모드를 전환할 때 쓰는 저장 키.
-// 실제 상태는 theme_mode_scope.dart의 isDarkModeNotifier가 들고 있다.
+// 설정 화면(Settings > Theme)에서 라이트/다크/시스템 모드를 전환할 때 쓰는 저장 키.
+// 실제 상태는 theme_mode_scope.dart의 themeModeNotifier/isDarkModeNotifier가 들고 있다.
+// themeModePrefsKey는 3단(System 옵션) 도입 이전 bool 저장값 마이그레이션 전용으로만 읽는다.
 const String themeModePrefsKey = 'theme_mode';
+const String themeModePreferenceKey = 'theme_mode_preference';
 
 // User Data 화면(Settings > User Data)에서 보여줄 사용 기록 저장 키
 const String userDataStartDatePrefsKey = 'user_data_start_date';

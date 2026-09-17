@@ -4,7 +4,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:figureout/main.dart';
 import '../config.dart';
 import '../functions/localization_service.dart';
 import '../theme_mode_scope.dart';
@@ -93,12 +92,15 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () => _showLanguagePicker(context),
                     ),
                     const _RowDivider(),
-                    _SettingsRow(
-                      label: i18n.t('settings_theme'),
-                      trailingText: ThemeModeScope.of(context)
-                          ? i18n.t('settings_theme_dark')
-                          : i18n.t('settings_theme_light'),
-                      onTap: () => _showThemePicker(context),
+                    ValueListenableBuilder<AppThemeMode>(
+                      valueListenable: themeModeNotifier,
+                      builder: (context, mode, _) {
+                        return _SettingsRow(
+                          label: i18n.t('settings_theme'),
+                          trailingText: _themeModeLabel(mode),
+                          onTap: () => _showThemePicker(context),
+                        );
+                      },
                     ),
                     const _RowDivider(),
                     _SettingsRow(
@@ -114,6 +116,11 @@ class SettingsScreen extends StatelessWidget {
                     _SettingsRow(
                       label: i18n.t('settings_twitter'),
                       onTap: () => _launchUrl(_twitterUrl),
+                    ),
+                    const _RowDivider(),
+                    _SettingsRow(
+                      label: i18n.t('settings_credits'),
+                      onTap: () => context.push('/settings/credits'),
                     ),
                     const _RowDivider(),
                     _SettingsRow(
@@ -147,13 +154,15 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showLanguagePicker(BuildContext context) {
+    final currentlyDark = ThemeModeScope.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(currentlyDark ? darkBgColor : bgColor),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
+        final textColor = currentlyDark ? Colors.white : Colors.black;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -165,6 +174,7 @@ class SettingsScreen extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: appFontFamily,
                       fontSize: 18,
+                      color: textColor,
                       fontWeight: code == i18n.locale
                           ? FontWeight.w800
                           : FontWeight.w400,
@@ -183,21 +193,34 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // 테마 변경(_changeTheme)과 동일한 순서: 시트를 먼저 닫고 나서 상태를 바꾼다.
+  // 무거운 리빌드(localeRevisionNotifier 갱신)를 시트가 아직 떠 있는 동안 먼저
+  // 실행하면 sheetContext가 그 사이에 무효화될 수 있어 pop()이 씹힐 수 있었다.
   Future<void> _changeLanguage(BuildContext sheetContext, String code) async {
-    if (code == i18n.locale) {
-      Navigator.of(sheetContext).pop();
-      return;
-    }
+    Navigator.of(sheetContext).pop();
+    if (code == i18n.locale) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(localeOverridePrefsKey, code);
     i18n = LocalizationService(code, cachedTranslations);
-    if (!sheetContext.mounted) return;
-    Navigator.of(sheetContext).pop();
-    figureoutMain.restart(sheetContext);
+    // 앱을 재시작(내비게이션 스택 리셋)하지 않고, 현재 화면에 보이는 텍스트만
+    // 새 i18n.t() 결과로 다시 그린다.
+    localeRevisionNotifier.value++;
+  }
+
+  String _themeModeLabel(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.dark:
+        return i18n.t('settings_theme_dark');
+      case AppThemeMode.system:
+        return i18n.t('settings_theme_system');
+      case AppThemeMode.light:
+        return i18n.t('settings_theme_light');
+    }
   }
 
   void _showThemePicker(BuildContext context) {
     final currentlyDark = ThemeModeScope.of(context);
+    final currentMode = themeModeNotifier.value;
     showModalBottomSheet(
       context: context,
       backgroundColor: Color(currentlyDark ? darkBgColor : bgColor),
@@ -210,25 +233,23 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final dark in [false, true])
+              for (final mode in AppThemeMode.values)
                 ListTile(
                   title: Text(
-                    dark
-                        ? i18n.t('settings_theme_dark')
-                        : i18n.t('settings_theme_light'),
+                    _themeModeLabel(mode),
                     style: TextStyle(
                       fontFamily: appFontFamily,
                       fontSize: 18,
                       color: textColor,
-                      fontWeight: dark == currentlyDark
+                      fontWeight: mode == currentMode
                           ? FontWeight.w800
                           : FontWeight.w400,
                     ),
                   ),
-                  trailing: dark == currentlyDark
+                  trailing: mode == currentMode
                       ? const Icon(Icons.check, color: Color(0xFFED613D))
                       : null,
-                  onTap: () => _changeTheme(sheetContext, dark),
+                  onTap: () => _changeTheme(sheetContext, mode),
                 ),
               const SizedBox(height: 8),
             ],
@@ -241,12 +262,13 @@ class SettingsScreen extends StatelessWidget {
   // 언어 변경과 달리 테마 변경은 앱을 재시작하지 않는다: isDarkModeNotifier 값만
   // 갱신하면 ThemeModeScope를 구독 중인 화면들이 제자리에서 다시 그려지고,
   // 현재 화면/네비게이션 스택은 그대로 유지된다.
-  Future<void> _changeTheme(BuildContext sheetContext, bool dark) async {
+  Future<void> _changeTheme(BuildContext sheetContext, AppThemeMode mode) async {
     Navigator.of(sheetContext).pop();
-    if (dark == isDarkModeNotifier.value) return;
+    if (mode == themeModeNotifier.value) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(themeModePrefsKey, dark);
-    isDarkModeNotifier.value = dark;
+    await prefs.setString(themeModePreferenceKey, mode.storageValue);
+    themeModeNotifier.value = mode;
+    isDarkModeNotifier.value = resolveIsDarkMode(mode);
   }
 }
 
@@ -331,6 +353,7 @@ class _SettingsFooter extends StatelessWidget {
       color: const Color(0xFF2B2B2B),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
             onTap: () => _launchUrl(_sunnyHomepageUrl),
@@ -340,18 +363,25 @@ class _SettingsFooter extends StatelessWidget {
               fit: BoxFit.contain,
             ),
           ),
-          const Spacer(),
-          GestureDetector(
-            onTap: () => _launchUrl(_termsUrl),
-            child: Text(i18n.t('settings_terms'), style: linkStyle),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Text('|', style: TextStyle(color: Colors.white38, fontSize: 17)),
-          ),
-          GestureDetector(
-            onTap: () => _launchUrl(_privacyUrl),
-            child: Text(i18n.t('settings_privacy'), style: linkStyle),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                GestureDetector(
+                  onTap: () => _launchUrl(_termsUrl),
+                  child: Text(i18n.t('settings_terms'), style: linkStyle),
+                ),
+                const Text('|', style: TextStyle(color: Colors.white38, fontSize: 17)),
+                GestureDetector(
+                  onTap: () => _launchUrl(_privacyUrl),
+                  child: Text(i18n.t('settings_privacy'), style: linkStyle),
+                ),
+              ],
+            ),
           ),
         ],
       ),

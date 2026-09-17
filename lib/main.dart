@@ -28,6 +28,7 @@ import 'package:figureout/src/routes/MainMenu.dart';
 import 'package:figureout/src/routes/MissionSelect.dart';
 import 'package:figureout/src/routes/StageSelect.dart';
 import 'package:figureout/src/routes/EndlessGameScreen.dart';
+import 'package:figureout/src/routes/CreditsScreen.dart';
 import 'package:figureout/src/routes/OpenSourceInfoScreen.dart';
 import 'package:figureout/src/routes/SettingsScreen.dart';
 import 'package:figureout/src/routes/SunnyGamesScreen.dart';
@@ -76,7 +77,13 @@ void main() async {
       ? savedLocale
       : resolveLocale();
 
-  isDarkModeNotifier.value = prefs.getBool(themeModePrefsKey) ?? false;
+  final storedThemeMode = prefs.getString(themeModePreferenceKey);
+  final initialThemeMode = storedThemeMode != null
+      ? AppThemeMode.fromStorage(storedThemeMode)
+      // 3단(System) 옵션 도입 이전 bool 저장값 마이그레이션. 새 설치는 기본 Light.
+      : (prefs.getBool(themeModePrefsKey) == true ? AppThemeMode.dark : AppThemeMode.light);
+  themeModeNotifier.value = initialThemeMode;
+  isDarkModeNotifier.value = resolveIsDarkMode(initialThemeMode);
 
   // Settings > User Data 화면에 표시할 사용 기록 갱신
   if (prefs.getString(userDataStartDatePrefsKey) == null) {
@@ -199,12 +206,40 @@ class _figureoutMainState extends State<figureoutMain> {
   }
 }
 
-class _FigureoutApp extends StatelessWidget {
+class _FigureoutApp extends StatefulWidget {
   const _FigureoutApp();
 
   @override
-  Widget build(BuildContext context) {
-    final router = GoRouter(
+  State<_FigureoutApp> createState() => _FigureoutAppState();
+}
+
+class _FigureoutAppState extends State<_FigureoutApp> with WidgetsBindingObserver {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _router = _buildRouter();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // System 테마를 선택한 상태에서 OS 다크모드가 바뀌면 앱도 실시간으로 따라간다.
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    if (themeModeNotifier.value == AppThemeMode.system) {
+      isDarkModeNotifier.value = resolveIsDarkMode(AppThemeMode.system);
+    }
+  }
+
+  GoRouter _buildRouter() {
+    return GoRouter(
       navigatorKey: rootNavigatorKey,
       initialLocation: '/',
       observers: [routeObserver],
@@ -220,6 +255,10 @@ class _FigureoutApp extends StatelessWidget {
             GoRoute(
               path: 'user-data',
               builder: (context, state) => const UserDataScreen(),
+            ),
+            GoRoute(
+              path: 'credits',
+              builder: (context, state) => const CreditsScreen(),
             ),
             GoRoute(
               path: 'open-source-info',
@@ -271,17 +310,22 @@ class _FigureoutApp extends StatelessWidget {
         ),
       ],
     );
+  }
 
-    // ThemeModeScope 아래의 Builder만 isDarkModeNotifier에 실제로 구독(depend)한다.
-    // 테마를 바꿔도 router는 재생성되지 않고, 화면들은 각자 ThemeModeScope.of(context)로
-    // 구독해서 제자리에서 다시 그려지므로 네비게이션 스택이 유지된다.
+  @override
+  Widget build(BuildContext context) {
+    // ThemeModeScope는 isDarkModeNotifier와 localeRevisionNotifier를 합친
+    // appUiRevisionListenable을 구독한다. 화면들은 각자 ThemeModeScope.of(context)로
+    // 구독해서 다크모드든 언어든 값이 바뀌면 그 자리에서 다시 그려지고(라우터는 그대로라
+    // 네비게이션 스택이 유지된다), 여기 이 Builder도 마찬가지로 다시 그려져 테마 색을
+    // 새로 적용한다.
     return ThemeModeScope(
-      notifier: isDarkModeNotifier,
+      notifier: appUiRevisionListenable,
       child: Builder(
         builder: (context) {
           final dark = ThemeModeScope.of(context);
           return MaterialApp.router(
-            routerConfig: router,
+            routerConfig: _router,
             debugShowCheckedModeBanner: false,
             title: "figure out",
             theme: ThemeData(
