@@ -115,16 +115,16 @@ class CircleShape extends PositionComponent
     _rebuildGeometry();
   }
 
-  // 사이즈 변경 명령(S)용: size를 바꾸고 size에서 파생된 캐시를 다시 만든다.
+  // For size-change command S(...): update size and rebuild size-derived caches.
   @override
   void setShapeSize(Vector2 newSize) {
     size.setFrom(newSize);
-    // onLoad 전이면 onLoad가 새 size로 만들어 준다.
+    // Before onLoad, onLoad will build caches from the new size.
     if (!isLoaded) return;
     _rebuildGeometry();
   }
 
-  // size에서 파생되지만 매 프레임 계산하지 않고 캐시해 두는 값들.
+  // Values derived from size; cached instead of recomputed every frame.
   void _rebuildGeometry() {
     _wobblePath = ShapePathUtils.wobble(_buildCirclePath(), amplitude: size.x * 0.009);
     _hpTextComponent?.position = size / 2;
@@ -367,7 +367,7 @@ class CircleShape extends PositionComponent
     add(_orderBadge);
   }
 
-  // 뱃지 크기/위치는 도형 size를 따라간다 (사이즈 변경 시에도 호출).
+  // Badge size/position tracks shape size (also called on size change).
   void _layoutOrderBadge() {
     final badgeSize = size.x * _badgeSizeRatio;
     _orderBadge.size = Vector2.all(badgeSize);

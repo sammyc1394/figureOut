@@ -867,7 +867,7 @@ class OneSecondGame extends FlameGame
     String shapeType = "";
     Vector2 size = Vector2.zero();
     double rectAngle = 0.0;
-    // 사이즈 변경 "Circle S(4, 7, 9) (1)": 사이즈 4로 생성되어 9초에 걸쳐 7이 된다.
+    // Size change "Circle S(4, 7, 9) (1)": spawn at size 4, tween to 7 over 9s.
     final sizeChange = _parseSizeChange(enemy.shape);
     Vector2? sizeChangeTarget;
     debugPrint("[PreparedEnemy] enemy name : ${enemy.shape}");
@@ -881,7 +881,7 @@ class OneSecondGame extends FlameGame
       shapeType = "Circle";
 
     } else if (enemy.shape.startsWith('Rectangle')) {
-      // 사각형은 w:h로 크기를 정하므로 S(...)가 있을 때만 사이즈 인덱스 배율을 곱한다.
+      // Rectangles use w:h for size; apply size-index scale only when S(...) is present.
       final base = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
       size = sizeChange == null ? base : base * sizeChange.startScale;
       sizeChangeTarget =
@@ -1154,15 +1154,15 @@ class OneSecondGame extends FlameGame
     return 1.0; // 기본값 (Circle == Circle4)
   }
 
-  // 사이즈 인덱스 -> 배율 (1~8: 0.25씩 증가, 8번이 2.0이므로 9부터는 0.5씩 증가)
+  // Size index -> scale (1–8: +0.25 each; from 9 onward: +0.5, since 8 = 2.0).
   double _scaleForSizeIndex(double val) {
     if (val <= 8) return val * 0.25;
     return 2.0 + (val - 8) * 0.5;
   }
 
-  // 1-1) 사이즈 변경 파싱: "Circle S(4, 7, 9) (1)" -> S(start, end, seconds)
-  //      사이즈 인덱스 start로 생성되어 seconds초에 걸쳐 end 사이즈가 된다.
-  //      (공백은 normalizeShape에서 이미 제거됨: "CircleS(4,7,9)(1)")
+  // 1-1) Size-change parse: "Circle S(4, 7, 9) (1)" -> S(start, end, seconds)
+  //      Spawn at size-index start; tween to end over seconds.
+  //      (Spaces already stripped by normalizeShape: "CircleS(4,7,9)(1)")
   _SizeChange? _parseSizeChange(String s) {
     final m = RegExp(
       r'S\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
@@ -1177,8 +1177,8 @@ class OneSecondGame extends FlameGame
     );
   }
 
-  // 인덱스로 크기를 정하는 도형(원/오각형/삼각형/육각형)의 생성 크기와,
-  // S(...)가 있으면 목표 크기. base = 인덱스 4(100%)일 때의 크기.
+  // Spawn size for index-based shapes (circle/pentagon/triangle/hexagon), plus
+  // optional S(...) target. base = size at index 4 (100%).
   ({Vector2 size, Vector2? target}) _indexedSize(
     Vector2 base,
     String shape,
@@ -1190,8 +1190,8 @@ class OneSecondGame extends FlameGame
     return (size: base * change.startScale, target: base * change.endScale);
   }
 
-  // 사이즈 변경(S)이 있으면 스폰 직후부터 seconds초에 걸쳐 크기를 선형으로 바꾼다.
-  // 도형의 게임 시간을 쓰므로 일시정지 중에는 멈춘다 (ShapeTimerComponent).
+  // If S(...) is present, linearly tween size over seconds from spawn.
+  // Uses shape game time, so it pauses while the game is paused (ShapeTimerComponent).
   static const double _sizeChangeMinStep = 0.5;
 
   void _attachSizeChange(PositionComponent shape, PreparedEnemy enemy) {
@@ -1210,7 +1210,7 @@ class OneSecondGame extends FlameGame
           from.x + (target.x - from.x) * progress,
           from.y + (target.y - from.y) * progress,
         );
-        // 외곽선 Path 재계산이 공짜는 아니라서 0.5px 미만의 변화는 건너뛴다.
+        // Outline path rebuild isn't free; skip sub-0.5px changes.
         if (progress < 1.0 && (next - last).length < _sizeChangeMinStep) return;
         last = next;
         resizable.setShapeSize(next);
@@ -1244,8 +1244,9 @@ class OneSecondGame extends FlameGame
       String raw,
       Vector2 actPosition
       ) {
-    // 이동 셀의 타이밍 줄(앞쪽 "Wait n", "Disappear(n)")을 먼저 떼어낸 뒤
-    // 남은 이동 명령만 기존 방식으로 해석하고, 타이밍이 있으면 TimingCommand로 감싼다.
+    // Strip leading timing lines ("Wait n", "Disappear(n)") from the movement
+    // cell, parse the remaining movement as usual, then wrap with TimingCommand
+    // when timing is present.
     final timing = TimingCommand.parse(raw);
     final behavior = _checkMovementBehavior(timing.movement, actPosition);
     if (!timing.hasTiming) return behavior;
@@ -1261,9 +1262,9 @@ class OneSecondGame extends FlameGame
     );
   }
 
-  // Disappear(n): 도형이 스스로 사라진다 — 패널티/보상 없이 웨이브에서 빠진다.
-  // D/DR로 숨어 있던 도형이 다시 나타나지 않도록 blink 컴포넌트도 함께 정리하고,
-  // 순서 도형이면 남은 순서가 막히지 않도록 순서 목록에서도 뺀다.
+  // Disappear(n): shape removes itself — leaves the wave with no penalty/reward.
+  // Also clear blink components so D/DR shapes do not reappear, and drop the
+  // shape from the order list so remaining ordered shapes are not blocked.
   void _disappearShape(PositionComponent shape) {
     final blinking = blinkingMap.remove(shape);
     blinking?.removeFromParent();
@@ -3093,7 +3094,7 @@ bool _isStraightLine(List<Vector2> path) {
 }
 
 
-// 사이즈 변경 명령 S(start, end, seconds)의 파싱 결과 (배율은 사이즈 인덱스를 배율로 바꾼 값).
+// Parsed S(start, end, seconds) size-change command (scales from size indices).
 class _SizeChange {
   const _SizeChange({
     required this.startScale,

@@ -103,16 +103,16 @@ class TriangleShape extends PositionComponent
     }
   }
 
-  // 사이즈 변경 명령(S)용: size를 바꾸고 size에서 파생된 캐시를 다시 만든다.
+  // For size-change command S(...): update size and rebuild size-derived caches.
   @override
   void setShapeSize(Vector2 newSize) {
     size.setFrom(newSize);
-    // onLoad 전이면 onLoad가 새 size로 만들어 준다.
+    // Before onLoad, onLoad will build caches from the new size.
     if (!isLoaded) return;
     _rebuildGeometry();
   }
 
-  // size에서 파생되지만 매 프레임 계산하지 않고 캐시해 두는 값들.
+  // Values derived from size; cached instead of recomputed every frame.
   void _rebuildGeometry() {
     _outlinePath = _buildTrianglePath(size.toSize());
     _outlineLength =

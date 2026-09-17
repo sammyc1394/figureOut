@@ -17,8 +17,8 @@ class PreparedEnemy {
   final double angle;
   final ShapeZOrder zOrder;
 
-  // 사이즈 변경 (Circle S(4, 7, 9) (1)): customSize로 생성된 뒤
-  // sizeChangeSeconds초에 걸쳐 sizeChangeTarget 크기가 된다. 둘 다 null이면 고정 크기.
+  // Size change (Circle S(4, 7, 9) (1)): spawn at customSize, then tween to
+  // sizeChangeTarget over sizeChangeSeconds. Both null => fixed size.
   final Vector2? sizeChangeTarget;
   final double? sizeChangeSeconds;
 

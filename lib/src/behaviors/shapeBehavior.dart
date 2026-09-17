@@ -24,10 +24,10 @@ bool isShapePaused(PositionComponent shape) {
   }
 }
 
-// 이동 셀에서 이동 명령과 함께 쓸 수 있는 타이밍 줄:
-//   Wait 2          → 2초 기다림 ("Wait(2)"도 허용)
-//   Disappear(3)    → 3초 뒤 도형 제거 ("Disappear 3"도 허용)
-// 한 줄씩, 앞뒤 공백을 제거한 뒤 대소문자 구분 없이 매칭한다.
+// Timing lines that can appear alongside movement commands in a movement cell:
+//   Wait 2          → wait 2 seconds ("Wait(2)" also allowed)
+//   Disappear(3)    → remove the shape after 3 seconds ("Disappear 3" also allowed)
+// One command per line; trimmed; case-insensitive.
 final RegExp _waitLineRegex = RegExp(
   r'^wait\s*\(?\s*(\d+(?:\.\d+)?)\s*\)?$',
   caseSensitive: false,
@@ -37,23 +37,23 @@ final RegExp _disappearLineRegex = RegExp(
   caseSensitive: false,
 );
 
-/// `Wait n` 줄이면 n(초), 아니면 null.
+/// Seconds from a `Wait n` line, or null if not a wait line.
 double? parseWaitLine(String line) {
   final match = _waitLineRegex.firstMatch(line.trim());
   return match == null ? null : double.tryParse(match.group(1)!);
 }
 
-/// `Disappear(n)` 줄이면 n(초), 아니면 null.
+/// Seconds from a `Disappear(n)` line, or null if not a disappear line.
 double? parseDisappearLine(String line) {
   final match = _disappearLineRegex.firstMatch(line.trim());
   return match == null ? null : double.tryParse(match.group(1)!);
 }
 
-/// 부모 도형의 "게임 시간"으로 [duration]초를 센다. 도형이 일시정지되어 있거나
-/// (pause/aftermath 오버레이, [isShapePaused]) D/DR 블링크로 트리에서 빠져 있는
-/// 동안에는 시간이 흐르지 않는다 — 실제 시간으로 계속 흐르는 `Future.delayed`와
-/// 다른 점. 매 프레임 [onTick]에 진행률(0.0~1.0)을 넘기고, 끝나면 [onComplete]를
-/// 한 번 호출한 뒤 스스로 제거된다.
+/// Counts [duration] seconds in the parent shape's game time. Time does not
+/// advance while the shape is paused (pause/aftermath overlay, [isShapePaused])
+/// or detached for D/DR blinking — unlike wall-clock `Future.delayed`. Calls
+/// [onTick] each frame with progress (0.0–1.0), then [onComplete] once and
+/// removes itself.
 class ShapeTimerComponent extends Component {
   ShapeTimerComponent({
     required this.duration,
@@ -89,9 +89,9 @@ class ShapeTimerComponent extends Component {
   }
 }
 
-/// [shape]의 게임 시간으로 [seconds]초 기다린다 ([ShapeTimerComponent] 참고).
-/// 도형이 그 전에 완전히 제거되면 영원히 완료되지 않는데, 호출자는 사라진 도형을
-/// 더 움직일 일이 없으므로 그대로 두면 된다.
+/// Waits [seconds] in [shape]'s game time (see [ShapeTimerComponent]).
+/// If the shape is removed first, this future never completes; callers can
+/// ignore that because a gone shape does not need further movement.
 Future<void> waitShapeSeconds(
   PositionComponent shape,
   double seconds, {
