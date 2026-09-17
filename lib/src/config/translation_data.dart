@@ -44,6 +44,10 @@ final Map<String, Map<String, String>> translationData = {
     'en': 'Dark',
     'ko': '다크',
   },
+  'settings_theme_system': {
+    'en': 'System',
+    'ko': '시스템',
+  },
   'settings_sunny_games': {
     'en': "Sunny's Games and Apps",
     'ko': '써니의 게임과 앱',

@@ -93,12 +93,15 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () => _showLanguagePicker(context),
                     ),
                     const _RowDivider(),
-                    _SettingsRow(
-                      label: i18n.t('settings_theme'),
-                      trailingText: ThemeModeScope.of(context)
-                          ? i18n.t('settings_theme_dark')
-                          : i18n.t('settings_theme_light'),
-                      onTap: () => _showThemePicker(context),
+                    ValueListenableBuilder<AppThemeMode>(
+                      valueListenable: themeModeNotifier,
+                      builder: (context, mode, _) {
+                        return _SettingsRow(
+                          label: i18n.t('settings_theme'),
+                          trailingText: _themeModeLabel(mode),
+                          onTap: () => _showThemePicker(context),
+                        );
+                      },
                     ),
                     const _RowDivider(),
                     _SettingsRow(
@@ -152,13 +155,15 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showLanguagePicker(BuildContext context) {
+    final currentlyDark = ThemeModeScope.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(bgColor),
+      backgroundColor: Color(currentlyDark ? darkBgColor : bgColor),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
+        final textColor = currentlyDark ? Colors.white : Colors.black;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -170,6 +175,7 @@ class SettingsScreen extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: appFontFamily,
                       fontSize: 18,
+                      color: textColor,
                       fontWeight: code == i18n.locale
                           ? FontWeight.w800
                           : FontWeight.w400,
@@ -201,8 +207,20 @@ class SettingsScreen extends StatelessWidget {
     figureoutMain.restart(sheetContext);
   }
 
+  String _themeModeLabel(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.dark:
+        return i18n.t('settings_theme_dark');
+      case AppThemeMode.system:
+        return i18n.t('settings_theme_system');
+      case AppThemeMode.light:
+        return i18n.t('settings_theme_light');
+    }
+  }
+
   void _showThemePicker(BuildContext context) {
     final currentlyDark = ThemeModeScope.of(context);
+    final currentMode = themeModeNotifier.value;
     showModalBottomSheet(
       context: context,
       backgroundColor: Color(currentlyDark ? darkBgColor : bgColor),
@@ -215,25 +233,23 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final dark in [false, true])
+              for (final mode in AppThemeMode.values)
                 ListTile(
                   title: Text(
-                    dark
-                        ? i18n.t('settings_theme_dark')
-                        : i18n.t('settings_theme_light'),
+                    _themeModeLabel(mode),
                     style: TextStyle(
                       fontFamily: appFontFamily,
                       fontSize: 18,
                       color: textColor,
-                      fontWeight: dark == currentlyDark
+                      fontWeight: mode == currentMode
                           ? FontWeight.w800
                           : FontWeight.w400,
                     ),
                   ),
-                  trailing: dark == currentlyDark
+                  trailing: mode == currentMode
                       ? const Icon(Icons.check, color: Color(0xFFED613D))
                       : null,
-                  onTap: () => _changeTheme(sheetContext, dark),
+                  onTap: () => _changeTheme(sheetContext, mode),
                 ),
               const SizedBox(height: 8),
             ],
@@ -246,12 +262,13 @@ class SettingsScreen extends StatelessWidget {
   // 언어 변경과 달리 테마 변경은 앱을 재시작하지 않는다: isDarkModeNotifier 값만
   // 갱신하면 ThemeModeScope를 구독 중인 화면들이 제자리에서 다시 그려지고,
   // 현재 화면/네비게이션 스택은 그대로 유지된다.
-  Future<void> _changeTheme(BuildContext sheetContext, bool dark) async {
+  Future<void> _changeTheme(BuildContext sheetContext, AppThemeMode mode) async {
     Navigator.of(sheetContext).pop();
-    if (dark == isDarkModeNotifier.value) return;
+    if (mode == themeModeNotifier.value) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(themeModePrefsKey, dark);
-    isDarkModeNotifier.value = dark;
+    await prefs.setString(themeModePreferenceKey, mode.storageValue);
+    themeModeNotifier.value = mode;
+    isDarkModeNotifier.value = resolveIsDarkMode(mode);
   }
 }
 

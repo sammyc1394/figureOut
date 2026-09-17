@@ -77,7 +77,13 @@ void main() async {
       ? savedLocale
       : resolveLocale();
 
-  isDarkModeNotifier.value = prefs.getBool(themeModePrefsKey) ?? false;
+  final storedThemeMode = prefs.getString(themeModePreferenceKey);
+  final initialThemeMode = storedThemeMode != null
+      ? AppThemeMode.fromStorage(storedThemeMode)
+      // 3단(System) 옵션 도입 이전 bool 저장값 마이그레이션. 새 설치는 기본 Light.
+      : (prefs.getBool(themeModePrefsKey) == true ? AppThemeMode.dark : AppThemeMode.light);
+  themeModeNotifier.value = initialThemeMode;
+  isDarkModeNotifier.value = resolveIsDarkMode(initialThemeMode);
 
   // Settings > User Data 화면에 표시할 사용 기록 갱신
   if (prefs.getString(userDataStartDatePrefsKey) == null) {
@@ -200,8 +206,34 @@ class _figureoutMainState extends State<figureoutMain> {
   }
 }
 
-class _FigureoutApp extends StatelessWidget {
+class _FigureoutApp extends StatefulWidget {
   const _FigureoutApp();
+
+  @override
+  State<_FigureoutApp> createState() => _FigureoutAppState();
+}
+
+class _FigureoutAppState extends State<_FigureoutApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // System 테마를 선택한 상태에서 OS 다크모드가 바뀌면 앱도 실시간으로 따라간다.
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    if (themeModeNotifier.value == AppThemeMode.system) {
+      isDarkModeNotifier.value = resolveIsDarkMode(AppThemeMode.system);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
