@@ -117,6 +117,11 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const _RowDivider(),
                     _SettingsRow(
+                      label: i18n.t('settings_credits'),
+                      onTap: () => context.push('/settings/credits'),
+                    ),
+                    const _RowDivider(),
+                    _SettingsRow(
                       label: i18n.t('settings_open_source_info'),
                       onTap: () => context.push('/settings/open-source-info'),
                     ),

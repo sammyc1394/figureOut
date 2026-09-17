@@ -56,6 +56,10 @@ final Map<String, Map<String, String>> translationData = {
     'en': 'X (Twitter)',
     'ko': 'X (Twitter)',
   },
+  'settings_credits': {
+    'en': 'Credits',
+    'ko': '크레딧',
+  },
   'settings_open_source_info': {
     'en': 'Open Source Info',
     'ko': '오픈소스 정보',
