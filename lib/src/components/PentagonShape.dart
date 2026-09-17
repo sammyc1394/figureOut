@@ -14,11 +14,13 @@ import 'package:flutter/material.dart' hide Matrix4;
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/PentagonBurstEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable, BlinkAlphaTarget {
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable, BlinkAlphaTarget
+    implements ResizableShape {
 
   static final _images = Images(prefix: 'assets/');
 
@@ -144,21 +146,8 @@ class PentagonShape extends PositionComponent
     // z-order(priority)는 스폰 시 생성 순서 기반으로 설정된다. (크기 무관)
     await super.onLoad();
 
-    _center = _visualPentagonCenter;
-
-    _baseRadius = size.x * 0.42;
-
     _sprite = await Sprite.load('shapes/Pentagon_3x.png', images: _images);
-    _pentagonPath = _buildPentagonPath(_center, _baseRadius);
-
-    _perimeter =
-        _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
-    _wobblePath = ShapePathUtils.wobble(_pentagonPath, amplitude: size.x * 0.009);
-
-    final attackCenter = Offset(size.x / 2, size.y / 2 + size.y * 0.04);
-    _attackBorderPath = _buildPentagonPath(attackCenter, size.x * 0.50);
-    _attackBorderPerimeter =
-        _attackBorderPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+    _rebuildGeometry();
 
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
@@ -172,6 +161,34 @@ class PentagonShape extends PositionComponent
       );
       add(_hpTextComponent!);
     }
+  }
+
+  // For size-change command S(...): update size and rebuild size-derived caches.
+  @override
+  void setShapeSize(Vector2 newSize) {
+    size.setFrom(newSize);
+    // Before onLoad, onLoad will build caches from the new size.
+    if (!isLoaded) return;
+    _rebuildGeometry();
+  }
+
+  // Values derived from size; cached instead of recomputed every frame.
+  void _rebuildGeometry() {
+    _center = _visualPentagonCenter;
+    _baseRadius = size.x * 0.42;
+
+    _pentagonPath = _buildPentagonPath(_center, _baseRadius);
+    _perimeter =
+        _pentagonPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+    _wobblePath = ShapePathUtils.wobble(_pentagonPath, amplitude: size.x * 0.009);
+
+    final attackCenter = Offset(size.x / 2, size.y / 2 + size.y * 0.04);
+    _attackBorderPath = _buildPentagonPath(attackCenter, size.x * 0.50);
+    _attackBorderPerimeter =
+        _attackBorderPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
+
+    _hpTextComponent?.position =
+        Vector2(_visualPentagonCenter.dx, _visualPentagonCenter.dy);
   }
 
   // ===============================

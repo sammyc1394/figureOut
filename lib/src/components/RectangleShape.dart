@@ -12,12 +12,13 @@ import '../effect/AttackExplosionEffect.dart';
 import '../config.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 class RectangleShape extends PositionComponent
     with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget
-    implements OrderableShape {
+    implements OrderableShape, ResizableShape {
   static final _images = Images(prefix: 'assets/');
 
   int count = 0;
@@ -149,10 +150,26 @@ class RectangleShape extends PositionComponent
     }
 
     _sprite = await Sprite.load('shapes/Rectangle_3x.png', images: _images);
+    _rebuildGeometry();
+  }
+
+  // For size-change command S(...): update size and rebuild size-derived caches.
+  @override
+  void setShapeSize(Vector2 newSize) {
+    size.setFrom(newSize);
+    // Before onLoad, onLoad will build caches from the new size.
+    if (!isLoaded) return;
+    _rebuildGeometry();
+  }
+
+  // Values derived from size; cached instead of recomputed every frame.
+  void _rebuildGeometry() {
     _outlinePath = _buildRectPath(size.toSize());
     _outlineLength =
         _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
     _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
+    _hpTextComponent?.position = size / 2;
+    if (order != null) _layoutOrderBadge();
   }
 
   Path _buildRectPath(Size s) {
@@ -656,32 +673,19 @@ class RectangleShape extends PositionComponent
     return null;
   }
 
+  static const double _badgeSizeRatio = 0.32;
+
   void _addOrderBadge(int order) {
-    const badgeSizeRatio = 0.32;
-    final badgeSize = size.y * badgeSizeRatio;
-
-    _orderBadge = PositionComponent(
-      size: Vector2.all(badgeSize),
-      anchor: Anchor.bottomRight,
-      position: Vector2(
-        badgeSize * 0.7,
-        badgeSize * 0.7,
-      ),
-    );
-
-    final center = _orderBadge.size / 2;
+    _orderBadge = PositionComponent(anchor: Anchor.bottomRight);
 
     final bg = CircleComponent(
-      radius: badgeSize / 2,
       paint: Paint()..color = const Color(0xFF4680FF),
       anchor: Anchor.center,
-      position: center,
     );
 
     final text = TextComponent(
       text: order.toString(),
       anchor: Anchor.center,
-      position: center,
       textRenderer: TextPaint(
         style: TextStyle(
           fontSize: 18,
@@ -692,12 +696,28 @@ class RectangleShape extends PositionComponent
       ),
     );
 
+    _orderBadgeBg = bg;
+    _orderBadgeText = text;
+    _layoutOrderBadge();
+
     _orderBadge.add(bg);
     _orderBadge.add(text);
     add(_orderBadge);
+  }
 
-    _orderBadgeBg = bg;
-    _orderBadgeText = text;
+  // Badge size/position tracks shape size (also called on size change).
+  void _layoutOrderBadge() {
+    final badgeSize = size.y * _badgeSizeRatio;
+    _orderBadge.size = Vector2.all(badgeSize);
+    _orderBadge.position = Vector2(badgeSize * 0.7, badgeSize * 0.7);
+
+    final center = _orderBadge.size / 2;
+    final bg = _orderBadgeBg;
+    if (bg != null) {
+      bg.radius = badgeSize / 2;
+      bg.position = center;
+    }
+    _orderBadgeText?.position = center;
   }
 
   void applyValidInteraction() {

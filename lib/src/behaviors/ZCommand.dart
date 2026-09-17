@@ -5,12 +5,27 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/animation.dart';
 
+// One step on a Z path: a Z(...) move leg, or a mid-path "Wait n" hold.
+class _ZStep {
+  _ZStep.move(this.zLine) : waitSeconds = null;
+
+  _ZStep.wait(this.waitSeconds) : zLine = null;
+
+  final String? zLine;
+  final double? waitSeconds;
+}
+
 class ZCommand implements ShapeBehavior {
   late final String movementRaw;
 
   late final Vector2 Function(Vector2) flipY;
   late final Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea;
   late final Vector2 Function(Vector2) worldToVirtualPlay;
+
+  // Completes when the path finishes. Infinite Repeat/Back paths complete as
+  // soon as the loop starts. TimingCommand awaits this before starting an
+  // "after movement" Disappear(n) countdown.
+  final Completer<void> _sequenceCompleter = Completer<void>();
 
   ZCommand({
     required this.movementRaw,
@@ -19,13 +34,27 @@ class ZCommand implements ShapeBehavior {
     required this.worldToVirtualPlay,
   });
 
+  Future<void> get sequenceDone => _sequenceCompleter.future;
+
+  void _markSequenceDone() {
+    if (!_sequenceCompleter.isCompleted) _sequenceCompleter.complete();
+  }
+
   @override
   Future<void> apply(PositionComponent shape) async {
-    // 🔥 기존과 동일하게 "비동기 실행만 시작"
+    // Same as before: start async execution without awaiting here.
     unawaited(_run(shape));
   }
 
   Future<void> _run(PositionComponent shape) async {
+    try {
+      await _runPath(shape);
+    } finally {
+      _markSequenceDone();
+    }
+  }
+
+  Future<void> _runPath(PositionComponent shape) async {
     while (!shape.isMounted) {
       await Future<void>.delayed(Duration.zero);
     }
@@ -51,12 +80,25 @@ class ZCommand implements ShapeBehavior {
     final bool hasRepeat = lines.any(isRepeatLine);
     final bool hasBack = lines.any(isBackLine);
 
-    final zLines = lines.where((e) => e.startsWith('Z')).toList();
-    if (zLines.isEmpty) return;
-
     final zReg = RegExp(
       r'^Z\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(?:(-?\d+(?:\.\d+)?)\s*,\s*)?(\d+(?:\.\d+)?)\s*\)$',
     );
+
+    // Path in sheet order: Z(...) legs plus mid-path "Wait n" holds.
+    // (Leading waits are stripped by TimingCommand first; any Wait seen here
+    // holds the shape in place between two legs.)
+    final steps = <_ZStep>[];
+    for (final line in lines) {
+      if (zReg.hasMatch(line)) {
+        steps.add(_ZStep.move(line));
+        continue;
+      }
+      final waitSeconds = parseWaitLine(line);
+      if (waitSeconds != null) {
+        steps.add(_ZStep.wait(waitSeconds));
+      }
+    }
+    if (!steps.any((step) => step.zLine != null)) return;
 
     Future<void> moveLinear(Vector2 target, double speed, {double? priorityValue}) async {
       if (!shape.isMounted) return;
@@ -103,10 +145,16 @@ class ZCommand implements ShapeBehavior {
       final List<double> speeds = [];
       final List<double?> priorities = [];
 
-      for (final z in zLines) {
+      for (final step in steps) {
         if (!shape.isMounted) return;
 
-        final m = zReg.firstMatch(z);
+        final waitSeconds = step.waitSeconds;
+        if (waitSeconds != null) {
+          await waitShapeSeconds(shape, waitSeconds);
+          continue;
+        }
+
+        final m = zReg.firstMatch(step.zLine!);
         if (m == null) continue;
 
         final zx = double.parse(m.group(1)!);
@@ -159,6 +207,7 @@ class ZCommand implements ShapeBehavior {
     final bool loopForever = hasRepeat || hasBack;
 
     if (loopForever) {
+      _markSequenceDone();
       while (shape.isMounted) {
         await runOnce();
       }

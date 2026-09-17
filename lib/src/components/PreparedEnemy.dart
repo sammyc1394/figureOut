@@ -17,6 +17,11 @@ class PreparedEnemy {
   final double angle;
   final ShapeZOrder zOrder;
 
+  // Size change (Circle S(4, 7, 9) (1)): spawn at customSize, then tween to
+  // sizeChangeTarget over sizeChangeSeconds. Both null => fixed size.
+  final Vector2? sizeChangeTarget;
+  final double? sizeChangeSeconds;
+
   const PreparedEnemy({
     required this.shapeType,
     required this.energy,
@@ -30,6 +35,8 @@ class PreparedEnemy {
     this.isBlinking = false,
     this.angle = 0.0,
     this.zOrder = ShapeZOrder.normal,
+    this.sizeChangeTarget,
+    this.sizeChangeSeconds,
   });
 
   @override

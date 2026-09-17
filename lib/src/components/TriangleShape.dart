@@ -9,9 +9,12 @@ import 'package:flutter/material.dart';
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/EncircleSliceEffect.dart';
 import '../functions/OverlapHighlightable.dart';
+import '../functions/ResizableShape.dart';
 import 'shape_path_utils.dart';
 
-class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget {
+class TriangleShape extends PositionComponent
+    with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget
+    implements ResizableShape {
   static final _images = Images(prefix: 'assets/');
 
   int energy = 0;
@@ -84,10 +87,7 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
     await super.onLoad();
 
     _sprite = await Sprite.load('shapes/Triangle_3x.png', images: _images);
-    _outlinePath = _buildTrianglePath(size.toSize());
-    _outlineLength =
-        _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
-    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
+    _rebuildGeometry();
 
     if (!isDark && energy >= 1) {
       _hpTextComponent = TextComponent(
@@ -101,6 +101,25 @@ class TriangleShape extends PositionComponent with TapCallbacks, UserRemovable, 
       );
       add(_hpTextComponent!);
     }
+  }
+
+  // For size-change command S(...): update size and rebuild size-derived caches.
+  @override
+  void setShapeSize(Vector2 newSize) {
+    size.setFrom(newSize);
+    // Before onLoad, onLoad will build caches from the new size.
+    if (!isLoaded) return;
+    _rebuildGeometry();
+  }
+
+  // Values derived from size; cached instead of recomputed every frame.
+  void _rebuildGeometry() {
+    _outlinePath = _buildTrianglePath(size.toSize());
+    _outlineLength =
+        _outlinePath.computeMetrics().fold(0.0, (sum, m) => sum + m.length);
+    _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
+    _hpTextComponent?.position =
+        Vector2(size.x / 2, size.y * (3.5 + 78.5 * 2) / (86 * 3));
   }
 
   // ==========================================================

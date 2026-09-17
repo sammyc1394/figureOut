@@ -437,6 +437,8 @@ class SheetService {
 
     final resolved = commands.map((cmd) {
       final prefix = getMovementPrefix(cmd);
+      // Timing-only / loop-only cells (Wait n / Disappear(n) / Repeat / Back): no random values.
+      if (prefix.isEmpty) return cmd;
       final type = detectMovementTypeFromPrefix(prefix);
 
       final resolvedCmd = resolveMovementByType(cmd, type, ctx);
@@ -508,9 +510,24 @@ class SheetService {
     return movement.split(RegExp(r'\s*,\s*(?=[A-Z])'));
   }
 
+  // A movement cell can start with timing lines (Wait n, Disappear(n)) or
+  // Repeat/Back, e.g. "Wait 2 / Z(200, 0, 100)". Those lines have no random
+  // ranges, so skip them and return the first real movement prefix (or '').
   String getMovementPrefix(String cmd) {
-    if (cmd.startsWith('DR')) return 'DR';
-    return cmd.substring(0, 1);
+    for (final line in cmd.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || _isTimingOrLoopLine(trimmed)) continue;
+      if (trimmed.startsWith('DR')) return 'DR';
+      return trimmed.substring(0, 1);
+    }
+    return '';
+  }
+
+  bool _isTimingOrLoopLine(String line) {
+    final lower = line.toLowerCase();
+    if (lower.startsWith('wait') || lower.startsWith('disappear')) return true;
+    final letters = lower.replaceAll(RegExp(r'[^a-z]'), '');
+    return letters == 'repeat' || letters == 'back';
   }
 
   MovementValueType detectMovementTypeFromPrefix(String prefix) {
