@@ -42,6 +42,7 @@ import '../effect/PenaltyEffect.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
 import '../functions/ResizableShape.dart';
+import '../services/audio_manager.dart';
 import 'route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -2718,6 +2719,8 @@ bool _isStraightLine(List<Vector2> path) {
   // which otherwise leaves shapes moving/blinking behind the blurred dialog
   // since showAftermathScreen doesn't go through pauseGame()'s flow.
   void _pauseAllGameplayComponents() {
+    AudioManager.instance.stopLoopingSfx();
+
     for (final c in children.whereType<CircleShape>()) {
       c.isPaused = true;
     }

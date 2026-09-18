@@ -37,7 +37,7 @@ class HexagonBurstEffect extends PositionComponent {
   @override
   void onMount() {
     super.onMount();
-    AudioManager.instance.playHexagonPop();
+    AudioManager.instance.playHexagonBurst();
   }
 
   @override
