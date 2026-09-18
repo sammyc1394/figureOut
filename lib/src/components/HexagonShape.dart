@@ -10,6 +10,7 @@ import '../effect/AttackExplosionEffect.dart';
 import '../effect/HexagonBurstEffect.dart';
 import '../functions/OverlapHighlightable.dart';
 import '../functions/ResizableShape.dart';
+import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 enum HexagonState {
@@ -62,6 +63,9 @@ class HexagonShape extends PositionComponent
     ..strokeWidth = 3.0;
 
   HexagonState _state = HexagonState.normal;
+
+  /// One stretch SFX loop per drag gesture (burst plays pop on destroy).
+  bool _stretchSfxPlaying = false;
 
   double _autoGrowT = 0.0;
   double _disappearT = 0.0;
@@ -132,6 +136,12 @@ class HexagonShape extends PositionComponent
     }
   }
 
+  @override
+  void onRemove() {
+    AudioManager.instance.stopHexagonStretch();
+    super.onRemove();
+  }
+
   // For size-change command S(...): update size and rebuild size-derived caches.
   @override
   void setShapeSize(Vector2 newSize) {
@@ -189,6 +199,12 @@ class HexagonShape extends PositionComponent
   }
 
   @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _stretchSfxPlaying = false;
+  }
+
+  @override
   void onDragUpdate(DragUpdateEvent event) {
 
     if (isDark) {
@@ -197,6 +213,11 @@ class HexagonShape extends PositionComponent
     }
 
     if (_state != HexagonState.normal) return;
+
+    if (!_stretchSfxPlaying) {
+      _stretchSfxPlaying = true;
+      AudioManager.instance.startHexagonStretch();
+    }
 
     dragScale += 0.01;
 
@@ -211,6 +232,8 @@ class HexagonShape extends PositionComponent
         if (_currentHp <= 0) {
           wasRemovedByUser = true;
           _finalScale = dragScale;
+          _stretchSfxPlaying = false;
+          AudioManager.instance.stopHexagonStretch();
           _state = HexagonState.disappearing;
         }
       }
@@ -219,6 +242,8 @@ class HexagonShape extends PositionComponent
 
   @override
   void onDragEnd(DragEndEvent event) {
+    _stretchSfxPlaying = false;
+    AudioManager.instance.stopHexagonStretch();
 
     if (_state != HexagonState.normal) return;
 
@@ -230,11 +255,24 @@ class HexagonShape extends PositionComponent
   }
 
   @override
+  void onDragCancel(DragCancelEvent event) {
+    super.onDragCancel(event);
+    _stretchSfxPlaying = false;
+    AudioManager.instance.stopHexagonStretch();
+  }
+
+  @override
   void update(double dt) {
 
     super.update(dt);
 
-    if (isPaused) return;
+    if (isPaused) {
+      if (_stretchSfxPlaying) {
+        _stretchSfxPlaying = false;
+        AudioManager.instance.stopHexagonStretch();
+      }
+      return;
+    }
 
     // ============================
     // ATTACK TIMER → 즉시 자폭
@@ -328,6 +366,8 @@ class HexagonShape extends PositionComponent
 
         _finalScale = dragScale * autoScale;
 
+        _stretchSfxPlaying = false;
+        AudioManager.instance.stopHexagonStretch();
         _state = HexagonState.disappearing;
       }
     }

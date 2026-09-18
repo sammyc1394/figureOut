@@ -163,6 +163,12 @@ class PentagonShape extends PositionComponent
     }
   }
 
+  @override
+  void onRemove() {
+    AudioManager.instance.stopPentagonHold();
+    super.onRemove();
+  }
+
   // For size-change command S(...): update size and rebuild size-derived caches.
   @override
   void setShapeSize(Vector2 newSize) {
@@ -205,9 +211,18 @@ class PentagonShape extends PositionComponent
     }
 
 
-    if (isPaused) return;
+    if (isPaused) {
+      // Pause/aftermath freezes update but the looping hold SFX would keep
+      // playing otherwise (and tap-up may be lost while the overlay is up).
+      if (_isLongPressing) {
+        AudioManager.instance.stopPentagonHold();
+      }
+      return;
+    }
 
     if (_isLongPressing && !isDark) {
+      // Resume the loop if pause stopped it while the finger is still down.
+      AudioManager.instance.startPentagonHold();
 
       if (_pulseThicknessT < 1.0) {
         _pulseThicknessT += dt / _pulseAppearTime;
@@ -223,11 +238,11 @@ class PentagonShape extends PositionComponent
 
       if (_pressElapsed >= _pressTick) {
         _pressElapsed -= _pressTick;
-        AudioManager.instance.playPentagonHold();
         energy--;
 
         if (energy <= 0) {
           wasRemovedByUser = true;
+          AudioManager.instance.stopPentagonHold();
           _playRemoveEffect();
           removeFromParent();
           return;
@@ -515,7 +530,7 @@ class PentagonShape extends PositionComponent
     }
 
     _isLongPressing = true;
-    AudioManager.instance.playPentagonHold();
+    AudioManager.instance.startPentagonHold();
 
     _pulseThicknessT = 0.0;
     _pressElapsed = 0.0;
@@ -523,6 +538,7 @@ class PentagonShape extends PositionComponent
     energy--;
     if (energy <= 0) {
       wasRemovedByUser = true;
+      AudioManager.instance.stopPentagonHold();
       _playRemoveEffect();
       removeFromParent();
       return;
@@ -533,11 +549,24 @@ class PentagonShape extends PositionComponent
 
   @override
   void onTapUp(TapUpEvent e) {
-
-    _isLongPressing = false;
+    _stopHold();
     _frozenPosition = null;
     children.whereType<Effect>().forEach((effect) => effect.resume());
     _myBlinking()?.isPaused = false;
+  }
+
+  @override
+  void onTapCancel(TapCancelEvent e) {
+    _stopHold();
+    _frozenPosition = null;
+    children.whereType<Effect>().forEach((effect) => effect.resume());
+    _myBlinking()?.isPaused = false;
+  }
+
+  void _stopHold() {
+    if (!_isLongPressing) return;
+    _isLongPressing = false;
+    AudioManager.instance.stopPentagonHold();
   }
 
   BlinkingBehaviorComponent? _myBlinking() {
