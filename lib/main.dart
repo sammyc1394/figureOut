@@ -1,6 +1,4 @@
 
-import 'package:figureout/src/functions/analytics_service.dart';
-import 'package:figureout/src/functions/logger_service.dart';
 import 'package:flame/flame.dart';
 import 'dart:ui';
 
@@ -36,6 +34,9 @@ import 'package:figureout/src/routes/UserDataScreen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
+import 'package:figureout/src/functions/analytics_service.dart';
+import 'package:figureout/src/functions/logger_service.dart';
+import 'package:figureout/src/functions/leaderboard_service.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -51,6 +52,9 @@ void main() async {
   await AnalyticsService.instance.init(
     apiKey: dotenv.env['AMPLITUDE_API'],
   );
+
+  final userId = await LeaderboardService.getOrCreateUuid();
+  await AnalyticsService.instance.setUserId(userId);
 
   AnalyticsService.instance.logEvent(
     'app_open',
