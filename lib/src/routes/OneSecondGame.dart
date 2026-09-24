@@ -665,6 +665,10 @@ class OneSecondGame extends FlameGame
     final enemies = stage.missions[missionIndex]!;
     debugPrint("enemy data = $enemies");
 
+    // 같은 포메이션(wait 구간) 내 좌표들을 범위 밖 clamp로 간격이 틀어지지
+    // 않도록 미리 보정해둔다.
+    final formationPositions = _computeFormationShiftedPositions(enemies);
+
     final spawnedThisMission = <Component>{};
     final currentWave = <Component>{};
     // final preparedEnemies = <PreparedEnemy>[];
@@ -747,6 +751,7 @@ class OneSecondGame extends FlameGame
         flipY: flipY,
         toPlayArea: toPlayArea,
         checkBehavior: checkBehavior,
+        overridePosition: formationPositions[i],
       );
 
       if (prepared == null) continue;
@@ -858,11 +863,84 @@ class OneSecondGame extends FlameGame
     });
   }
 
+  // ------------------------------------------------------------
+  // 포메이션(같은 wait 구간에 연속 배치된 도형들) 단위로 좌표를 보정한다.
+  //
+  // toPlayArea()는 minX~maxX(에디터 유효 좌표 범위) 밖의 좌표를 개별적으로
+  // clamp한다. 포메이션 중 한 도형만 범위를 벗어나면 그 도형만 화면 경계에
+  // 눌려붙어 의도한 간격이 깨진다(예: -190, -120, -50처럼 간격이 70으로
+  // 동일해도 -190만 clamp되면 시각적으로 간격이 달라짐).
+  //
+  // 개별 clamp 대신, 범위를 벗어난 포메이션 전체를 좌표계 안으로 통째로
+  // 평행이동시켜 상대 간격을 항상 보존한다. (포메이션 폭 자체가 유효
+  // 범위보다 넓어 평행이동으로 못 담으면 기존처럼 개별 clamp로 fallback)
+  Map<int, Vector2> _computeFormationShiftedPositions(List<EnemyData> enemies) {
+    final result = <int, Vector2>{};
+    final posRegex = RegExp(r'\((-?\d+),\s*(-?\d+)\)');
+
+    void flushGroup(int start, int endExclusive) {
+      final indices = <int>[];
+      final xs = <double>[];
+      final ys = <double>[];
+
+      for (int i = start; i < endExclusive; i++) {
+        final e = enemies[i];
+        if (e.command == 'wait') continue;
+
+        final m = posRegex.firstMatch(e.position);
+        if (m == null) continue;
+
+        indices.add(i);
+        xs.add(double.parse(m.group(1)!));
+        ys.add(double.parse(m.group(2)!));
+      }
+
+      if (indices.isEmpty) return;
+
+      final shiftX = _formationAxisShift(xs, minX, maxX, rangeX);
+      final shiftY = _formationAxisShift(ys, minY, maxY, rangeY);
+
+      for (int k = 0; k < indices.length; k++) {
+        result[indices[k]] = Vector2(xs[k] + shiftX, ys[k] + shiftY);
+      }
+    }
+
+    int groupStart = 0;
+    for (int i = 0; i < enemies.length; i++) {
+      if (enemies[i].command == 'wait') {
+        flushGroup(groupStart, i);
+        groupStart = i + 1;
+      }
+    }
+    flushGroup(groupStart, enemies.length);
+
+    return result;
+  }
+
+  // 한 축(x 또는 y)에 대해, 포메이션 전체가 [lo, hi] 안에 들어가도록
+  // 필요한 평행이동량을 계산한다. 폭이 range보다 넓으면 0을 반환하고
+  // 호출부(toPlayArea)의 개별 clamp에 맡긴다.
+  double _formationAxisShift(
+      List<double> values, double lo, double hi, double range) {
+    final minV = values.reduce(math.min);
+    final maxV = values.reduce(math.max);
+
+    if (minV >= lo && maxV <= hi) return 0.0;
+    if (maxV - minV > range) return 0.0;
+
+    if (minV < lo) return lo - minV;
+    if (maxV > hi) return hi - maxV;
+    return 0.0;
+  }
+
   PreparedEnemy? buildPreparedEnemy({
     required EnemyData enemy,
     required Vector2 Function(Vector2) flipY,
     required Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea,
     required ShapeBehavior? Function(String movement, Vector2 actPosition) checkBehavior,
+    // 같은 포메이션(연속 spawn 그룹)에서 미리 계산된, 범위 밖 좌표를 보정한 좌표.
+    // 주어지면 enemy.position 파싱값 대신 이 값을 사용한다.
+    Vector2? overridePosition,
   }) {
     // 1. 도형 & 사이즈 파싱
     String shapeType = "";
@@ -930,14 +1008,21 @@ class OneSecondGame extends FlameGame
     final int? order = enemy.order;
 
     // 5. 좌표 변환
-    final posMatch = RegExp(
-      r'\((-?\d+),\s*(-?\d+)\)',
-    ).firstMatch(enemy.position);
-    if (posMatch == null) {
-      throw FormatException('Invalid position: ${enemy.position}');
+    double x;
+    double y;
+    if (overridePosition != null) {
+      x = overridePosition.x;
+      y = overridePosition.y;
+    } else {
+      final posMatch = RegExp(
+        r'\((-?\d+),\s*(-?\d+)\)',
+      ).firstMatch(enemy.position);
+      if (posMatch == null) {
+        throw FormatException('Invalid position: ${enemy.position}');
+      }
+      x = double.parse(posMatch.group(1)!);
+      y = double.parse(posMatch.group(2)!);
     }
-    final x = double.parse(posMatch.group(1)!);
-    final y = double.parse(posMatch.group(2)!);
 
     final halfSizeX = size.x / 2;
     Vector2 actPosition = toPlayArea(
