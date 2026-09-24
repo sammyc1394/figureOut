@@ -42,6 +42,7 @@ import '../effect/PenaltyEffect.dart';
 import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
 import '../functions/ResizableShape.dart';
+import '../functions/analytics_service.dart';
 import '../services/audio_manager.dart';
 import 'route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2048,7 +2049,9 @@ class OneSecondGame extends FlameGame
     overlays.add('aftermath');
   }
 
-  void _resumeFromFailure() {
+  Future<void> _resumeFromFailure() async {
+    // TODO 광고 불러오기 & 광고 시청 마쳤을 경우 이어하기 처리
+    await AnalyticsService.instance.logEvent('Next_Clicked');
     debugPrint('[RESUME] Resuming failed mission from last round...');
 
     // Remove aftermath screen
@@ -2986,7 +2989,8 @@ bool _isStraightLine(List<Vector2> path) {
     _resumeFromFailure();
   }
 
-  void handleAftermathRetry() {
+  Future<void> handleAftermathRetry() async {
+    await AnalyticsService.instance.logEvent('Aftermath_Restart_Clicked');
     _removeAftermathOverlay();
     runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
   }
@@ -3035,8 +3039,9 @@ bool _isStraightLine(List<Vector2> path) {
 
   void handlePauseResume() => resumeGame();
 
-  void handlePauseRetry() {
+  Future<void> handlePauseRetry() async {
     overlays.remove('pause');
+    await AnalyticsService.instance.logEvent('Pause_Restart_Clicked');
 
     _isPausedGlobally = false;
     _timerPaused = false;

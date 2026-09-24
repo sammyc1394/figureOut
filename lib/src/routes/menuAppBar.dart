@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import '../functions/analytics_service.dart';
 import '../services/audio_manager.dart';
 import '../theme_mode_scope.dart';
 
@@ -180,7 +181,11 @@ class _MenuappbarState extends State<Menuappbar> {
         Padding(
           padding: const EdgeInsets.only(right: 16),
           child: GestureDetector(
-            onTap: () => context.push('/settings'),
+            onTap: () async {
+              await AnalyticsService.instance.logEvent('Settings_Clicked');
+              if (!context.mounted) return;
+              context.push('/settings');
+            },
             child: Image.asset(
               'assets/Settings_button_beige.png',
               width: 36,
