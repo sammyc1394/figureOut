@@ -32,6 +32,8 @@ class TriangleShape extends PositionComponent
   bool _penaltyFired = false;
   bool isPaused = false;
 
+  @override
+  double get blinkAlpha => _blinkAlpha;
   double _blinkAlpha = 1.0;
 
   // 이중 트리거 방지
@@ -318,6 +320,8 @@ class TriangleShape extends PositionComponent
   }
 
   bool isFullyEnclosedByUserPath(List<Vector2> userPath) {
+    if (_blinkAlpha <= 0) return false;
+
     for (final v in getTriangleVertices()) {
       if (!isPointInPolygon(v, userPath)) return false;
     }

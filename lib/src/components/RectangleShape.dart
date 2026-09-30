@@ -25,7 +25,10 @@ class RectangleShape extends PositionComponent
 
   late PositionComponent _orderBadge;
 
+  @override
+  double get blinkAlpha => _blinkAlpha;
   double _blinkAlpha = 1.0;
+
   CircleComponent? _orderBadgeBg;
   TextComponent? _orderBadgeText;
   TextComponent? _hpTextComponent;
@@ -353,6 +356,9 @@ class RectangleShape extends PositionComponent
 
   void touchAtPoint(List<Vector2> userPath) {
     debugPrint("=== RUNNING TOUCHATPOINT ==============");
+
+    if (_blinkAlpha <= 0) return;
+
     if (userPath.length < 2 || isSliced) return;
 
     // ===== A 좌표계 문제 확인 =====

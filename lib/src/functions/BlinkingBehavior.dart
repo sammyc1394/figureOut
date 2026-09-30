@@ -118,7 +118,7 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
 
       onFadeAlphaChanged?.call(shape, 0.0);
 
-      shape.removeFromParent();
+      // shape.removeFromParent();
     } else if (!_visible && _timer >= invisibleDuration) {
       _timer = 0;
       _visible = true;
@@ -128,7 +128,6 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
       _fadeTimer = 0;
 
       // parent?.add(shape);
-      if (!shape.isMounted) {
         if (isRandomRespawn) {
           final margin = 50.0;
           final screenW = game.size.x;
@@ -147,8 +146,8 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
         }
 
         // game.add(shape);
-        parent?.add(shape);
-      }
+        // parent?.add(shape);
+
 
       onFadeAlphaChanged?.call(shape, 1.0);
     }
