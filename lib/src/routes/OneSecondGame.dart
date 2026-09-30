@@ -43,6 +43,7 @@ import '../functions/OrderableShape.dart';
 import '../functions/OverlapHighlightable.dart';
 import '../functions/ResizableShape.dart';
 import '../functions/analytics_service.dart';
+import '../functions/blink_alpha_target.dart';
 import '../services/audio_manager.dart';
 import 'route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2227,6 +2228,10 @@ class OneSecondGame extends FlameGame
 
     for (final comp in comps) {
 
+      if (comp is BlinkAlphaTarget && comp.blinkAlpha <= 0) {
+        continue;
+      }
+
       if (_isDarkShape(comp)) {
         applyTimePenalty(10);
         forbiddenShapeEffect.flash();
@@ -2521,7 +2526,6 @@ bool _isStraightLine(List<Vector2> path) {
       _resetPathState();
       return;
     }
-
 
     final enclosedTriangles = <TriangleShape>[];
     final touchedOtherShapes = <PositionComponent>[];

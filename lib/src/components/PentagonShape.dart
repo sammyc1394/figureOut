@@ -44,7 +44,8 @@ class PentagonShape extends PositionComponent
   // ===============================
   // BLINK
   // ===============================
-
+  @override
+  double get blinkAlpha => _blinkAlpha;
   double _blinkAlpha = 1.0;
 
   final Paint _overlapOutlinePaint = Paint()
@@ -521,6 +522,8 @@ class PentagonShape extends PositionComponent
 
   @override
   void onLongTapDown(TapDownEvent e) {
+
+    if (_blinkAlpha <= 0) return;
 
     if (isDark) {
 

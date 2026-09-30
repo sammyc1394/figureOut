@@ -85,7 +85,8 @@ class HexagonShape extends PositionComponent
   // ============================
   // BLINKING
   // ============================
-
+  @override
+  double get blinkAlpha => _blinkAlpha;
   double _blinkAlpha = 1.0;
 
   void setBlinkAlpha(double alpha) {
@@ -206,6 +207,8 @@ class HexagonShape extends PositionComponent
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
+
+    if (_blinkAlpha <= 0) return;
 
     if (isDark) {
       onForbiddenTouch?.call();

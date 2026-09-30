@@ -54,7 +54,10 @@ class CircleShape extends PositionComponent
   final Color baseColor = const Color(0xFFA93A1E);
   final Color dangerColor = const Color(0xFFEE0505);
 
+  @override
+  double get blinkAlpha => _blinkAlpha;
   double _blinkAlpha = 1.0;
+
   double _darkLifespan = 0.0;
 
   final Paint _overlapOutlinePaint = Paint()
@@ -294,6 +297,9 @@ class CircleShape extends PositionComponent
   @override
   void onTapDown(TapDownEvent e) {
     e.continuePropagation = false;
+
+    if (_blinkAlpha <= 0) return;
+
     if (isDark) {
       onForbiddenTouch?.call();
       return;
