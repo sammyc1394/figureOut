@@ -1,5 +1,5 @@
 
-import 'package:figureout/src/routes/OneSecondGame.dart';
+import 'package:figureout/src/game_modes/OneSecondGame.dart';
 import 'package:figureout/src/routes/AftermathScreen.dart';
 import 'package:figureout/src/routes/HowToPlayOverlay.dart';
 import 'package:figureout/src/routes/PausedScreen.dart';
@@ -8,12 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config.dart';
-import '../functions/analytics_service.dart';
-import '../functions/sheet_service.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/services/analytics_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
 import '../services/ad_manager.dart';
 import '../services/play_time_tracker.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
 class MainGameScreen extends StatefulWidget {
   final List<StageData> stages;

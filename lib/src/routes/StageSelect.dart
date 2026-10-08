@@ -1,12 +1,12 @@
-import 'package:figureout/src/routes/menuAppBar.dart';
+import 'package:figureout/src/components/menuAppBar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config.dart';
-import '../functions/analytics_service.dart';
-import '../functions/sheet_service.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/services/analytics_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 import 'route_args.dart';
 
 class StageSelectScreen extends StatefulWidget {

@@ -2,13 +2,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
 import 'package:figureout/main.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config.dart';
+import 'package:figureout/src/config/config.dart';
 import '../effect/WigglyUnderlinePainter.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:figureout/src/behaviors/ZCommand.dart';
 import 'package:figureout/src/behaviors/shapeBehavior.dart';
-import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
 import 'package:flame/components.dart';
 
 /// Timing data stripped from a movement cell by [TimingCommand.parse].

@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config.dart';
+import 'package:figureout/src/config/config.dart';
 
 /// 하트 개수/재충전 타이머를 다루는 공용 헬퍼.
 class HeartService {

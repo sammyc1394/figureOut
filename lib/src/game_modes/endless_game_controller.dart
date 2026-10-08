@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'sheet_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
 
 /// 무한모드 난이도 곡선 및 도형 동적 생성 엔진
 class EndlessGameController {

@@ -2,17 +2,17 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:figureout/src/effect/FallingClippedPiece.dart';
-import 'package:figureout/src/functions/UserRemovable.dart';
-import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../effect/AttackExplosionEffect.dart';
-import '../config.dart';
-import '../functions/OrderableShape.dart';
-import '../functions/OverlapHighlightable.dart';
-import '../functions/ResizableShape.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/components/OrderableShape.dart';
+import 'package:figureout/src/components/OverlapHighlightable.dart';
+import 'package:figureout/src/components/ResizableShape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 

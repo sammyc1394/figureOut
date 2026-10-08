@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config.dart';
-import '../functions/analytics_service.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/services/analytics_service.dart';
 import '../services/audio_manager.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
 class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   final Color? backgroundColor;

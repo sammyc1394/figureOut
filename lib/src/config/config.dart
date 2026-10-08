@@ -1,4 +1,4 @@
-import 'package:figureout/src/functions/localization_service.dart';
+import 'package:figureout/src/services/localization_service.dart';
 
 const gameWidth = 1179.0; //117.90;
 const gameHeight = 2556.0; //255.60;

@@ -4,9 +4,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config.dart';
-import '../functions/localization_service.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/services/localization_service.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 import 'HowToPlayOverlay.dart';
 
 // Sunny Innovation Lab 공용 링크 (General Settings 기획서 slide 5)

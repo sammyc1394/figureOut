@@ -1,6 +1,6 @@
-import 'package:figureout/src/functions/UserRemovable.dart';
-import 'package:figureout/src/functions/blink_alpha_target.dart';
-import 'package:figureout/src/routes/OneSecondGame.dart';
+import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
+import 'package:figureout/src/game_modes/OneSecondGame.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/EncircleSliceEffect.dart';
-import '../functions/OverlapHighlightable.dart';
-import '../functions/ResizableShape.dart';
+import 'package:figureout/src/components/OverlapHighlightable.dart';
+import 'package:figureout/src/components/ResizableShape.dart';
 import 'shape_path_utils.dart';
 
 class TriangleShape extends PositionComponent

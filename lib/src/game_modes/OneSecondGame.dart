@@ -24,12 +24,12 @@ import 'package:figureout/src/effect/AttackExplosionEffect.dart';
 import 'package:figureout/src/effect/EncircleSliceEffect.dart';
 import 'package:figureout/src/effect/CircleDisappearEffect.dart';
 
-import 'package:figureout/src/config.dart';
-import 'package:figureout/src/theme_mode_scope.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
-import 'package:figureout/src/functions/sheet_service.dart';
-import 'package:figureout/src/functions/OrbitingComponent.dart';
-import 'package:figureout/src/functions/BlinkingBehavior.dart';
+import 'package:figureout/src/services/sheet_service.dart';
+import 'package:figureout/src/behaviors/OrbitingComponent.dart';
+import 'package:figureout/src/behaviors/BlinkingBehavior.dart';
 import 'package:figureout/src/components/PauseButton.dart';
 import 'package:go_router/go_router.dart';
 import '../behaviors/CCommand.dart';
@@ -39,13 +39,13 @@ import '../behaviors/TimingCommand.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../effect/PenaltyEffect.dart';
-import '../functions/OrderableShape.dart';
-import '../functions/OverlapHighlightable.dart';
-import '../functions/ResizableShape.dart';
-import '../functions/analytics_service.dart';
-import '../functions/blink_alpha_target.dart';
+import 'package:figureout/src/components/OrderableShape.dart';
+import 'package:figureout/src/components/OverlapHighlightable.dart';
+import 'package:figureout/src/components/ResizableShape.dart';
+import 'package:figureout/src/services/analytics_service.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
 import '../services/audio_manager.dart';
-import 'route_args.dart';
+import 'package:figureout/src/routes/route_args.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OneSecondGame extends FlameGame

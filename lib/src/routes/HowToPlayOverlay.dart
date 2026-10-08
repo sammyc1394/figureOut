@@ -1,4 +1,4 @@
-import 'package:figureout/src/config.dart';
+import 'package:figureout/src/config/config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
