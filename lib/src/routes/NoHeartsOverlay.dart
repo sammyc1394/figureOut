@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:figureout/src/config.dart';
-import 'package:figureout/src/effect/WigglyButtonPainter.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -104,8 +103,8 @@ class _NoHeartsOverlayState extends State<NoHeartsOverlay> {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Image.asset('assets/Lose_brokenheart.png', height: panelWidth * 0.20),
-                      SizedBox(height: panelWidth * 0.05),
+                      Image.asset('assets/empty_heart.png', height: panelWidth * 0.20),
+                      SizedBox(height: panelWidth * 0.06),
                       Text(
                         i18n.t('hearts_depleted_title'),
                         textAlign: TextAlign.center,
@@ -117,20 +116,21 @@ class _NoHeartsOverlayState extends State<NoHeartsOverlay> {
                           decoration: TextDecoration.none,
                         ),
                       ),
-                      SizedBox(height: panelWidth * 0.05),
+                      SizedBox(height: panelWidth * 0.04),
                       Text(
                         i18n.t('hearts_recharge_question'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: appFontFamily,
                           fontSize: panelWidth * 0.062,
+                          fontWeight: FontWeight.bold,
                           color: const Color(0xFF222222),
                           decoration: TextDecoration.none,
                         ),
                       ),
-                      SizedBox(height: panelWidth * 0.025),
+                      SizedBox(height: panelWidth * 0.01),
                       Text(
-                        timerText,
+                        '($timerText)',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: appFontFamily,
@@ -141,65 +141,31 @@ class _NoHeartsOverlayState extends State<NoHeartsOverlay> {
                         ),
                       ),
                       SizedBox(height: panelWidth * 0.08),
-                      Builder(builder: (context) {
-                        final buttonWidth = panelWidth * 0.72;
-                        final buttonHeight = panelWidth * 0.16;
-                        final badgeHeight = buttonHeight * 0.55;
-
-                        return GestureDetector(
-                          onTap: widget.onWatchAd,
-                          child: SizedBox(
-                            width: buttonWidth,
-                            height: buttonHeight,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                CustomPaint(
-                                  painter: WigglyButtonPainter(
-                                    color: const Color(0xFF7BA6C5),
-                                    radius: buttonHeight * 0.45,
-                                    amplitude: buttonHeight * 0.02,
-                                  ),
-                                ),
-                                Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        height: badgeHeight,
-                                        child: Center(
-                                          child: Image.asset(
-                                            'assets/adbadge.png',
-                                            height: badgeHeight,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(width: panelWidth * 0.03),
-                                      SizedBox(
-                                        height: badgeHeight,
-                                        child: Center(
-                                          child: Text(
-                                            i18n.t('ad_button_confirm'),
-                                            style: TextStyle(
-                                              fontFamily: appFontFamily,
-                                              fontSize: panelWidth * 0.145 * 0.42,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                              decoration: TextDecoration.none,
-                                              height: 1.0,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                      GestureDetector(
+                        onTap: widget.onWatchAd,
+                        child: Container(
+                          width: panelWidth * 0.64,
+                          height: panelWidth * 0.17,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage('assets/watch_ad_btn.png'),
+                              fit: BoxFit.fill,
                             ),
                           ),
-                        );
-                      }),
+                          child: Text(
+                            i18n.t('ad_button_confirm'),
+                            style: TextStyle(
+                              fontFamily: appFontFamily,
+                              fontSize: panelWidth * 0.09,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFE4E0D3),
+                              decoration: TextDecoration.none,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   Positioned(
