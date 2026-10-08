@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:figureout/src/behaviors/shapeBehavior.dart';
 import 'package:flame/components.dart';
 
-import '../functions/OrbitingComponent.dart';
+import 'package:figureout/src/behaviors/OrbitingComponent.dart';
 
 class CCommand implements ShapeBehavior {
   late final double radius;

@@ -3,11 +3,11 @@ import 'package:flame/flame.dart';
 import 'dart:ui';
 
 //localization
-import 'package:figureout/src/config.dart';
+import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/config/translation_data.dart';
-import 'package:figureout/src/functions/localization_service.dart';
-import 'package:figureout/src/functions/translation_sheet_service.dart';
-import 'package:figureout/src/theme_mode_scope.dart';
+import 'package:figureout/src/services/localization_service.dart';
+import 'package:figureout/src/services/translation_sheet_service.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
 // common libraries
 import 'package:flutter/gestures.dart';
@@ -19,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // our library
 import 'package:firebase_core/firebase_core.dart';
-import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:figureout/src/routes/MainGameScreen.dart';
 import 'package:figureout/src/routes/MainMenu.dart';
@@ -34,9 +34,9 @@ import 'package:figureout/src/routes/UserDataScreen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
-import 'package:figureout/src/functions/analytics_service.dart';
-import 'package:figureout/src/functions/logger_service.dart';
-import 'package:figureout/src/functions/leaderboard_service.dart';
+import 'package:figureout/src/services/analytics_service.dart';
+import 'package:figureout/src/services/logger_service.dart';
+import 'package:figureout/src/services/leaderboard_service.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();

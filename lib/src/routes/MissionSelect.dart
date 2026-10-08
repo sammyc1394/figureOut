@@ -1,15 +1,15 @@
-import 'package:figureout/src/functions/sheet_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
 import 'package:figureout/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config.dart';
+import 'package:figureout/src/config/config.dart';
 import '../services/ad_manager.dart';
 import '../services/heart_service.dart';
-import '../theme_mode_scope.dart';
-import 'menuAppBar.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
+import 'package:figureout/src/components/menuAppBar.dart';
 import 'route_args.dart';
 import 'NoHeartsOverlay.dart';
 

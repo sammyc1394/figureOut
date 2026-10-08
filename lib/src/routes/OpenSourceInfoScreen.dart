@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
 class _OssPackage {
   final String name;

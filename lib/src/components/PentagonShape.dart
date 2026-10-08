@@ -1,9 +1,9 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:figureout/src/functions/UserRemovable.dart';
-import 'package:figureout/src/functions/BlinkingBehavior.dart';
-import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/behaviors/BlinkingBehavior.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
@@ -13,8 +13,8 @@ import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/PentagonBurstEffect.dart';
-import '../functions/OverlapHighlightable.dart';
-import '../functions/ResizableShape.dart';
+import 'package:figureout/src/components/OverlapHighlightable.dart';
+import 'package:figureout/src/components/ResizableShape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 

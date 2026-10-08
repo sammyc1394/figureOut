@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import '../behaviors/shapeBehavior.dart';
-import '../config.dart';
+import 'package:figureout/src/config/config.dart';
 
 class PreparedEnemy {
   final String shapeType;

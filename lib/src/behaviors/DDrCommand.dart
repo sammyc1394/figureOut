@@ -3,8 +3,8 @@ import 'dart:ui';
 import 'package:figureout/src/behaviors/shapeBehavior.dart';
 import 'package:flame/components.dart';
 
-import '../functions/BlinkingBehavior.dart';
-import '../functions/blink_alpha_target.dart';
+import 'package:figureout/src/behaviors/BlinkingBehavior.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
 
 class DDrCommand implements ShapeBehavior {
   late final double visibleDuration;

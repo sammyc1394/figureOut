@@ -1,4 +1,4 @@
-import '../functions/sheet_service.dart';
+import 'package:figureout/src/services/sheet_service.dart';
 
 class StageRouteArgs {
   final List<StageData> stages;

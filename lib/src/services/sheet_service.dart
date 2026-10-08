@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../config.dart';
+import 'package:figureout/src/config/config.dart';
 import 'random_context.dart';
 
 class SheetService {

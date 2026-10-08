@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import '../config.dart';
+import 'package:figureout/src/config/config.dart';
 
 class RandomContext {
   final math.Random random = math.Random();

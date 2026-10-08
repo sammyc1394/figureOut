@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config.dart';
-import '../theme_mode_scope.dart';
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
 
 class _SunnyApp {
   final String name;

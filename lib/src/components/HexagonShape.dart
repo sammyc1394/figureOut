@@ -2,14 +2,14 @@ import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
-import 'package:figureout/src/functions/UserRemovable.dart';
-import 'package:figureout/src/functions/blink_alpha_target.dart';
+import 'package:figureout/src/components/UserRemovable.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
 import 'dart:math' as math;
 
 import '../effect/AttackExplosionEffect.dart';
 import '../effect/HexagonBurstEffect.dart';
-import '../functions/OverlapHighlightable.dart';
-import '../functions/ResizableShape.dart';
+import 'package:figureout/src/components/OverlapHighlightable.dart';
+import 'package:figureout/src/components/ResizableShape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 

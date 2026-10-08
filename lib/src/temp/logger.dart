@@ -1,4 +1,4 @@
-import 'logger_service.dart';
+import 'package:figureout/src/services/logger_service.dart';
 
 void appLog(
     String tag,

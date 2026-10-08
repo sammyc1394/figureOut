@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:figureout/src/config.dart';
+import 'package:figureout/src/config/config.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
