@@ -281,7 +281,7 @@ final Map<String, Map<String, String>> translationData = {
     'es': 'Reanudar',
   },
   'level_completed': {
-    'en': 'Mission Complete!',
+    'en': 'Completed!',
     'ko': '미션 완료!',
     'ja': 'ミッション完了！',
     'zh-Hans': '任务完成！',

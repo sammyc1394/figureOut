@@ -1,10 +1,10 @@
-import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame_svg/svg.dart';
+import 'package:flame_svg/svg_component.dart';
 import 'package:flutter/material.dart';
 
 class PauseButton extends PositionComponent with TapCallbacks {
-  static final _images = Images(prefix: 'assets/');
   final VoidCallback onPressed;
 
   PauseButton({
@@ -12,15 +12,15 @@ class PauseButton extends PositionComponent with TapCallbacks {
     required this.onPressed,
   }) : super(
           position: position,
-          size: Vector2.all(25),
+          size: Vector2(28.3, 35.0),
           anchor: Anchor.topRight,
         );
 
   @override
   Future<void> onLoad() async {
-    final sprite = await Sprite.load('Pause_button_blue.png', images: _images);
-    add(SpriteComponent(
-      sprite: sprite,
+    final svg = await Svg.load('menu/common/Pause_button_blue.svg');
+    add(SvgComponent(
+      svg: svg,
       size: size,
       anchor: Anchor.center,
       position: size / 2,
