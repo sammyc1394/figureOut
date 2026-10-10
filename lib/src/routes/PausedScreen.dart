@@ -69,14 +69,17 @@ class PauseOverlayWidget extends StatelessWidget {
                       children: [
                         // 베이지 박스 (거친 가장자리 유지)
                         Positioned.fill(
-                          child: ColorFiltered(
-                            colorFilter: const ColorFilter.mode(
-                              _beige,
-                              BlendMode.srcIn,
-                            ),
-                            child: Image.asset(
-                              'assets/Pasued_box.png',
-                              fit: BoxFit.fill,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: ColorFiltered(
+                              colorFilter: const ColorFilter.mode(
+                                _beige,
+                                BlendMode.srcIn,
+                              ),
+                              child: Image.asset(
+                                'assets/Pasued_box.png',
+                                fit: BoxFit.fill,
+                              ),
                             ),
                           ),
                         ),

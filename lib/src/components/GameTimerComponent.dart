@@ -138,8 +138,8 @@ class GameTimerComponent extends PositionComponent {
     final barWidth = size.x - _textAreaWidth;
     final ratio =
         totalTime > 0 ? (currentTime / totalTime).clamp(0.0, 1.0) : 0.0;
-    // Figma: 100~50% green, 50~20% yellow, 20~0% red
-    final isDanger = ratio <= 0.2 + _epsilon;
+    // 100~50% green, 50% ~ 10s left yellow, last 10s red
+    final isDanger = currentTime <= 10.0 + _epsilon;
     final isWarning = !isDanger && ratio <= 0.5;
     final fillColor = (_flashPenaltyRemaining > 0 || isDanger)
         ? const Color(0xFFED613D)

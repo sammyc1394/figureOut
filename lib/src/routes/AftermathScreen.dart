@@ -32,9 +32,13 @@ class AftermathOverlayWidget extends StatelessWidget {
     final isSuccess = result == StageResult.success;
 
     return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      filter: isSuccess
+          ? ImageFilter.blur(sigmaX: 6, sigmaY: 6)
+          : ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
       child: Container(
-        color: Colors.black.withValues(alpha: 0.25),
+        color: isSuccess
+            ? Colors.black.withValues(alpha: 0.25)
+            : const Color(0xFF232323).withValues(alpha: 0.8),
         child: Center(
           child: LayoutBuilder(
             builder: (context, constraints) {
