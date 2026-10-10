@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,7 +12,15 @@ import 'package:figureout/src/config/theme_mode_scope.dart';
 class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
 
-  const Menuappbar({super.key, this.backgroundColor});
+  /// Use the beige settings gear (for blue / dark backgrounds) instead of the
+  /// blue one used on the beige background.
+  final bool lightSettingsIcon;
+
+  const Menuappbar({
+    super.key,
+    this.backgroundColor,
+    this.lightSettingsIcon = false,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(75);
@@ -108,13 +117,13 @@ class _MenuappbarState extends State<Menuappbar> {
           children: [
             // 하트 아이콘 5개
             ...List.generate(maxHearts, (i) => Padding(
-              padding: const EdgeInsets.only(right: 3),
-              child: Image.asset(
+              padding: const EdgeInsets.only(right: 2.8),
+              child: SvgPicture.asset(
                 i < _hearts
-                    ? 'assets/Heart_filled.png'
-                    : 'assets/Heart_outline.png',
-                width: 26,
-                height: 26,
+                    ? 'assets/menu/common/Heart_full.svg'
+                    : 'assets/menu/common/Heart_empty.svg',
+                width: 28.8,
+                height: 28.8,
                 fit: BoxFit.contain,
               ),
             )),
@@ -186,8 +195,10 @@ class _MenuappbarState extends State<Menuappbar> {
               if (!context.mounted) return;
               context.push('/settings');
             },
-            child: Image.asset(
-              'assets/Settings_button_beige.png',
+            child: SvgPicture.asset(
+              widget.lightSettingsIcon || ThemeModeScope.of(context)
+                  ? 'assets/menu/common/Setting_gear_beige.svg'
+                  : 'assets/menu/common/Setting_gear_blue.svg',
               width: 36,
               height: 36,
               fit: BoxFit.contain,

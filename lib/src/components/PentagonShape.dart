@@ -142,6 +142,10 @@ class PentagonShape extends PositionComponent
         size.y / 2 + size.y * 0.04,
       );
 
+  // 숫자는 그려지는 스프라이트의 가로 중앙, 세로는 무게중심에 둔다.
+  Vector2 get _numberPosition =>
+      Vector2(size.x / 2, _visualPentagonCenter.dy);
+
   @override
   Future<void> onLoad() async {
     // z-order(priority)는 스폰 시 생성 순서 기반으로 설정된다. (크기 무관)
@@ -154,7 +158,7 @@ class PentagonShape extends PositionComponent
       _hpTextComponent = TextComponent(
         text: energy.toString(),
         anchor: Anchor.center,
-        position: Vector2(_visualPentagonCenter.dx, _visualPentagonCenter.dy),
+        position: _numberPosition,
         priority: 999,
         textRenderer: TextPaint(
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -194,8 +198,7 @@ class PentagonShape extends PositionComponent
     _attackBorderPerimeter =
         _attackBorderPath.computeMetrics().fold(0.0, (s, m) => s + m.length);
 
-    _hpTextComponent?.position =
-        Vector2(_visualPentagonCenter.dx, _visualPentagonCenter.dy);
+    _hpTextComponent?.position = _numberPosition;
   }
 
   // ===============================

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:figureout/src/services/sheet_service.dart';
 import 'package:figureout/main.dart';
 import 'package:flutter/material.dart';
@@ -154,7 +156,10 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
 
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: const Menuappbar(backgroundColor: Colors.transparent),
+          appBar: const Menuappbar(
+            backgroundColor: Colors.transparent,
+            lightSettingsIcon: true,
+          ),
           body: Column(
             children: [
               // Stage label
@@ -338,14 +343,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Image.asset(
-                                    isCleared
-                                        ? 'assets/Win_stars.png'
-                                        : 'assets/StageScreen_emptystars.png',
-                                    width: 80,
-                                    height: 30,
-                                    fit: BoxFit.contain,
-                                  ),
+                                  _MissionStars(filled: isCleared),
                                 ],
                               ),
                             ),
@@ -364,10 +362,9 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
                     onTap: () => context.pop(),
-                    child: Image.asset(
-                      'assets/Back_button_beige.png',
+                    child: SvgPicture.asset(
+                      'assets/menu/common/Arrow_back_beige.svg',
                       width: 37,
-                      height: 37,
                     ),
                   ),
                 ),
@@ -380,3 +377,55 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
   }
 }
 
+/// Three hand-drawn stars laid out as in the Figma design (center star larger,
+/// side stars rotated). [filled] picks the gold or the blue set.
+class _MissionStars extends StatelessWidget {
+  final bool filled;
+
+  const _MissionStars({required this.filled});
+
+  static const _dir = 'assets/menu/mission/';
+
+  @override
+  Widget build(BuildContext context) {
+    final color = filled ? 'gold' : 'blue';
+
+    return SizedBox(
+      width: 80,
+      height: 30,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: 75,
+          height: 29,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 1.15,
+                top: 9.125,
+                child: Transform.rotate(
+                  angle: -8.8 * math.pi / 180,
+                  child: SvgPicture.asset('${_dir}Star_${color}_left.svg'),
+                ),
+              ),
+              Positioned(
+                left: 21.44,
+                top: 0.36,
+                child: SvgPicture.asset('${_dir}Star_${color}_center.svg'),
+              ),
+              Positioned(
+                left: 51.925,
+                top: 7.345,
+                child: Transform.rotate(
+                  angle: 29.93 * math.pi / 180,
+                  child: SvgPicture.asset('${_dir}Star_${color}_right.svg'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

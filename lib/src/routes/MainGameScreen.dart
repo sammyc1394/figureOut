@@ -193,13 +193,9 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
               ),
             ),
             Positioned(
-              bottom: 0,
-              left: 0,
+              top: 51,
               right: 0,
-              child: SafeArea(
-                top: false,
-                child: ShapeCounterOverlay(notifier: oneSec.shapeCountNotifier),
-              ),
+              child: ShapeCounterOverlay(notifier: oneSec.shapeCountNotifier),
             ),
           ],
         ),
@@ -213,7 +209,8 @@ class ShapeCounterOverlay extends StatelessWidget {
 
   const ShapeCounterOverlay({super.key, required this.notifier});
 
-  static const _shapeOrder = ['Circle', 'Pentagon', 'Hexagon', 'Rectangle', 'Triangle'];
+  // 오른쪽에서부터 Circle이 오도록 (Figma: 삼각형 - 원 순서)
+  static const _shapeOrder = ['Triangle', 'Rectangle', 'Hexagon', 'Pentagon', 'Circle'];
   static const _shapeSvg = {
     'Circle': 'assets/Circle_basic.svg',
     'Pentagon': 'assets/Pentagon_basic.svg',
@@ -222,63 +219,89 @@ class ShapeCounterOverlay extends StatelessWidget {
     'Triangle': 'assets/Triangle_basic.svg',
   };
 
+  // 측정값으로 보정한 숫자의 세로 위치 (Alignment.y)
+  static const _textDy = {
+    'Triangle': 5.5,
+    'Rectangle': 2.0,
+    'Pentagon': 2.7,
+    'Circle': 1.7,
+    'Hexagon': 0.7,
+  };
+
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Map<String, int>>(
-      valueListenable: notifier,
-      builder: (context, counts, _) {
-        final items = _shapeOrder
-            .where((s) => (counts[s] ?? 0) > 0)
-            .toList();
+    return IgnorePointer(
+      child: ValueListenableBuilder<Map<String, int>>(
+        valueListenable: notifier,
+        builder: (context, counts, _) {
+          final items = _shapeOrder
+              .where((s) => (counts[s] ?? 0) > 0)
+              .toList();
 
-        if (items.isEmpty) return const SizedBox.shrink();
+          if (items.isEmpty) return const SizedBox.shrink();
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              for (final shape in items) ...[
-                _ShapeCountItem(
-                  svgPath: _shapeSvg[shape]!,
-                  count: counts[shape]!,
-                ),
-                const SizedBox(width: 16),
+          return Padding(
+            padding: const EdgeInsets.only(right: 22),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < items.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  _ShapeCountItem(
+                    svgPath: _shapeSvg[items[i]]!,
+                    count: counts[items[i]]!,
+                    textDy: _textDy[items[i]] ?? 0,
+                  ),
+                ],
               ],
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
+/// 도형 안에 남은 개수를 보여준다.
 class _ShapeCountItem extends StatelessWidget {
   final String svgPath;
   final int count;
+  final double textDy;
 
-  const _ShapeCountItem({required this.svgPath, required this.count});
+  const _ShapeCountItem({
+    required this.svgPath,
+    required this.count,
+    this.textDy = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = ThemeModeScope.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SvgPicture.asset(svgPath, width: 38, height: 38),
-        const SizedBox(width: 5),
-        Text(
-          'X$count',
-          style: TextStyle(
-            fontFamily: 'Gaegu',
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: isDarkMode ? const Color(0xFFCCCCCC) : const Color(0xFF555555),
-            decoration: TextDecoration.none,
+    return SizedBox(
+      width: 31,
+      height: 31,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SvgPicture.asset(svgPath, width: 31, height: 31),
+          Center(
+            // 폰트 글리프가 위로 치우쳐 보이는 만큼 도형별로 아래(pt)로 보정
+            child: Transform.translate(
+              offset: Offset(0, textDy),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontFamily: 'Gaegu',
+                  fontSize: 23,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFE4E0D3),
+                  decoration: TextDecoration.none,
+                  height: 1.0,
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

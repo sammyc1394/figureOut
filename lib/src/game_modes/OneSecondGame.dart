@@ -8,7 +8,6 @@ import 'package:flame/collisions.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
-import 'package:figureout/src/temp/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -67,7 +66,6 @@ class OneSecondGame extends FlameGame
   bool _isMissionRunning=false;
 
   // temporary function
-  late RefreshButton refreshButton;
   // bool debugYN = true;
 
   //pause
@@ -328,14 +326,6 @@ class OneSecondGame extends FlameGame
     playAreaScaleX = playWidth / targetPlayWidth;
     playAreaScaleY = playHeight / targetPlayHeight;
 
-    // Add refresh button to top-right corner
-    refreshButton = RefreshButton(
-      position: Vector2(size.x - 60, 40),
-      onPressed: onRefresh,
-    )
-      ..priority = 3000;
-    add(refreshButton);
-
     pauseButton = PauseButton(
       position: Vector2(size.x * 0.11, 40),
       onPressed: pauseGame,
@@ -345,8 +335,8 @@ class OneSecondGame extends FlameGame
 
     timerBar = GameTimerComponent(
       totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
-      position: Vector2(20, 80),
-      sizePx: Vector2(size.x - 40, 20),
+      position: Vector2(20, 90 - size.x * 0.0265 / 2),
+      sizePx: Vector2(size.x - 40, size.x * 0.0265),
       isDarkMode: ThemeModeScope.of(navigatorContext),
     )
       ..priority = 3000;

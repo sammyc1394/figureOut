@@ -138,13 +138,14 @@ class GameTimerComponent extends PositionComponent {
     final barWidth = size.x - _textAreaWidth;
     final ratio =
         totalTime > 0 ? (currentTime / totalTime).clamp(0.0, 1.0) : 0.0;
+    // 100~50% green, 50% ~ 10s left yellow, last 10s red
     final isDanger = currentTime <= 10.0 + _epsilon;
     final isWarning = !isDanger && ratio <= 0.5;
     final fillColor = (_flashPenaltyRemaining > 0 || isDanger)
         ? const Color(0xFFED613D)
         : isWarning
-            ? const Color(0xFFF2AC32)
-            : const Color(0xFF63BE5D);
+            ? const Color(0xFFF0C400)
+            : const Color(0xFF78B263);
 
     final wigglyPath = _buildWigglyPath(barLeft, barWidth, size.y);
 

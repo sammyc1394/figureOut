@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:figureout/src/config/config.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NoHeartsOverlay extends StatefulWidget {
@@ -69,128 +71,171 @@ class _NoHeartsOverlayState extends State<NoHeartsOverlay> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
+  static const _dir = 'assets/menu/common/';
+  static const _w = 311.0;
+  static const _h = 301.065;
+  static const _beige = Color(0xFFE4E0D3);
+  static const _ink = Color(0xFF232323);
+
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final panelWidth = screenWidth * 0.84;
     final timerText = i18n
         .t('hearts_full_recharge_timer')
         .replaceFirst('AA:BB', _formatCountdown(_secondsUntilFull));
 
+    // Figma 프레임(375 x 812) 좌표 기준. 박스 원점 = (32, 245.47)
     return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-      child: SizedBox.expand(
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.25),
-          child: Center(
-            child: Container(
-              width: panelWidth,
-              padding: EdgeInsets.symmetric(
-                vertical: panelWidth * 0.09,
-                horizontal: panelWidth * 0.09,
-              ),
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/StageScreen_box.png'),
-                  fit: BoxFit.fill,
-                ),
-              ),
-              // 텍스트 길이(언어별)에 따라 카드 높이가 자연스럽게 늘어나도록
-              // 절대 좌표 대신 Column으로 배치해 버튼과 절대 겹치지 않게 한다.
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset('assets/empty_heart.png', height: panelWidth * 0.20),
-                      SizedBox(height: panelWidth * 0.06),
-                      Text(
-                        i18n.t('hearts_depleted_title'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: appFontFamily,
-                          fontSize: panelWidth * 0.084,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF222222),
-                          decoration: TextDecoration.none,
-                        ),
-                      ),
-                      SizedBox(height: panelWidth * 0.04),
-                      Text(
-                        i18n.t('hearts_recharge_question'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: appFontFamily,
-                          fontSize: panelWidth * 0.062,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF222222),
-                          decoration: TextDecoration.none,
-                        ),
-                      ),
-                      SizedBox(height: panelWidth * 0.01),
-                      Text(
-                        '($timerText)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: appFontFamily,
-                          fontSize: panelWidth * 0.056,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF222222),
-                          decoration: TextDecoration.none,
-                        ),
-                      ),
-                      SizedBox(height: panelWidth * 0.08),
-                      GestureDetector(
-                        onTap: widget.onWatchAd,
-                        child: Container(
-                          width: panelWidth * 0.64,
-                          height: panelWidth * 0.17,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            image: DecorationImage(
-                              image: AssetImage('assets/watch_ad_btn.png'),
-                              fit: BoxFit.fill,
+      filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onClose, // 팝업 바깥을 누르면 닫힘
+        child: SizedBox.expand(
+          child: ColoredBox(
+            color: _ink.withValues(alpha: 0.8),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final scale = constraints.maxWidth / 375;
+                return Stack(
+                  children: [
+                    Center(
+                      child: SizedBox(
+                        width: _w * scale,
+                        child: FittedBox(
+                          fit: BoxFit.fitWidth,
+                          // 팝업 안쪽 터치는 닫히지 않게 막는다.
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {},
+                            child: SizedBox(
+                              width: _w,
+                              height: _h,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Positioned(
+                                    left: -2.36,
+                                    top: -2.32,
+                                    child: SvgPicture.asset(
+                                        '${_dir}NoHearts_card.svg'),
+                                  ),
+                                  Positioned(
+                                    left: 118.18,
+                                    top: 32.29,
+                                    child: SvgPicture.asset(
+                                        '${_dir}NoHearts_heart.svg'),
+                                  ),
+                                  Positioned(
+                                    left: 23.5,
+                                    top: 108.11,
+                                    width: 265,
+                                    height: 48,
+                                    // 문구가 길어도 한 줄에 맞도록 글자 크기를 줄인다.
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        i18n.t('hearts_depleted_title'),
+                                        maxLines: 1,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: appFontFamily,
+                                          fontSize: 35,
+                                          color: _ink,
+                                          decoration: TextDecoration.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 3.5,
+                                    top: 152.4,
+                                    width: 305,
+                                    height: 48,
+                                    child: Center(
+                                      child: Text(
+                                        '${i18n.t('hearts_recharge_question')}\n($timerText)',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: appFontFamily,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: _ink,
+                                          decoration: TextDecoration.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 72.96,
+                                    top: 220.53,
+                                    width: 164.5,
+                                    height: 47.1,
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: widget.onWatchAd,
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Positioned.fill(
+                                            child: Transform.rotate(
+                                              angle: math.pi,
+                                              child: Stack(
+                                                clipBehavior: Clip.none,
+                                                children: [
+                                                  Positioned(
+                                                    left: -0.89,
+                                                    top: -1.18,
+                                                    child: SvgPicture.asset(
+                                                        '${_dir}NoHearts_watch_pill.svg'),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            i18n.t('ad_button_confirm'),
+                                            style: TextStyle(
+                                              fontFamily: appFontFamily,
+                                              fontSize: 30,
+                                              color: _beige,
+                                              decoration: TextDecoration.none,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          child: Text(
-                            i18n.t('ad_button_confirm'),
-                            style: TextStyle(
-                              fontFamily: appFontFamily,
-                              fontSize: panelWidth * 0.09,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFFE4E0D3),
-                              decoration: TextDecoration.none,
-                              height: 1.0,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    top: -panelWidth * 0.03,
-                    right: -panelWidth * 0.03,
-                    child: GestureDetector(
-                      onTap: widget.onClose,
-                      child: Container(
-                        width: panelWidth * 0.1,
-                        height: panelWidth * 0.1,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(color: const Color(0xFFBBBBBB), width: 1.5),
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          size: panelWidth * 0.06,
-                          color: const Color(0xFF888888),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    // Tap to close
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: (728.03 - 17.5) * scale,
+                      height: 35 * scale,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: Text(
+                            'Tap to close',
+                            style: TextStyle(
+                              fontFamily: appFontFamily,
+                              fontSize: 30 * scale,
+                              letterSpacing: -0.32 * scale,
+                              color: _beige,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

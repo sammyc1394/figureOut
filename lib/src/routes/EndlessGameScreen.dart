@@ -160,13 +160,9 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
               ),
             ),
             Positioned(
-              bottom: 0,
-              left: 0,
+              top: 51,
               right: 0,
-              child: SafeArea(
-                top: false,
-                child: ShapeCounterOverlay(notifier: endlessGame.shapeCountNotifier),
-              ),
+              child: ShapeCounterOverlay(notifier: endlessGame.shapeCountNotifier),
             ),
           ],
         ),
@@ -294,7 +290,7 @@ class EndlessOneSecondGame extends OneSecondGame {
   void restartEndlessGame() {
     overlays.remove('endless_aftermath');
     overlays.remove('pause');
-    removeAll(children.where((c) => c is PositionComponent && c != screenArea && c != playArea && c != timerBar && c != pauseButton && c != refreshButton));
+    removeAll(children.where((c) => c is PositionComponent && c != screenArea && c != playArea && c != timerBar && c != pauseButton));
     _isEndlessActive = false;
     resetGameState();
     startEndlessMode();
