@@ -219,6 +219,15 @@ class ShapeCounterOverlay extends StatelessWidget {
     'Triangle': 'assets/Triangle_basic.svg',
   };
 
+  // 측정값으로 보정한 숫자의 세로 위치 (Alignment.y)
+  static const _textDy = {
+    'Triangle': 8.0,
+    'Rectangle': 2.0,
+    'Pentagon': 2.7,
+    'Circle': 0.7,
+    'Hexagon': 0.7,
+  };
+
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
@@ -241,7 +250,7 @@ class ShapeCounterOverlay extends StatelessWidget {
                   _ShapeCountItem(
                     svgPath: _shapeSvg[items[i]]!,
                     count: counts[items[i]]!,
-                    isTriangle: items[i] == 'Triangle',
+                    textDy: _textDy[items[i]] ?? 0,
                   ),
                 ],
               ],
@@ -257,12 +266,12 @@ class ShapeCounterOverlay extends StatelessWidget {
 class _ShapeCountItem extends StatelessWidget {
   final String svgPath;
   final int count;
-  final bool isTriangle;
+  final double textDy;
 
   const _ShapeCountItem({
     required this.svgPath,
     required this.count,
-    this.isTriangle = false,
+    this.textDy = 0,
   });
 
   @override
@@ -274,18 +283,20 @@ class _ShapeCountItem extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           SvgPicture.asset(svgPath, width: 31, height: 31),
-          Align(
-            // 삼각형은 숫자가 무게중심(아래쪽)에 오도록
-            alignment: Alignment(0, isTriangle ? 0.4 : 0),
-            child: Text(
-              '$count',
-              style: const TextStyle(
-                fontFamily: 'Gaegu',
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFFE4E0D3),
-                decoration: TextDecoration.none,
-                height: 1.0,
+          Center(
+            // 폰트 글리프가 위로 치우쳐 보이는 만큼 도형별로 아래(pt)로 보정
+            child: Transform.translate(
+              offset: Offset(0, textDy),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontFamily: 'Gaegu',
+                  fontSize: 23,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFE4E0D3),
+                  decoration: TextDecoration.none,
+                  height: 1.0,
+                ),
               ),
             ),
           ),
