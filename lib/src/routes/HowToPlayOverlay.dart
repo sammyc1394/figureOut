@@ -60,16 +60,6 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay> {
               ),
               const Spacer(flex: 1),
 
-              _DontShowAgainCheckbox(
-                checked: _dontShowAgain,
-                fontSize: fontSize,
-                spacing: screenWidth * 0.025,
-                onToggle: () =>
-                    setState(() => _dontShowAgain = !_dontShowAgain),
-              ),
-
-              SizedBox(height: screenWidth * 0.04),
-
               Text(
                 'Tap to play!',
                 style: TextStyle(
@@ -79,6 +69,16 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay> {
                   color: Colors.white,
                   decoration: TextDecoration.none,
                 ),
+              ),
+
+              SizedBox(height: screenWidth * 0.04),
+
+              _DontShowAgainCheckbox(
+                checked: _dontShowAgain,
+                fontSize: fontSize,
+                spacing: screenWidth * 0.025,
+                onToggle: () =>
+                    setState(() => _dontShowAgain = !_dontShowAgain),
               ),
               SizedBox(height: screenWidth * 0.12),
             ],
