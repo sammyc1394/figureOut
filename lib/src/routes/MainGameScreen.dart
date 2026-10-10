@@ -221,10 +221,10 @@ class ShapeCounterOverlay extends StatelessWidget {
 
   // 측정값으로 보정한 숫자의 세로 위치 (Alignment.y)
   static const _textDy = {
-    'Triangle': 8.0,
+    'Triangle': 7.0,
     'Rectangle': 2.0,
     'Pentagon': 2.7,
-    'Circle': 0.7,
+    'Circle': 1.7,
     'Hexagon': 0.7,
   };
 
