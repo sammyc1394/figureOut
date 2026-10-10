@@ -193,13 +193,9 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
               ),
             ),
             Positioned(
-              bottom: 0,
-              left: 0,
+              top: 41,
               right: 0,
-              child: SafeArea(
-                top: false,
-                child: ShapeCounterOverlay(notifier: oneSec.shapeCountNotifier),
-              ),
+              child: ShapeCounterOverlay(notifier: oneSec.shapeCountNotifier),
             ),
           ],
         ),
@@ -213,7 +209,8 @@ class ShapeCounterOverlay extends StatelessWidget {
 
   const ShapeCounterOverlay({super.key, required this.notifier});
 
-  static const _shapeOrder = ['Circle', 'Pentagon', 'Hexagon', 'Rectangle', 'Triangle'];
+  // 오른쪽에서부터 Circle이 오도록 (Figma: 삼각형 - 원 순서)
+  static const _shapeOrder = ['Triangle', 'Rectangle', 'Hexagon', 'Pentagon', 'Circle'];
   static const _shapeSvg = {
     'Circle': 'assets/Circle_basic.svg',
     'Pentagon': 'assets/Pentagon_basic.svg',
@@ -224,61 +221,76 @@ class ShapeCounterOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Map<String, int>>(
-      valueListenable: notifier,
-      builder: (context, counts, _) {
-        final items = _shapeOrder
-            .where((s) => (counts[s] ?? 0) > 0)
-            .toList();
+    return IgnorePointer(
+      child: ValueListenableBuilder<Map<String, int>>(
+        valueListenable: notifier,
+        builder: (context, counts, _) {
+          final items = _shapeOrder
+              .where((s) => (counts[s] ?? 0) > 0)
+              .toList();
 
-        if (items.isEmpty) return const SizedBox.shrink();
+          if (items.isEmpty) return const SizedBox.shrink();
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              for (final shape in items) ...[
-                _ShapeCountItem(
-                  svgPath: _shapeSvg[shape]!,
-                  count: counts[shape]!,
-                ),
-                const SizedBox(width: 16),
+          return Padding(
+            padding: const EdgeInsets.only(right: 22),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < items.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  _ShapeCountItem(
+                    svgPath: _shapeSvg[items[i]]!,
+                    count: counts[items[i]]!,
+                    isTriangle: items[i] == 'Triangle',
+                  ),
+                ],
               ],
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
+/// 도형 안에 남은 개수를 보여준다.
 class _ShapeCountItem extends StatelessWidget {
   final String svgPath;
   final int count;
+  final bool isTriangle;
 
-  const _ShapeCountItem({required this.svgPath, required this.count});
+  const _ShapeCountItem({
+    required this.svgPath,
+    required this.count,
+    this.isTriangle = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = ThemeModeScope.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SvgPicture.asset(svgPath, width: 38, height: 38),
-        const SizedBox(width: 5),
-        Text(
-          'X$count',
-          style: TextStyle(
-            fontFamily: 'Gaegu',
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: isDarkMode ? const Color(0xFFCCCCCC) : const Color(0xFF555555),
-            decoration: TextDecoration.none,
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SvgPicture.asset(svgPath, width: 36, height: 36),
+          Align(
+            // 삼각형은 숫자가 무게중심(아래쪽)에 오도록
+            alignment: Alignment(0, isTriangle ? 0.4 : 0),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                fontFamily: 'Gaegu',
+                fontSize: 23,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFE4E0D3),
+                decoration: TextDecoration.none,
+                height: 1.0,
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
