@@ -160,7 +160,7 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
               ),
             ),
             Positioned(
-              top: 41,
+              top: 51,
               right: 0,
               child: ShapeCounterOverlay(notifier: endlessGame.shapeCountNotifier),
             ),

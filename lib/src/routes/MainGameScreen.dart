@@ -193,7 +193,7 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
               ),
             ),
             Positioned(
-              top: 41,
+              top: 51,
               right: 0,
               child: ShapeCounterOverlay(notifier: oneSec.shapeCountNotifier),
             ),
@@ -268,12 +268,12 @@ class _ShapeCountItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 36,
-      height: 36,
+      width: 31,
+      height: 31,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          SvgPicture.asset(svgPath, width: 36, height: 36),
+          SvgPicture.asset(svgPath, width: 31, height: 31),
           Align(
             // 삼각형은 숫자가 무게중심(아래쪽)에 오도록
             alignment: Alignment(0, isTriangle ? 0.4 : 0),
