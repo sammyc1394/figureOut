@@ -4,6 +4,13 @@
 
 The user is a solo mobile app/game and Microsoft Windows app developer.
 
+## Before You Start
+
+- Before creating, moving, or editing code or assets, read `docs/architecture-and-conventions.md`.
+- Follow its folder structure (`lib/src/` roles), asset structure (`assets/`), and code conventions.
+- Place new files in the folder that matches their role as defined there. If a file doesn't fit any folder, ask before creating a new one.
+- If a requested change conflicts with the document, point out the conflict instead of silently ignoring it.
+
 ## Global Execution Rules
 
 - Normally only modify code.
