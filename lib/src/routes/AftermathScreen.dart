@@ -29,225 +29,54 @@ class AftermathOverlayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSuccess = result == StageResult.success;
+
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
       child: Container(
         color: Colors.black.withValues(alpha: 0.25),
         child: Center(
           child: LayoutBuilder(
-              builder:(context, constraints) {
-                final base = constraints.biggest.shortestSide;
+            builder: (context, constraints) {
+              final base = constraints.biggest.shortestSide;
 
-                if (result == StageResult.success) {
-                  return SizedBox(
-                    width: base * _SuccessPanel.widthRatio,
-                    child: FittedBox(
-                      fit: BoxFit.fitWidth,
-                      child: _SuccessPanel(
-                        stageLabel: '${stgIndex + 1}-$msnIndex',
-                        starCount: starCount,
-                        onMenu: onMenu,
-                        onPlay: onPlay,
-                        onRetry: onRetry,
-                      ),
-                    ),
-                  );
-                }
-
-                final panelWidth = base * 0.97;
-                final panelHeight = panelWidth * (550 / 600);
-
-                return SizedBox(
-                  width: panelWidth,
-                  height: panelHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(
-                        child: Image.asset(
-                          'assets/Results_box.png',
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                      _stageLabel(panelWidth, panelHeight),
-                      _heart(panelWidth, panelHeight),
-                      _failTexts(panelWidth, panelHeight),
-                      _buttons(panelWidth, panelHeight),
-                    ],
+              return SizedBox(
+                width: base * _ResultPanel.widthRatio,
+                child: FittedBox(
+                  fit: BoxFit.fitWidth,
+                  child: _ResultPanel(
+                    success: isSuccess,
+                    stageLabel: '${stgIndex + 1}-$msnIndex',
+                    starCount: starCount,
+                    onMenu: onMenu,
+                    onPrimary: isSuccess ? onPlay : onContinue,
+                    onRetry: onRetry,
                   ),
-                );
-              }
+                ),
+              );
+            },
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _stageLabel(double w, double h) {
-    return Positioned(
-      top: h * 0.04,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: Text(
-          '${stgIndex + 1}-$msnIndex',
-          style: TextStyle(
-            fontFamily: appFontFamily,
-            fontSize: h * 0.10,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFFE4E0D3),
-            decoration: TextDecoration.none,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _heart(double w, double h) {
-    return Positioned(
-      top: h * 0.3,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: Image.asset('assets/Lose_brokenheart.png', height: w * 0.17),
-      ),
-    );
-  }
-
-  Widget _failTexts(double w, double h) {
-    return Positioned(
-      top: h * 0.5,
-      left: w * 0.08,
-      right: w * 0.08,
-      child: Column(
-        children: [
-          Text(
-            i18n.t('almost_there'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: appFontFamily,
-              fontSize: h * 0.09,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF222222),
-              decoration: TextDecoration.none,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            i18n.t('resume_description'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: appFontFamily,
-              fontSize: h * 0.055,
-              color: const Color(0xFF222222),
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buttons(double w, double h) {
-    // Matches Flame version proportions:
-    final btnSize = w * 0.10;
-    final pillW = w * 0.47;
-    final pillH = h * 0.15;
-
-    return Positioned(
-      top: h * 0.775,
-      left: w * 0.10,
-      right: w * 0.10,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          GestureDetector(
-            onTap: onMenu,
-            child: Image.asset('assets/Home_button_blue.png', width: btnSize, height: btnSize),
-          ),
-          GestureDetector(
-            onTap: result == StageResult.success ? onPlay : onContinue,
-            child: result == StageResult.success
-                ? SizedBox(
-                    width: pillW,
-                    height: pillH,
-                    child: Image.asset('assets/next_button.png', width: pillH, height: pillH),
-                  )
-                : _continueButton(pillW, pillH),
-          ),
-          GestureDetector(
-            onTap: onRetry,
-            child: Image.asset('assets/Replay_button_blue.png', width: btnSize, height: btnSize),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _continueButton(double pillW, double pillH) {
-    return Container(
-      width: pillW,
-      height: pillH,
-      padding: EdgeInsets.symmetric(horizontal: pillW * 0.06),
-      decoration: BoxDecoration(
-        color: const Color(0xFF7BA6C5),
-        borderRadius: BorderRadius.circular(pillH / 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: pillH * 0.16, vertical: pillH * 0.08),
-            decoration: BoxDecoration(
-              color: const Color(0xFF232323),
-              borderRadius: BorderRadius.circular(pillH * 0.15),
-            ),
-            child: Text(
-              'AD',
-              style: TextStyle(
-                fontFamily: appFontFamily,
-                fontSize: pillH * 0.3,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                decoration: TextDecoration.none,
-              ),
-            ),
-          ),
-          SizedBox(width: pillW * 0.05),
-          Flexible(
-            child: Text(
-              i18n.t('continue'),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: appFontFamily,
-                fontSize: pillH * 0.42,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFFE4E0D3),
-                decoration: TextDecoration.none,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
 }
 
-/// Mission-complete popup laid out in Figma frame coordinates (351 x 341.4).
-class _SuccessPanel extends StatelessWidget {
+/// Mission-complete / failed popup laid out in Figma frame coordinates (351 x 341.4).
+class _ResultPanel extends StatelessWidget {
+  final bool success;
   final String stageLabel;
   final int starCount;
   final VoidCallback onMenu;
-  final VoidCallback onPlay;
+  final VoidCallback onPrimary;
   final VoidCallback onRetry;
 
-  const _SuccessPanel({
+  const _ResultPanel({
+    required this.success,
     required this.stageLabel,
     required this.starCount,
     required this.onMenu,
-    required this.onPlay,
+    required this.onPrimary,
     required this.onRetry,
   });
 
@@ -327,26 +156,70 @@ class _SuccessPanel extends StatelessWidget {
           // 카드
           Positioned(left: 17.64, top: 50.69, child: _svg('Result_card')),
 
-          // Completed!
-          Positioned(
-            left: 23.5,
-            top: 189.18,
-            width: 305,
-            height: 48,
-            child: Center(
-              child: Text(
-                i18n.t('level_completed'),
-                style: TextStyle(
-                  fontFamily: appFontFamily,
-                  fontSize: 35,
-                  color: const Color(0xFF232323),
-                  decoration: TextDecoration.none,
+          if (success)
+            // Completed!
+            Positioned(
+              left: 23.5,
+              top: 189.18,
+              width: 305,
+              height: 48,
+              child: Center(
+                child: Text(
+                  i18n.t('level_completed'),
+                  style: TextStyle(
+                    fontFamily: appFontFamily,
+                    fontSize: 35,
+                    color: const Color(0xFF232323),
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            )
+          else ...[
+            Positioned(
+              left: 136.18,
+              top: 90.13,
+              child: _svg('Result_broken_heart'),
+            ),
+            Positioned(
+              left: 23.5,
+              top: 167.18,
+              width: 305,
+              height: 48,
+              child: Center(
+                child: Text(
+                  i18n.t('almost_there'),
+                  style: TextStyle(
+                    fontFamily: appFontFamily,
+                    fontSize: 35,
+                    color: const Color(0xFF232323),
+                    decoration: TextDecoration.none,
+                  ),
                 ),
               ),
             ),
-          ),
+            Positioned(
+              left: 23.5,
+              top: 214.18,
+              width: 305,
+              height: 20,
+              child: Center(
+                child: Text(
+                  i18n.t('resume_description'),
+                  style: TextStyle(
+                    fontFamily: appFontFamily,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.15,
+                    color: const Color(0xFF232323),
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ),
+          ],
 
-          // Next
+          // Next / Continue
           Positioned(
             left: 99.68,
             top: 260.91,
@@ -354,7 +227,7 @@ class _SuccessPanel extends StatelessWidget {
             height: 47.1,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: onPlay,
+              onTap: onPrimary,
               child: Stack(
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
@@ -374,15 +247,51 @@ class _SuccessPanel extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    'Next',
-                    style: TextStyle(
-                      fontFamily: appFontFamily,
-                      fontSize: 30,
-                      color: _ribbon,
-                      decoration: TextDecoration.none,
+                  if (success)
+                    Text(
+                      'Next',
+                      style: TextStyle(
+                        fontFamily: appFontFamily,
+                        fontSize: 30,
+                        color: _ribbon,
+                        decoration: TextDecoration.none,
+                      ),
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 31,
+                          height: 21,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF232323),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'AD',
+                            style: TextStyle(
+                              fontFamily: appFontFamily,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _ribbon,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 9),
+                        Text(
+                          i18n.t('continue'),
+                          style: TextStyle(
+                            fontFamily: appFontFamily,
+                            fontSize: 25,
+                            color: _ribbon,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),
@@ -393,6 +302,7 @@ class _SuccessPanel extends StatelessWidget {
           _tapIcon('Result_replay', 272.56, 266.5, 31.895, 33.794, -2.87, -3.0, onRetry),
 
           // 별 (왼쪽 → 가운데 → 오른쪽)
+          if (success) ...[
           _placed(
             cx: 102.51, cy: 147.25, innerW: 54.188, innerH: 54.928,
             ox: -2.27, oy: -1.593, deg: -8.8,
@@ -408,6 +318,7 @@ class _SuccessPanel extends StatelessWidget {
             ox: -2.314, oy: -1.144, deg: 29.93,
             child: _star(2, (t) => _svg('Result_star_right', tint: t)),
           ),
+          ],
 
           // 리본: 꼬리(살짝 기울어짐) → 접힘 → 중앙
           _placed(

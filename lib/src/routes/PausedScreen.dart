@@ -1,7 +1,9 @@
 
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:figureout/src/config/config.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class PauseOverlayWidget extends StatelessWidget {
   final VoidCallback onResume;
@@ -15,71 +17,105 @@ class PauseOverlayWidget extends StatelessWidget {
     required this.onMenu,
   });
 
+  static const _dir = 'assets/menu/common/';
+  static const _beige = Color(0xFFE4E0D3);
+  static const _w = 311.0;
+  static const _h = 113.947;
+
+  Widget _icon(String name, double left, double top, double w, double h,
+      double ox, double oy, VoidCallback onTap) {
+    const pad = 8.0;
+    return Positioned(
+      left: left - pad,
+      top: top - pad,
+      width: w + pad * 2,
+      height: h + pad * 2,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: pad + ox,
+              top: pad + oy,
+              child: SvgPicture.asset('$_dir$name.svg'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Figma 프레임 좌표 기준 (박스 원점 = 박스 왼쪽 위)
     return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
       child: Container(
-        color: Colors.black.withValues(alpha: 0.25),
+        color: const Color(0xFFB6B3A8).withValues(alpha: 0.7),
         child: Center(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final boxW = constraints.maxWidth * 0.85;
-              final boxH = boxW * 0.45;
-              final iconSize = boxW * 0.12;
-              final resumeW = boxW * 0.50;
-              final gap = boxW * 0.05;
-
               return SizedBox(
-                width: boxW,
-                height: boxH,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/Pasued_box.png',
-                      width: boxW,
-                      height: boxH,
-                      fit: BoxFit.fill,
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                width: constraints.maxWidth * (_w / 375),
+                child: FittedBox(
+                  fit: BoxFit.fitWidth,
+                  child: SizedBox(
+                    width: _w,
+                    height: _h,
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        GestureDetector(
-                          onTap: onMenu,
-                          child: Image.asset(
-                            'assets/Home_button_beige.png',
-                            width: iconSize,
-                            height: iconSize,
+                        // 베이지 박스 (거친 가장자리 유지)
+                        Positioned.fill(
+                          child: ColorFiltered(
+                            colorFilter: const ColorFilter.mode(
+                              _beige,
+                              BlendMode.srcIn,
+                            ),
+                            child: Image.asset(
+                              'assets/Pasued_box.png',
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
-                        SizedBox(width: gap),
-                        GestureDetector(
-                          onTap: onResume,
-                          child: Container(
-                            width: resumeW,
-                            height: boxW * 0.14,
-                            padding: EdgeInsets.symmetric(horizontal: resumeW * 0.08),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE4E0D3),
-                              borderRadius: BorderRadius.all(Radius.circular(999)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+
+                        // Resume
+                        Positioned(
+                          left: 79.9,
+                          top: 33.42,
+                          width: 151.1,
+                          height: 47.1,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onResume,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              clipBehavior: Clip.none,
                               children: [
-                                Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: const Color(0xFF7BA6C5),
-                                  size: boxW * 0.09,
+                                Positioned.fill(
+                                  child: Transform.rotate(
+                                    angle: math.pi,
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Positioned(
+                                          left: -1.01,
+                                          top: -1.19,
+                                          child: SvgPicture.asset(
+                                              '${_dir}Result_next_pill.svg'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                SizedBox(width: resumeW * 0.04),
                                 Text(
                                   i18n.t('resume'),
                                   style: TextStyle(
                                     fontFamily: appFontFamily,
-                                    fontSize: boxW * 0.055,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF232323),
+                                    fontSize: 30,
+                                    color: _beige,
                                     decoration: TextDecoration.none,
                                   ),
                                 ),
@@ -87,18 +123,15 @@ class PauseOverlayWidget extends StatelessWidget {
                             ),
                           ),
                         ),
-                        SizedBox(width: gap),
-                        GestureDetector(
-                          onTap: onRetry,
-                          child: Image.asset(
-                            'assets/Replay_button beige.png',
-                            width: iconSize,
-                            height: iconSize,
-                          ),
-                        ),
+
+                        // 나가기 / 다시하기
+                        _icon('Result_exit', 24.38, 40.07, 31.947, 33.794,
+                            -1.95, -3.48, onMenu),
+                        _icon('Result_replay', 252.78, 40.07, 31.895, 33.794,
+                            -2.87, -3.0, onRetry),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
