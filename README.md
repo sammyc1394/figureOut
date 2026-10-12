@@ -226,3 +226,13 @@ getting explicit approval.
 - Avoid running `flutter/react clean` while the server is running.
 - Run Codex or Claude/Terminal with administrator privileges.
 - Do not run compilation, linting, Git commit/push, diff checks, tests, or deployment unless the user explicitly requests them.
+
+## 2026-10-12 전역 정책 적용 범위
+
+[공통 지침](https://github.com/ssongyc/development-policies/blob/main/AGENTS.md)의 해당 분야를 적용합니다. 새 사용자용 문구의 사전 승인, 기존 작업·서명 보존, 품질을 유지하는 자산 최적화, 언어·시트·광고·IAP 규칙과 출시 전 점검은 프로젝트의 실제 기능 범위 및 승인 예외와 함께 판단합니다. APK/AAB 공동 작업·캐시 입력·QA/출시 ABI 분리·TestFlight 제출 전용 재시도는 기존 빌드 경로에서 구현 여부를 확인해야 합니다.
+
+이번 반영은 공통 지침 연결과 확인된 일부 소스/설정 차이의 보완이며, 전체 기능의 정책 준수나 출시 준비 완료를 뜻하지 않습니다. 기존 미커밋 변경을 보존했으며 빌드·린트·테스트·스토어 업로드는 실행하지 않았습니다. 호환성이 확인되지 않은 SDK/AGP 일괄 업그레이드, 신규 문구, 자격 증명 변경은 수행하지 않습니다.
+
+### 2026-10-12 승인 후 검증
+
+analyze: 실패 또는 차단(원본 로그 확인); test: 실패 또는 차단(원본 로그 확인). 앞 절의 미실행 기록은 소스 반영 당시 상태입니다. Android APK/AAB 및 기기 검증 완료를 뜻하지 않습니다. 이번 커밋에는 정책 적용 변경만 포함하며 기존 다른 작업과 생성 산출물은 보존·제외합니다.

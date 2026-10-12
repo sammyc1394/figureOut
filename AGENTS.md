@@ -17,7 +17,7 @@ The user is a solo mobile app/game and Microsoft Windows app developer.
 - Run `flutter/react build web` only when explicitly requested.
 - Run builds only when explicitly requested.
 - Avoid running `flutter/react clean` while the server is running.
-- Run Codex or Claude/Terminal with administrator privileges.
+- Use normal privileges; request only the permission needed for the authorized action.
 - Do not run compilation, linting, Git commit/push, diff checks, tests, or deployment unless the user explicitly requests them.
 
 ## Git & PR Attribution Rules
@@ -33,3 +33,10 @@ The user is a solo mobile app/game and Microsoft Windows app developer.
 - Prefer direct fixes and minimal changes.
 - Preserve existing logic when possible.
 
+## Shared policy application (2026-10-12)
+
+Follow the [current shared policy entrypoint](https://github.com/ssongyc/development-policies/blob/main/AGENTS.md) and its applicable topic references. Preserve documented project exceptions; do not copy another app's signing, ABI set, memory limits or deferred feature decisions.
+
+- New user-facing notices, warnings and explanations require explicit approval of wording, placement and trigger before adding UI or translation resources. See [message approval](https://github.com/ssongyc/development-policies/blob/main/policies/workflow.md#user-facing-message-approval).
+- Apply [release preparation and restart](https://github.com/ssongyc/development-policies/blob/main/policies/mobile-release-review.md#preparation-and-restart-contract) and [Android profiles/cache ownership](https://github.com/ssongyc/development-policies/blob/main/skills/mobile-app-production/references/android-release-performance.md) to actual owned entrypoints when release work is in scope. Policy references alone are not implementation or runtime verification.
+- Shared modules apply host-independent rules; signing, ads, purchases, analytics and store declarations are verified at the integrating host where applicable. Preserve existing supported languages and approved UI text.
