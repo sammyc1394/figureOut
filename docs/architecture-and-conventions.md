@@ -151,20 +151,45 @@ assets/
 - PR 제목과 본문은 영어로 작성한다.
 - 커밋과 PR에 AI 도구 표시(footer, co-author 등)를 넣지 않는다.
 
-## 5. 앱 버전 관리
+## 5. 앱 버전 관리와 TestFlight 업로드
 
 앱 버전은 `pubspec.yaml`의 `version: 1.0.0+N`으로 관리합니다. `+` 뒤의 `N`이 빌드 번호이며 TestFlight/스토어에 올린 빌드와 일치해야 합니다.
 
+### 규칙
+
 - 빌드를 업로드할 때마다 빌드 번호를 1씩 올린다. 이미 업로드된 번호는 다시 쓸 수 없다.
-- 빌드 번호를 올리는 변경은 `chore: bump build number to N`처럼 **별도 커밋/PR**로 `main`에 올린다. 기능 PR에 섞지 않는다.
-- 로컬에서만 빌드 번호를 고치고 커밋하지 않은 채로 두지 않는다. 팀원마다 번호가 달라진다.
-- 빌드/업로드 전에는 `main`을 최신으로 받아 `pubspec.yaml`의 번호가 마지막 업로드 번호와 맞는지 확인한다.
+- 빌드 번호는 **릴리스(업로드)를 준비하는 PR이나 커밋**에서만 올린다. 기능 PR에는 넣지 않는다.
+- 번호를 올린 변경을 `main`에 머지한 뒤, **그 `main` 기준으로 빌드해서 업로드한다.** 로컬 브랜치에서 빌드하지 않는다.
+- 로컬에서만 빌드 번호를 고치고 커밋하지 않은 채로 두지 않는다. GitHub와 TestFlight의 번호가 어긋난다.
 - 업로드는 한 번에 한 명이 담당하고, 번호가 겹치지 않도록 업로드 전에 공유한다.
 - `pubspec.lock`은 Flutter SDK 버전 차이로 로컬에서 바뀔 수 있다. SDK 버전을 팀이 함께 올릴 때를 제외하고는 커밋하지 않는다.
 
 | 마지막 업로드 빌드 | 다음 업로드 빌드 |
 |---|---|
 | 82 | 83 |
+
+### 업로드 순서 (Xcode)
+
+1. 빌드 번호를 올리는 PR(`chore: bump build number to N`)을 만들고 `main`에 머지한다.
+2. `main`을 최신으로 받는다.
+   ```bash
+   git switch main && git pull origin main
+   flutter pub get
+   ```
+3. `pubspec.yaml`의 `version`이 올릴 번호(`+N`)인지 확인한다.
+4. Flutter가 iOS 설정에 버전을 반영하도록 한 번 실행한다. Xcode는 이 값을 읽으므로 생략하면 이전 번호로 올라간다.
+   ```bash
+   flutter build ios --release --config-only
+   ```
+5. `ios/Runner.xcworkspace`를 Xcode로 연다. (`.xcodeproj`가 아니다.)
+6. 대상 기기를 **Any iOS Device (arm64)** 로 선택한다.
+7. 메뉴에서 **Product → Archive**를 실행한다.
+8. Organizer에서 Archive의 버전과 빌드 번호가 `1.0.0 (N)`인지 확인한다.
+9. **Distribute App → App Store Connect → Upload**를 선택하고 안내에 따라 진행한다.
+10. App Store Connect → TestFlight에서 빌드 N이 "처리 완료"로 바뀌는지 확인한다.
+11. 위 표의 "마지막 업로드 빌드"를 N으로, 다음 빌드를 N+1로 갱신한다.
+
+> 추후 CI(Fastlane/Codemagic 등)로 자동화하면 빌드 번호를 `--build-number`로 넘기고 `pubspec.yaml`에는 커밋하지 않을 수 있다.
 
 ## 6. 알려진 정리 대상
 
