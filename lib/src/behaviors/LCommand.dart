@@ -49,13 +49,13 @@ class LCommand implements ShapeBehavior {
     final p1 = toPlayArea(
       flipY(Vector2(dx1, dy1)),
       halfSize,
-      clampInside: true,
+      clampInside: false,
     );
 
     final p2 = toPlayArea(
       flipY(Vector2(dx2, dy2)),
       halfSize,
-      clampInside: true,
+      clampInside: false,
     );
 
     for (final e in List.of(shape.children.whereType<Effect>())) {
