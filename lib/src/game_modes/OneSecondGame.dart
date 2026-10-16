@@ -8,6 +8,7 @@ import 'package:flame/collisions.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:figureout/src/temp/RefreshButton.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -66,6 +67,7 @@ class OneSecondGame extends FlameGame
   bool _isMissionRunning=false;
 
   // temporary function
+  late RefreshButton refreshButton;
   // bool debugYN = true;
 
   //pause
@@ -325,6 +327,14 @@ class OneSecondGame extends FlameGame
 
     playAreaScaleX = playWidth / targetPlayWidth;
     playAreaScaleY = playHeight / targetPlayHeight;
+
+    // Add refresh button to top-right corner
+    refreshButton = RefreshButton(
+      position: Vector2(size.x - 60, 40),
+      onPressed: onRefresh,
+    )
+      ..priority = 3000;
+    add(refreshButton);
 
     pauseButton = PauseButton(
       position: Vector2(size.x * 0.11, 40),

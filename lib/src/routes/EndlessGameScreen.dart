@@ -290,7 +290,7 @@ class EndlessOneSecondGame extends OneSecondGame {
   void restartEndlessGame() {
     overlays.remove('endless_aftermath');
     overlays.remove('pause');
-    removeAll(children.where((c) => c is PositionComponent && c != screenArea && c != playArea && c != timerBar && c != pauseButton));
+    removeAll(children.where((c) => c is PositionComponent && c != screenArea && c != playArea && c != timerBar && c != pauseButton && c != refreshButton));
     _isEndlessActive = false;
     resetGameState();
     startEndlessMode();
