@@ -172,7 +172,7 @@ class ZCommand implements ShapeBehavior {
         final target = toPlayArea(
           flipY(Vector2(zx, zy)),
           shape.size.x / 2,
-          clampInside: true,
+          clampInside: false,
         );
 
         visited.add(target.clone());
