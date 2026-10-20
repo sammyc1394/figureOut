@@ -8,6 +8,7 @@ import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/services/analytics_service.dart';
 import '../services/audio_manager.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
+import 'package:figureout/src/services/stage_lock_service.dart';
 
 class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
@@ -16,10 +17,14 @@ class Menuappbar extends StatefulWidget implements PreferredSizeWidget {
   /// blue one used on the beige background.
   final bool lightSettingsIcon;
 
+  // 락 기능에 따른 스테이지셀렉트 ui 변수
+  final ValueChanged<bool>? onStageLockChanged;
+
   const Menuappbar({
     super.key,
     this.backgroundColor,
     this.lightSettingsIcon = false,
+    this.onStageLockChanged,
   });
 
   @override
@@ -34,11 +39,26 @@ class _MenuappbarState extends State<Menuappbar> {
   int _secondsUntilNext = heartRefillIntervalSec;
   Timer? _timer;
 
+  // 스테이지락
+  bool _stageLockEnabled = false;
+
+  Future<void> _loadStageLockState() async {
+    final enabled = await StageLockService.isLockEnabled();
+
+    if (!mounted) return;
+
+    setState(() {
+      _stageLockEnabled = enabled;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+    _refreshHeart();
+    _loadStageLockState();
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refreshHeart());
   }
 
   @override
@@ -47,7 +67,7 @@ class _MenuappbarState extends State<Menuappbar> {
     super.dispose();
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refreshHeart() async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -159,6 +179,34 @@ class _MenuappbarState extends State<Menuappbar> {
       ),
       centerTitle: false,
       actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () async {
+              final newValue = !_stageLockEnabled;
+
+              await StageLockService.setLockEnabled(newValue);
+
+              if (!mounted) return;
+
+              setState(() {
+                _stageLockEnabled = newValue;
+              });
+
+              widget.onStageLockChanged?.call(newValue);
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _stageLockEnabled
+                    ? Colors.red
+                    : Colors.green,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: GestureDetector(
