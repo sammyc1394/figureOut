@@ -46,6 +46,7 @@ import 'package:figureout/src/services/analytics_service.dart';
 import 'package:figureout/src/components/blink_alpha_target.dart';
 import '../services/audio_manager.dart';
 import 'package:figureout/src/routes/route_args.dart';
+import 'package:figureout/src/services/stage_lock_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OneSecondGame extends FlameGame
@@ -2918,15 +2919,17 @@ bool _isStraightLine(List<Vector2> path) {
     runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
   }
 
-  void handleAftermathPlay() {
+  Future<void> handleAftermathPlay() async {
     _removeAftermathOverlay();
 
     // 마지막 미션 여부는 "미션 개수"가 아니라 "실제 존재하는 최대 미션 번호"로 판단한다.
     // (미션 키가 비연속적이거나 보스 미션 등으로 개수 != 최대 번호일 수 있음)
     final missionKeys = _allStages[_selectedStageIndex].missions.keys.toList()
       ..sort();
+
     final maxMissionNo =
         missionKeys.isNotEmpty ? missionKeys.last : _selectedMissionIndex;
+
     final isLastMission = _selectedMissionIndex >= maxMissionNo;
 
     if (!isLastMission) {
@@ -2938,6 +2941,16 @@ bool _isStraightLine(List<Vector2> path) {
       _selectedMissionIndex = nextMissionNo;
       runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
       return;
+    }
+
+    // 락 기능 -> 마지막 클리어스테이지 + 1
+    // Special Stage는 일반 스테이지 진행도에 반영하지 않는다.
+    final stageName = _allStages[_selectedStageIndex].name;
+    final isSpecialStage =
+    stageName.toLowerCase().contains('special');
+
+    if (!isSpecialStage) {
+      await StageLockService.completeStage(_selectedStageIndex + 1);
     }
 
     // 마지막 미션 — 스테이지 선택 화면으로 이동

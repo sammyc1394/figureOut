@@ -7,6 +7,7 @@ import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/services/analytics_service.dart';
 import 'package:figureout/src/services/sheet_service.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
+import 'package:figureout/src/services/stage_lock_service.dart';
 import 'route_args.dart';
 
 class StageSelectScreen extends StatefulWidget {
@@ -27,6 +28,9 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
   late int _currentIndex;
   late final PageController _pageController;
 
+  int _highestClearedStage = 0;
+  bool _stageLockEnabled = false;
+
   final List<String> stagesSVG = [
     "assets/menu/stage/stage_1.png",
     "assets/menu/stage/stage_2.png",
@@ -37,14 +41,32 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
     "assets/menu/stage/stage_7.png",
   ];
 
+  Future<void> _loadStageLockState() async {
+    final highestClearedStage =
+              await StageLockService.getHighestClearedStage();
+
+    final stageLockEnabled =
+              await StageLockService.isLockEnabled();
+
+    if (!mounted) return;
+
+    setState(() {
+      _highestClearedStage = highestClearedStage;
+      _stageLockEnabled = stageLockEnabled;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
     _currentIndex = widget.initialStageIndex;
     _pageController = PageController(
       initialPage: widget.initialStageIndex,
       viewportFraction: 0.5,
     );
+
+    _loadStageLockState();
   }
 
   @override
@@ -86,6 +108,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
     final double imageSize =
     (shortestSide * (isTablet ? 0.75 : 0.65)).clamp(220.0, 330.0);
     final imageInnerSize = imageSize * 0.90;
+    final lockInnerSize = imageSize * 0.50;
 
     final stageTitleWidth = imageSize * 0.55;
     final stageTitleHeight = imageSize * 0.18;
@@ -119,7 +142,13 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
 
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: const Menuappbar(),
+          appBar: Menuappbar(
+            onStageLockChanged: (enabled) {
+              setState(() {
+                _stageLockEnabled = enabled;
+              });
+            },
+          ),
           body:
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -139,8 +168,36 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                         final svgPath = stagesSVG[index % stagesSVG.length];
                         final isSelected = index == _currentIndex;
 
+                        final stageNumber = index + 1;
+                        final stageName = stages[index].name;
+
+                        final isSpecialStage =
+                        stageName.toLowerCase().contains('special');
+
+                        final isLocked =
+                                !isSpecialStage
+                                  && _stageLockEnabled
+                                  && stageNumber > _highestClearedStage + 1;
+
                         return GestureDetector(
                           onTap: () async {
+                            final stageNumber = index + 1;
+                            final stageName = stages[index].name;
+
+                            final isSpecialStage =
+                            stageName.toLowerCase().contains('special');
+
+                            if (!isSpecialStage) {
+                              final isUnlocked =
+                              await StageLockService.isStageUnlocked(stageNumber);
+
+                              if (!isUnlocked) {
+                                return;
+                              }
+                            }
+
+                            if (!context.mounted) return;
+
                             context.push(
                               '/missions',
                               extra: MissionRouteArgs(
@@ -148,6 +205,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                 stageIndex: index,
                               ),
                             );
+
                             await AnalyticsService.instance.logEvent(
                               'Stage_Clicked',
                               properties: {
@@ -169,13 +227,24 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                   SizedBox(
                                     width: imageSize,
                                     height: imageSize,
-                                    child: Center(
-                                      child: Image.asset(
-                                        svgPath,
-                                        width: imageInnerSize,
-                                        height: imageInnerSize,
-                                        fit: BoxFit.contain,
-                                      ),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Image.asset(
+                                          svgPath,
+                                          width: imageInnerSize,
+                                          height: imageInnerSize,
+                                          fit: BoxFit.contain,
+                                        ),
+
+                                        if (isLocked)
+                                          Image.asset(
+                                            'assets/menu/common/Locked_graphic.png',
+                                            width: lockInnerSize,
+                                            height: lockInnerSize,
+                                            fit: BoxFit.contain,
+                                          ),
+                                      ],
                                     ),
                                   ),
 
