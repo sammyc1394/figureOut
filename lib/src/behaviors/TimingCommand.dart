@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:figureout/src/behaviors/ZCommand.dart';
 import 'package:figureout/src/behaviors/shapeBehavior.dart';
 import 'package:figureout/src/components/blink_alpha_target.dart';
+import 'composite_behavior.dart';
+
 import 'package:flame/components.dart';
+
 
 /// Timing data stripped from a movement cell by [TimingCommand.parse].
 class MovementTiming {
@@ -115,7 +118,10 @@ class TimingCommand implements ShapeBehavior {
     final inner = this.inner;
     if (inner != null) {
       await inner.apply(shape);
+
       if (inner is ZCommand) {
+        await inner.sequenceDone;
+      } else if (inner is CompositeBehavior) {
         await inner.sequenceDone;
       }
     }

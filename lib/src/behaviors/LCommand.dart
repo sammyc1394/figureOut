@@ -31,6 +31,7 @@ class LCommand implements ShapeBehavior {
 
     final match = RegExp(
       r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
+      multiLine: true,
     ).firstMatch(raw);
 
     if (match == null) {
