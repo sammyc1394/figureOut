@@ -36,6 +36,7 @@ import '../behaviors/CCommand.dart';
 import '../behaviors/DDrCommand.dart';
 import '../behaviors/LCommand.dart';
 import '../behaviors/TimingCommand.dart';
+import '../behaviors/composite_behavior.dart';
 import '../behaviors/shapeBehavior.dart';
 import '../components/PreparedEnemy.dart';
 import '../effect/PenaltyEffect.dart';
@@ -1288,21 +1289,26 @@ class OneSecondGame extends FlameGame
 
   ShapeBehavior? _checkMovementBehavior(
       String raw,
-      Vector2 actPosition
+      Vector2 actPosition,
       ) {
-
     debugPrint("[Behavior check] parsing command into behavior");
+
+    final behaviors = <ShapeBehavior>[];
+
     final lMatch = RegExp(
-      r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$'
+      r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
+      multiLine: true,
     ).firstMatch(raw.trim());
 
     if (lMatch != null) {
       debugPrint("[Behavior check] returning L command");
 
-      return LCommand(
-        movementRaw: raw,
-        flipY: flipY,
-        toPlayArea: toPlayArea,
+      behaviors.add(
+        LCommand(
+          movementRaw: raw,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+        )
       );
     }
 
@@ -1315,12 +1321,14 @@ class OneSecondGame extends FlameGame
       final r = double.parse(cMatch.group(1)!);
       final s = double.parse(cMatch.group(2)!);
 
-      return CCommand(
-        radius: r,
-        degreePerSec: s,
-        actPosition: actPosition,
-        flipY: flipY,
-        toPlayArea: toPlayArea,
+      behaviors.add(
+        CCommand(
+          radius: r,
+          degreePerSec: s,
+          actPosition: actPosition,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+        )
       );
     }
 
@@ -1335,13 +1343,15 @@ class OneSecondGame extends FlameGame
       final a = double.parse(drMatch.group(1)!);
       final b = double.parse(drMatch.group(2)!);
 
-      return DDrCommand(
-        visibleDuration: a,
-        invisibleDuration: b,
-        isRandomRespawn: true,
-        timerRectWorld: timerRectWorld,
-        gameSize: size,
-        blinkingMap: blinkingMap,
+      behaviors.add(
+         DDrCommand(
+          visibleDuration: a,
+          invisibleDuration: b,
+          isRandomRespawn: true,
+          timerRectWorld: timerRectWorld,
+          gameSize: size,
+          blinkingMap: blinkingMap,
+        )
       );
     }
 
@@ -1355,13 +1365,15 @@ class OneSecondGame extends FlameGame
       final a = double.parse(dMatch.group(1)!);
       final b = double.parse(dMatch.group(2)!);
 
-      return DDrCommand(
-        visibleDuration: a,
-        invisibleDuration: b,
-        isRandomRespawn: false,
-        timerRectWorld: timerRectWorld,
-        gameSize: size,
-        blinkingMap: blinkingMap,
+      behaviors.add(
+        DDrCommand(
+          visibleDuration: a,
+          invisibleDuration: b,
+          isRandomRespawn: false,
+          timerRectWorld: timerRectWorld,
+          gameSize: size,
+          blinkingMap: blinkingMap,
+        )
       );
     }
 
@@ -1376,25 +1388,29 @@ class OneSecondGame extends FlameGame
       final speed = double.parse(mMatch.group(2)!);
       final stopY = mMatch.group(3)!;
 
-      return MCommand(
-        angleDeg: angle,
-        speed: speed,
-        stopY: stopY,
-        position: actPosition,
-        size: size,
-        flipY: flipY,
-        toPlayArea: toPlayArea,
+      behaviors.add(
+        MCommand(
+          angleDeg: angle,
+          speed: speed,
+          stopY: stopY,
+          position: actPosition,
+          size: size,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+        )
       );
     }
 
     if (raw.contains('Z(')) {
       debugPrint("[Behavior check] returning z command");
 
-      return ZCommand(
-        movementRaw: raw,
-        flipY: flipY,
-        toPlayArea: toPlayArea,
-        worldToVirtualPlay: worldToVirtualPlay,
+      behaviors.add(
+        ZCommand(
+          movementRaw: raw,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+          worldToVirtualPlay: worldToVirtualPlay,
+        )
       );
     }
 
@@ -1407,17 +1423,30 @@ class OneSecondGame extends FlameGame
       final y0 = double.parse(bMatch.group(2)!);
       final speed = double.parse(bMatch.group(3)!);
 
-      return BCommand(
-        startEditor: Vector2(x0, y0),
-        directionWorld: actPosition, // 이미 toPlayArea 끝난 월드 좌표
-        speed: speed,
-        flipY: flipY,
-        toPlayArea: toPlayArea,
-        playAreaRect: () => playArea.toRect(),
+      behaviors.add(
+        BCommand(
+          startEditor: Vector2(x0, y0),
+          directionWorld: actPosition, // 이미 toPlayArea 끝난 월드 좌표
+          speed: speed,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+          playAreaRect: () => playArea.toRect(),
+        )
       );
     }
 
-    return null;
+    if (behaviors.isEmpty) return null;
+
+    if (behaviors.length == 1) {
+      return behaviors.first;
+    }
+
+    debugPrint(
+      '[Behavior check] Composite: '
+          '${behaviors.map((b) => b.runtimeType).join(', ')}',
+    );
+
+    return CompositeBehavior(behaviors);
   }
 
   bool _isVisualEffectComponent(Component c) {
