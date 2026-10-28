@@ -17,8 +17,6 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
 
   final double margin;
 
-  final void Function(PositionComponent shape, double alpha)? onFadeAlphaChanged;
-
   double _timer = 0;
   bool _visible = true;
   final _rng = Random();
@@ -27,14 +25,6 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   bool get willReappear => !_visible && !isRemoving && !shape.isRemoving;
   bool isPaused = false;
   double? _pausedTimer;
-
-  //Fade effect variables
-  final List<double> _fadeSteps = [1.0, 0.75, 0.5, 0.25, 0.0];
-  int _fadeIndex = 0;
-  double _fadeTimer = 0;
-  bool _fadeStarted = false;
-  late double _fadeStepDuration;
-  late double _fadeStartTime;
 
   BlinkingBehaviorComponent({
     required this.shape,
@@ -47,13 +37,7 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
     this.yMin,
     this.yMax,
     this.margin = 50.0,
-    this.onFadeAlphaChanged,
-  }){
-    _fadeStartTime = visibleDuration * 0.6;
-
-    final fadeTotal = visibleDuration * 0.4;
-    _fadeStepDuration = fadeTotal / (_fadeSteps.length - 1);
-  }
+  });
 
   @override
   void update(double dt) {
@@ -68,66 +52,22 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
     super.update(dt);
 
     if (shape is UserRemovable && (shape as UserRemovable).wasRemovedByUser) {
-
-      // 애니메이션 끝난 뒤에만 정리
-      if (shape.isMounted) {
-        return;
-      }
-
-      removeFromParent();
+      // 사용자가 삼각형을 제거한 경우 깜빡임 종료
+      shape.removeFromParent();
+      removeFromParent(); // 깜빡임 종료
       return;
     }
-
-    // BBC가 visible이라고 판단 중인데 도형이 실제로 없으면
-    // 공격 타이머 등 외부 원인으로 제거된 것이므로 BBC도 함께 제거
-    if (_visible && !shape.isMounted) {
-      removeFromParent();
-      return;
-    }
-
     _timer += dt;
-
-    if (_visible && !_fadeStarted && _timer >= _fadeStartTime) {
-      _fadeStarted = true;
-      _fadeIndex = 0;
-      _fadeTimer = 0;
-
-      onFadeAlphaChanged?.call(shape, _fadeSteps[0]);
-    }
-
-    if (_visible && _fadeStarted) {
-
-      _fadeTimer += dt;
-
-      if (_fadeTimer >= _fadeStepDuration) {
-        _fadeTimer = 0;
-
-        if (_fadeIndex < _fadeSteps.length-1) {
-          _fadeIndex++;
-          onFadeAlphaChanged?.call(shape, _fadeSteps[_fadeIndex]);
-        }
-      }
-    }
 
     if (_visible && _timer >= visibleDuration) {
       _timer = 0;
       _visible = false;
-      _fadeStarted = false;
-      _fadeIndex = 0;
-      _fadeTimer = 0;
-
-      onFadeAlphaChanged?.call(shape, 0.0);
-
-      // shape.removeFromParent();
+      shape.removeFromParent();
     } else if (!_visible && _timer >= invisibleDuration) {
       _timer = 0;
       _visible = true;
-
-      _fadeStarted = false;
-      _fadeIndex = 0;
-      _fadeTimer = 0;
-
       // parent?.add(shape);
+      if (!shape.isMounted) {
         if (isRandomRespawn) {
           final margin = 50.0;
           final screenW = game.size.x;
@@ -146,10 +86,8 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
         }
 
         // game.add(shape);
-        // parent?.add(shape);
-
-
-      onFadeAlphaChanged?.call(shape, 1.0);
+        parent?.add(shape);
+      }
     }
   }
 }

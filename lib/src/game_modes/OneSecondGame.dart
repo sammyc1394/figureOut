@@ -2346,6 +2346,7 @@ bool _isStraightLine(List<Vector2> path) {
         // 경로가 blocker bounding box 안으로 들어오는 포인트가 없으면 → 면제 (노출된 rect만 통과)
         // 포인트가 하나라도 있으면 → 삼각형 영역을 지나간 것 → 차단
         final realBlockers = overlappingShapes.where((blocker) {
+          if (_isDarkShape(blocker)) return true;
           final blockerRect = blocker.toRect();
 
           // blocker가 슬라이스 대상 사각형과 아예 안 겹치면 → 항상 차단 (무관한 도형)

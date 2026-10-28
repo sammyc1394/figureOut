@@ -60,7 +60,6 @@ class DDrCommand implements ShapeBehavior {
       xMax: maxXCenter,
       yMin: minYCenter,
       yMax: maxYCenter,
-      onFadeAlphaChanged: onFadeAlphaChanged,
     );
 
     blinkingMap[shape] = blinking;
