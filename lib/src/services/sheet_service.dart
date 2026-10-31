@@ -17,12 +17,13 @@ class SheetService {
   static final RegExp _threeValueRegex = RegExp(
     r'\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^()]|\([^()]*\))*)\s*\)',
   );
+  static final RegExp _acceleratingZRegex = RegExp(
+    r'\bZ\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*\)',
+  );
 
   SheetService()
       : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
         apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '';
-  String get sheetName => 'Stages & Missions';
-  String get encodedSheetName => Uri.encodeComponent(sheetName);
   String get range => 'B1:I';
 
   Future<List<StageData>> fetchData({List<String>? preloadedSheetNames}) async {
@@ -452,7 +453,14 @@ class SheetService {
   String resolveMovementByType(String cmd, MovementValueType type, RandomContext ctx) {
     switch (type) {
       case MovementValueType.positionSpeed:
-        return cmd.replaceAllMapped(
+        final resolvedZ = cmd.replaceAllMapped(_acceleratingZRegex, (match) {
+          final x = resolveRandom(match.group(1)!.trim(), URDField.positionX, ctx);
+          final y = resolveRandom(match.group(2)!.trim(), URDField.positionY, ctx);
+          final speed = resolveRandom(match.group(3)!.trim(), URDField.movementSpeed, ctx);
+          final seconds = resolveRandom(match.group(4)!.trim(), URDField.movementAsec, ctx);
+          return 'Z($x,$y,$speed,$seconds)';
+        });
+        return resolvedZ.replaceAllMapped(
           _threeValueRegex,
               (match) {
             final x = resolveRandom(match.group(1)!, URDField.positionX, ctx);
@@ -484,28 +492,6 @@ class SheetService {
     }
   }
 
-  MovementValueType? detectMovementType(String command, String movement) {
-    if (movement.isEmpty) return null;
-
-    final commaCount = ','.allMatches(movement).length;
-
-    if (commaCount == 2) {
-      return MovementValueType.positionSpeed;
-    }
-
-    final upper = command.toUpperCase();
-
-    if (upper.contains('C')) {
-      return MovementValueType.speedRadius;
-    }
-
-    if (upper.contains('D')) {
-      return MovementValueType.secPair;
-    }
-
-    return null;
-  }
-
   List<String> splitMovementCommands(String movement) {
     return movement.split(RegExp(r'\s*,\s*(?=[A-Z])'));
   }
@@ -518,6 +504,7 @@ class SheetService {
       final trimmed = line.trim();
       if (trimmed.isEmpty || _isTimingOrLoopLine(trimmed)) continue;
       if (trimmed.startsWith('DR')) return 'DR';
+      if (trimmed.startsWith('CC')) return 'CC';
       return trimmed.substring(0, 1);
     }
     return '';
@@ -534,9 +521,11 @@ class SheetService {
     switch (prefix) {
       case 'Z':
       case 'B':
+      case 'P':
         return MovementValueType.positionSpeed;
 
       case 'C':
+      case 'CC':
         return MovementValueType.speedRadius;
 
       case 'D':

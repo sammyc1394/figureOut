@@ -1,13 +1,18 @@
 import 'dart:async';
 
 import 'package:flame/components.dart';
-import 'package:figureout/src/behaviors/shapeBehavior.dart';
-import 'package:figureout/src/behaviors/ZCommand.dart';
+import 'package:figureout/src/behaviors/shape_behavior.dart';
+import 'package:figureout/src/behaviors/z_command.dart';
 
-class CompositeBehavior implements ShapeBehavior {
+class CompositeBehavior implements ShapeBehavior, InitialWaitBehavior {
   final List<ShapeBehavior> behaviors;
 
   CompositeBehavior(this.behaviors);
+
+  @override
+  bool get hasInitialWait => behaviors
+      .whereType<InitialWaitBehavior>()
+      .any((behavior) => behavior.hasInitialWait);
 
   @override
   Future<void> apply(PositionComponent shape) async {

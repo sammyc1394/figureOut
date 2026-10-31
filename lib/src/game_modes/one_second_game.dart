@@ -1,0 +1,3242 @@
+import 'package:figureout/src/services/logger_service.dart';
+import 'package:figureout/src/behaviors/b_command.dart';
+import 'package:figureout/src/behaviors/m_command.dart';
+import 'package:figureout/src/behaviors/z_command.dart';
+import 'package:figureout/src/behaviors/parabola_command.dart';
+import 'package:flame/components.dart';
+
+import 'dart:async';
+import 'package:flame/collisions.dart';
+import 'package:flame/effects.dart';
+import 'package:flame/events.dart';
+import 'package:flame/game.dart';
+import 'package:figureout/src/temp/refresh_button.dart';
+import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
+import 'package:figureout/main.dart';
+
+import 'package:figureout/src/components/circle_shape.dart';
+import 'package:figureout/src/components/attack_timer_gate.dart';
+import 'package:figureout/src/components/hexagon_shape.dart';
+import 'package:figureout/src/components/pentagon_shape.dart';
+import 'package:figureout/src/components/rectangle_shape.dart';
+import 'package:figureout/src/components/triangle_shape.dart';
+import 'package:figureout/src/components/game_timer_component.dart';
+import 'package:figureout/src/effect/attack_explosion_effect.dart';
+import 'package:figureout/src/effect/encircle_slice_effect.dart';
+import 'package:figureout/src/effect/circle_disappear_effect.dart';
+import 'package:figureout/src/effect/falling_clipped_piece.dart';
+
+import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/config/theme_mode_scope.dart';
+
+import 'package:figureout/src/services/sheet_service.dart';
+import 'package:figureout/src/behaviors/orbiting_component.dart';
+import 'package:figureout/src/behaviors/blinking_behavior.dart';
+import 'package:figureout/src/components/pause_button.dart';
+import 'package:go_router/go_router.dart';
+import '../behaviors/c_command.dart';
+import '../behaviors/d_dr_command.dart';
+import '../behaviors/l_command.dart';
+import '../behaviors/timing_command.dart';
+import '../behaviors/composite_behavior.dart';
+import '../behaviors/shape_behavior.dart';
+import '../components/prepared_enemy.dart';
+import '../effect/penalty_effect.dart';
+import 'package:figureout/src/components/orderable_shape.dart';
+import 'package:figureout/src/components/overlap_highlightable.dart';
+import 'package:figureout/src/components/resizable_shape.dart';
+import 'package:figureout/src/services/analytics_service.dart';
+import 'package:figureout/src/components/blink_alpha_target.dart';
+import '../services/audio_manager.dart';
+import 'package:figureout/src/routes/route_args.dart';
+import 'package:figureout/src/services/stage_lock_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class OneSecondGame extends FlameGame
+    with DragCallbacks, CollisionCallbacks, TapCallbacks {
+  // ← 이것 추가 {
+  final BuildContext navigatorContext;
+  final List<StageData> stages;
+  final int stageIndex;
+  final int missionIndex;
+
+  OneSecondGame({
+    required this.navigatorContext,
+    required this.stages,
+    required this.stageIndex,
+    required this.missionIndex,
+  });
+
+  //Mission execution lock
+  bool _isMissionRunning=false;
+
+  // temporary function
+  late RefreshButton refreshButton;
+  // bool debugYN = true;
+
+  //pause
+  late PauseButton pauseButton;
+
+  // aftermath overlay state
+  StageResult? _currentAftermathResult;
+  int _currentAftermathStars = 0;
+  int _currentAftermathStgIndex = 0;
+  int _currentAftermathMsnIndex = 0;
+
+  // how-to-play intro (stage 1 mission 1)
+  Completer<void>? _howToPlayCompleter;
+  // "다시 보지 않기": 앱 실행(세션) 동안만 유지되는 플래그. 앱 재시작 시 초기화되어 다시 표시된다.
+  static bool _tutorialHiddenThisSession = false;
+
+  StageResult? get currentAftermathResult => _currentAftermathResult;
+  int get currentAftermathStars => _currentAftermathStars;
+  int get currentAftermathStgIndex => _currentAftermathStgIndex;
+  int get currentAftermathMsnIndex => _currentAftermathMsnIndex;
+
+  //stage data
+  late StageData initialStage;
+
+  late int _selectedStageIndex;
+  late int _selectedMissionIndex;
+
+  int _runToken = 0;
+
+  List<StageData> _allStages = [];
+
+  // temp data
+  late int maxMissionIndex;
+  late int maxStageIndex;
+
+  // for Refresh
+  Completer<void>? _refreshCompleter;
+
+  final SheetService sheetService = SheetService();
+
+  //timer data
+  Timer? countdownTimer;
+  double remainingTime = 0;
+  double missionTimeLimit = 0;
+  bool isTimeCritical = false;
+  late GameTimerComponent timerBar;
+  late double _accumulator = 0;
+  double _lastShownTime = -1;
+  bool _timerEndedNotified = false;
+
+  bool _timerPaused = false;
+  bool _isPausedGlobally = false;
+  bool get isPausedGlobally => _isPausedGlobally;
+
+  bool _isTimeOver = false;
+
+  // effect
+  late ForbiddenShapeEffect forbiddenShapeEffect;
+
+  // For Continue feature
+  static const double minTimeLimit = 10.0;
+  double initialMaxTime = 0.0;
+  double currentMissionTime = 0.0;
+  double elapsedGameTime = 0.0;
+  double _lastRoundStartTime = 0.0;
+  int _lastRoundStartIndex = 0;
+  bool _isContinuing = false;
+
+  final Map<PositionComponent, BlinkingBehaviorComponent> blinkingMap = {};
+
+  final ValueNotifier<Map<String, int>> shapeCountNotifier = ValueNotifier({});
+
+  // screen data
+  late final double screenWidth;
+  late final double screenHeight;
+
+  late PositionComponent screenArea;
+  late PositionComponent playArea;
+
+  late double playAreaScaleX;
+  late double playAreaScaleY;
+  double _lastValidRangeX = 1;
+  double _lastValidRangeY = 1;
+
+
+  // order (circle / other shapes)
+  List<OrderableShape> _orderedShapes = [];
+  int _currentOrderIndex = 0;
+  bool _hasOrder = false;
+
+
+  // gestures
+  Vector2? dragStart;
+  Vector2? sliceStartPoint;
+  Vector2? sliceEndPoint;
+  List<Vector2> userPath = [];
+  Vector2? currentCircleCenter;
+  double? currentCircleRadius;
+
+  int _globalSpawnCounter = 100;
+
+  void _syncOverlapHighlight() {
+    final shapes = children.whereType<OverlapHighlightable>().toList();
+
+    // 일단 전부 꺼짐
+    for (final s in shapes) {
+      s.setOverlapping(false);
+    }
+
+    // 겹치는 쌍 찾아서 둘 다 켬
+    for (int i = 0; i < shapes.length; i++) {
+      for (int j = i + 1; j < shapes.length; j++) {
+        final a = shapes[i] as PositionComponent;
+        final b = shapes[j] as PositionComponent;
+        if (a.toRect().overlaps(b.toRect())) {
+          shapes[i].setOverlapping(true);
+          shapes[j].setOverlapping(true);
+        }
+      }
+    }
+  }
+
+  void _updateShapeCount() {
+    final Map<String, int> counts = {};
+
+    void countShape(PositionComponent shape) {
+      if (shape is CircleShape && !shape.isDark) {
+        counts['Circle'] = (counts['Circle'] ?? 0) + 1;
+      } else if (shape is PentagonShape && !shape.isDark) {
+        counts['Pentagon'] = (counts['Pentagon'] ?? 0) + 1;
+      } else if (shape is HexagonShape && !shape.isDark) {
+        counts['Hexagon'] = (counts['Hexagon'] ?? 0) + 1;
+      } else if (shape is RectangleShape && !shape.isDark) {
+        counts['Rectangle'] = (counts['Rectangle'] ?? 0) + 1;
+      } else if (shape is TriangleShape && !shape.isDark) {
+        counts['Triangle'] = (counts['Triangle'] ?? 0) + 1;
+      }
+    }
+
+    // 현재 화면에 있는 도형 카운트
+    for (final child in children) {
+      if (child is PositionComponent) countShape(child);
+    }
+
+    // 블링킹으로 일시적으로 사라진 도형도 카운트 (사용자가 제거한 게 아니므로)
+    for (final entry in blinkingMap.entries) {
+      final shape = entry.key;
+      final blink = entry.value;
+      if (!shape.isMounted && blink.willReappear) {
+        countShape(shape);
+      }
+    }
+
+    final snapshot = Map<String, int>.unmodifiable(counts);
+    // 컴포넌트 제거/추가는 Flame의 update() 도중(위젯 build phase 중)에도 발생할 수 있어,
+    // 그 자리에서 바로 notifier.value를 갱신하면 "setState() called during build" 예외가 난다.
+    // 프레임이 끝난 뒤로 미뤄서 안전하게 갱신한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      shapeCountNotifier.value = snapshot;
+    });
+  }
+
+  @override
+  void onChildrenChanged(Component child, ChildrenChangeType type) {
+    super.onChildrenChanged(child, type);
+    // 새 컴포넌트가 추가될 때마다 현재 디버그 상태를 그대로 적용
+    if (type == ChildrenChangeType.added) {
+      _applyDebugToTree(child, debugMode);
+    }
+    if (child is CircleShape || child is PentagonShape || child is HexagonShape ||
+        child is RectangleShape || child is TriangleShape) {
+      _updateShapeCount();
+    }
+  }
+
+  //toggle debug
+  int _debugTapCount = 0;
+  double _lastTapTime = 0;
+
+  Vector2? _dragLastPos; // 마지막 드래그 좌표
+  Vector2? _dragStartPos; // 드래그 시작 좌표
+  int _dragStartTimeMs = 0;
+
+  static const int _tapWindowMs = 180; // 이 시간 이하면 탭으로 간주
+  static const double _tapMoveMax = 18.0; // 이 거리 이하면 탭으로 간주
+  static const double _cornerRatio = 0.18; // 화면의 18% 정사각형 영역을 코너로 간주
+  static const int _debugWindowMs = 1500; // 디버그 5연타 유효 시간
+  static const int _debugNeedTaps = 5;
+
+  StageResult? _pendingResult;
+  bool _missionResolved = false;
+
+  void _applyDebugToTree(Component root, bool value) {
+    root.debugMode = value;
+    for (final child in root.children) {
+      _applyDebugToTree(child, value);
+    }
+  }
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    if (!navigatorContext.mounted) return;
+
+    screenWidth = size.x;
+    screenHeight = size.y;
+
+    screenArea = RectangleComponent(
+      position: Vector2(size.x / 2, size.y / 2),
+      size: size,
+      anchor: Anchor.center,
+      paint: Paint()..color = Colors.transparent,
+      priority: 0,
+    );
+    add(screenArea);
+
+    final availWidth = size.x - (uiSidePadding * 2);
+    final availHeight = size.y - (uiTopPadding);
+
+    double playWidth, playHeight;
+
+    if (size.x > rangeX) {
+      double actualRatio = availWidth / availHeight;
+      debugPrint("actual ratio = $actualRatio, aspectRatio = $aspectRatio");
+      if (availWidth / availHeight > aspectRatio) {
+        playHeight = availHeight;
+        playWidth = playHeight * aspectRatio;
+      } else {
+        playWidth = availWidth;
+        playHeight = playWidth / aspectRatio;
+      }
+    } else {
+      if (availWidth / availHeight > aspectRatio) {
+        playHeight = availHeight;
+        playWidth = playHeight * aspectRatio;
+      } else {
+        playWidth = availWidth;
+        playHeight = playWidth / aspectRatio;
+      }
+    }
+
+    playWidth = math.min(playWidth, targetPlayWidth);
+    playHeight = math.min(playHeight, targetPlayHeight);
+
+    double playCenterX = size.x / 2;
+    double playCenterY = uiTopPadding + (playHeight / 2);
+
+    // debugPrint('play area = ($playWidth, $playHeight)');
+    playArea = RectangleComponent(
+      position: Vector2(playCenterX, playCenterY),
+      size: Vector2(playWidth, playHeight),
+      anchor: Anchor.center,
+      paint: Paint()..color = Colors.transparent,
+      priority: 0,
+    );
+    add(playArea);
+
+    // 로그 s
+    double playX = playArea.width;
+    double playY = playArea.height;
+
+    debugPrint("playArea size = ($playX, $playY)");
+    // 로그 e
+
+    playAreaScaleX = playWidth / targetPlayWidth;
+    playAreaScaleY = playHeight / targetPlayHeight;
+
+    // Add refresh button to top-right corner
+    refreshButton = RefreshButton(
+      position: Vector2(size.x - 60, 40),
+      onPressed: onRefresh,
+    )
+      ..priority = 3000;
+    add(refreshButton);
+
+    pauseButton = PauseButton(
+      position: Vector2(size.x * 0.11, 40),
+      onPressed: pauseGame,
+    )
+      ..priority = 3000;
+    add(pauseButton);
+
+    timerBar = GameTimerComponent(
+      totalTime: 60, // 기본값, 나중에 startMissionTimer에서 정확히 설정됨
+      position: Vector2(20, 90 - size.x * 0.0265 / 2),
+      sizePx: Vector2(size.x - 40, size.x * 0.0265),
+      isDarkMode: ThemeModeScope.of(navigatorContext),
+    )
+      ..priority = 3000;
+    add(timerBar);
+
+    forbiddenShapeEffect = ForbiddenShapeEffect()
+      ..size = size;
+
+    add(forbiddenShapeEffect);
+
+    try {
+      // _allStages = await sheetService.fetchData();
+      _allStages = stages;
+
+      maxStageIndex = _allStages.length;
+      maxMissionIndex = _allStages[stageIndex].missions.length;
+
+      _selectedStageIndex = stageIndex;
+      _selectedMissionIndex = missionIndex + 1;
+
+      if (_allStages.isNotEmpty) {
+        debugPrint('Fetched stages: ${_allStages.toString()}');
+
+        _runToken++;
+        runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+      }
+    } catch (e) {
+      debugPrint('Sheet fetch error: $e');
+    }
+
+    debugMode = false;
+
+    Future.delayed(Duration.zero, () {
+      debugMode = false;
+      _applyDebugToTree(this, false);
+    });
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    // super.onTapDown(event);
+    event.continuePropagation = true; // refresh 등 다른 컴포넌트 동작하기 위해 터치이벤트 전달
+
+    final tapPos = event.canvasPosition;
+    final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+
+    // 오른쪽 위 구석 감지 (화면 폭/높이의 일부 영역)
+    if (tapPos.x > size.x * 0.8 && tapPos.y < size.y * 0.2) {
+      if (now - _lastTapTime < 1500) {
+        debugPrint('tapped');
+        _debugTapCount++;
+      } else {
+        _debugTapCount = 1;
+      }
+      _lastTapTime = now;
+
+      if (_debugTapCount >= 5) {
+        toggleDebug();
+        _debugTapCount = 0;
+      }
+    }
+
+    // 사각형 슬라이스 시작 위치 추가
+    // userPath.clear();
+    // userPath.add(event.canvasPosition);
+    // debugPrint("=== userPath start point added : ${userPath.first} ==========");
+  }
+
+  //시간 패널티
+  void applyTimePenalty(double seconds) {
+    LoggerService.instance.appLog(
+      'one_second_game',
+      "[Time penalty check] seconds : $seconds",
+    );
+    if (_isTimeOver) return;
+        
+    // Sync both legacy and new timer variables
+    currentMissionTime = math.max(0, currentMissionTime - seconds);
+    remainingTime = currentMissionTime;
+    LoggerService.instance.appLog(
+      'one_second_game',
+      "[Time penalty check] currentMissionTime calculated: $currentMissionTime",
+    );
+
+    updateTimerUI();
+    timerBar.flashPenalty();
+    timerBar.showDamageNumber(seconds); // 데미지 숫자 타이머 바 위에 표시
+    
+    if (currentMissionTime <= 0 && !_timerEndedNotified) {
+      _timerEndedNotified = true;
+      // _isTimeOver = true;
+      timerBar.updateTime(0);
+      _onTimeOver();
+    }
+  }
+
+  void resetGameState() {
+    _isTimeOver = false;
+    _timerEndedNotified = false;
+    elapsedGameTime = 0.0;
+  }
+
+  // 시간 보상 (+1초)
+  void addTimeReward(double seconds) {
+    if (_isTimeOver) return;
+    final maxLimit = initialMaxTime > 0 ? initialMaxTime : 60.0;
+    currentMissionTime = math.min(maxLimit, currentMissionTime + seconds);
+    remainingTime = currentMissionTime;
+    updateTimerUI();
+  }
+
+  //스폰 중단
+  void _stopEnemyBehaviors() {
+    for (final b in children.whereType<BlinkingBehaviorComponent>()) {
+      b.removeFromParent();
+    }
+    blinkingMap.clear();
+  }
+
+  void _clearAllShapes() {
+    children.whereType<CircleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<HexagonShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<PentagonShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<RectangleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+    children.whereType<TriangleShape>().toList().forEach(
+      (e) => e.removeFromParent(),
+    );
+  }
+
+  void _onTimeOver() {
+    // if (_missionResolved) return;
+
+    // if (_isPausedGlobally) return;
+    if (_isTimeOver) return;
+    // if (_timerPaused) return;
+    // _missionResolved = true;
+    _isTimeOver = true;
+    _timerPaused = true; // 타이머 틱 중단
+    
+    _stopEnemyBehaviors(); // Blink 등 중단
+
+    for (final b in blinkingMap.values) {
+      b.isPaused = true;
+    }
+
+    if (_isPausedGlobally) {
+      _pendingResult = StageResult.fail;
+      return;
+    }
+
+    _removeAftermathOverlay();
+
+    Future.microtask(() async{
+      // if (_isPausedGlobally){
+      //   _pendingResult=StageResult.fail;
+      //   return;
+      // } 
+      final starRating = _calculateStarRating(StageResult.fail);
+      showAftermathScreen(
+        StageResult.fail,
+        starRating,
+        _selectedStageIndex,
+        _selectedMissionIndex,
+      );
+    });
+  }
+
+  void _hardResetMissionState() {
+    _missionResolved = false;
+    _timerPaused = false;
+    _isTimeOver = false;
+    _timerEndedNotified = false;
+    _globalSpawnCounter = 100;
+
+    for (final b in blinkingMap.values) {
+      b.removeFromParent();
+    }
+    blinkingMap.clear();
+
+    for (final c in children.toList()) {
+      if (c is CircleShape ||
+          c is RectangleShape ||
+          c is PentagonShape ||
+          c is TriangleShape ||
+          c is HexagonShape ||
+          c is Effect ||
+          c is AttackExplosionEffect ||
+          c is EncircleSliceEffect ||
+          c is CircleDisappearEffect) {
+        c.removeFromParent();
+      }
+    }
+  }
+
+  // ==== running missions ======================================================================================
+
+  // runStageWithAftermath -> runSingleMissions
+  // 게임 구조 : stage 안에 자잘한 mission 들 존재, stage 끝나기 전 보스 존재
+  Future<void> runStageWithAftermath(int stageIndex, int missionIndex) async {
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+    }
+
+    debugPrint("stage index = $stageIndex, mission index = $missionIndex");
+    // if (_isPausedGlobally) return;
+    if (_isMissionRunning) {
+      debugPrint('[BLOCK] runStageWithAftermath ignored: mission already running');
+      return;
+    }
+    _isMissionRunning = true;
+    _runToken++;
+    final localToken = _runToken;
+
+    try {
+      if (stageIndex >= _allStages.length) return;
+
+      _selectedStageIndex = stageIndex;
+      _selectedMissionIndex = missionIndex;
+
+      _isContinuing = false; // Fresh start
+
+      final stage = _allStages[stageIndex];
+      final result = await runSingleMissions(stage, missionIndex);
+
+      // 다른 실행이 시작됐으면 결과 무시
+      if (localToken != _runToken) return;
+      if (_isPausedGlobally) {
+        _pendingResult = result;
+        return;
+      }
+
+      if (result != StageResult.cancelled) {
+        
+        final starRating = _calculateStarRating(result);
+        showAftermathScreen(
+          result,
+          starRating,
+          stageIndex,
+          missionIndex,
+        );
+      }
+    } finally {
+      if (localToken == _runToken) {
+        _isMissionRunning = false;
+      }
+    }
+  }
+
+  Future<StageResult> runSingleMissions(
+    StageData stage,
+    int missionIndex,{
+    int startIndex = 0,
+  }) async {
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+    }
+
+
+    // 게임 시작전 토큰확인
+    int runId = _runToken;
+
+    // 이전 스테이지 혹은 새로고침 전 남은 데이터가 없는지 확인 및 이전 데이터 제거
+    _hardResetMissionState();
+
+    _stopEnemyBehaviors();
+    _clearAllShapes();
+
+    // Stage 1 Mission 1: show how-to-play before the timer starts
+    final canProceed = await _awaitHowToPlayIfNeeded(stageIndex, missionIndex, runId);
+    if (!canProceed) {
+      return StageResult.cancelled;
+    }
+
+    // 시간 데이터 분석
+    double? missionSeconds = stage.missionTimeLimits[missionIndex];
+
+    double? stageSeconds;
+    if (missionSeconds == null) {
+      stageSeconds = _parseTimeLimitToSeconds(stage.timeLimit);
+    }
+    final chosen = missionSeconds ?? stageSeconds;
+    
+    if (!_isContinuing) {
+      initialMaxTime = chosen ?? 0.0;
+      _lastRoundStartTime = initialMaxTime;
+      currentMissionTime = initialMaxTime;
+      _lastRoundStartIndex = 0;
+    } else {
+      // Use the previous starting time to halve, not the current 0 seconds
+      _lastRoundStartTime = math.max(minTimeLimit, _lastRoundStartTime / 2.0);
+      currentMissionTime = _lastRoundStartTime;
+    }
+
+    final timeToStart = currentMissionTime;
+
+    // UI Gauge basis: Fix totalTime to the initial mission time
+    timerBar.totalTime = initialMaxTime;
+
+    if (timeToStart > 0) {
+      startMissionTimer(timeToStart);
+    } else {
+      debugPrint(
+        '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
+      );
+    }
+
+    // 게임데이터 분석 시작
+    debugPrint('current stage index = $runId');
+    debugPrint('mission length = ${stage.missions.length}');
+
+    final enemies = stage.missions[missionIndex]!;
+    debugPrint("enemy data = $enemies");
+
+    final spawnedThisMission = <Component>{};
+    final currentWave = <Component>{};
+    // final preparedEnemies = <PreparedEnemy>[];
+
+    debugPrint("[BEFORE LOOP] enemy processing start : ${enemies.length}");
+
+    // 에너미 데이터
+    // startIndex 를 굳이 파라미터에서 initialize 한 이유가 있나?
+    for (int i = startIndex; i < enemies.length; i++) {
+      final enemy = enemies[i];
+
+      // run token 불일치시 취소
+      debugPrint("[TOKEN CHECK] runId = $runId, run token = $_runToken, logic survive y/n = ${runId == _runToken}");
+
+      if(runId != _runToken) {
+        debugPrint("[TOKEN CHECK] run token not matching, stage cancelled");
+        return StageResult.cancelled;
+      }
+
+      // 게임 시간 체크
+      // 시간 오버시 실패 및 게임 일시정지 정리
+      if (_isTimeOver) return StageResult.fail;
+      if (_isPausedGlobally) {
+        // 게임이 resume될 때까지 기다림
+        while (_isPausedGlobally) {
+          if (_isTimeOver) return StageResult.fail;
+          await Future.delayed(Duration(milliseconds: 100));
+        }
+      }
+
+      // wait 명령어 체크
+      if (enemy.command == 'wait') {
+        debugPrint("[WAIT] processing wait command");
+        final durationMatch = RegExp(r'(\d+\.?\d*)').firstMatch(enemy.shape);
+
+        final duration = durationMatch != null
+            ? double.tryParse(durationMatch.group(1)!) ?? 0.0
+            : 0.0;
+
+        if (duration == 0) {
+          final result = await finishCurrentWave(
+            currentWave,
+            spawnedThisMission,
+            runId: runId,
+          );
+
+          if (result != StageResult.success) {
+            return result;
+          }
+          debugPrint("[WAIT] processing over");
+
+          // wait 0 is the only real round boundary (full wave clear) — only
+          // here do we advance the continue checkpoint. Continue always
+          // replays a round from its start, at the same pacing it originally
+          // played at, so shapes reappear exactly as they did the first time.
+          // Guard against a stale run: finishCurrentWave already returns
+          // `cancelled` (not `success`) once superseded, but double-check
+          // here too so a corrupted checkpoint can never slip through.
+          if (runId != _runToken) return StageResult.cancelled;
+          _lastRoundStartIndex = i + 1;
+          debugPrint('[CONTINUE] Checkpoint updated to index $_lastRoundStartIndex');
+        } else {
+          // wait N: N초 지연만, 도형들은 계속 살아있음(동시 진행)
+          await Future.delayed(
+            Duration(milliseconds: (duration * 1000).toInt()),
+          );
+        }
+
+        // Check if failed during wait/clear
+        if (_isTimeOver) return StageResult.fail;
+
+        continue;
+      }
+
+      final spawnStart = DateTime.now();
+      debugPrint('[SPAWN START] index=$i time=${spawnStart.millisecondsSinceEpoch}');
+
+      final prepared = buildPreparedEnemy(
+        enemy: enemy,
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+        checkBehavior: checkBehavior,
+      );
+
+      if (prepared == null) continue;
+
+      debugPrint("[PREPARED CHECK END] prepared size : (${prepared.customSize.x}, ${prepared.customSize.y})");
+
+      await spawnPreparedEnemy(
+        prepared,
+        spawnedThisMission,
+        currentWave,
+        runId: runId,
+      );
+
+      // This spawn's awaits (add/loaded/behavior) may take long enough that
+      // a fail->continue happened while it was in flight, superseding this
+      // run. spawnPreparedEnemy already removed the shape it just added in
+      // that case, so stop immediately instead of spawning further enemies
+      // (which would otherwise leak the *next* round's shapes into the
+      // freshly-resumed scene).
+      if (runId != _runToken) return StageResult.cancelled;
+
+      final loopEnd = DateTime.now();
+      debugPrint('[LOOP END] index=$i total=${loopEnd.difference(spawnStart).inMilliseconds}ms');
+    }
+
+    debugPrint("[AFTER LOOP] enemy processing over");
+    return await finishCurrentWave(
+      currentWave,
+      spawnedThisMission,
+      runId: runId,
+    );
+  }
+
+  Future<StageResult> finishCurrentWave(
+      Set<Component> currentWave,
+      Set<Component> spawnedThisMission, {
+      required int runId,
+      }) async {
+    await _waitForTargetsMounted(currentWave);
+
+    // A fail->continue can supersede this run while the awaits above were
+    // in flight. The new run's _hardResetMissionState() already removed
+    // every shape this (now-stale) run was tracking, which would otherwise
+    // make clearTargets look empty / already-cleared below and falsely
+    // report success — corrupting _lastRoundStartIndex for the *new* run.
+    // Bail out as cancelled before drawing any conclusion from the scene.
+    if (runId != _runToken) return StageResult.cancelled;
+
+    final clearTargets = _currentClearTargets(currentWave);
+
+    if (clearTargets.isEmpty) {
+      for (final comp in List<Component>.from(spawnedThisMission)) {
+        comp.removeFromParent();
+      }
+
+      currentWave.clear();
+      spawnedThisMission.clear();
+
+      return StageResult.success;
+    }
+
+    _initOrder();
+
+    final result = await waitUntilMissionCleared(clearTargets, runId: runId);
+
+    for (final comp in List<Component>.from(spawnedThisMission)) {
+      comp.removeFromParent();
+    }
+
+    currentWave.clear();
+    spawnedThisMission.clear();
+
+    return result;
+  }
+
+  Future<void> _waitForTargetsMounted(Iterable<Component> targets) async {
+    final pendingMounts = targets
+        .where(
+          (component) =>
+              !component.isMounted &&
+              component.parent != null &&
+              !component.isRemoving,
+        )
+        .map((component) => component.mounted)
+        .toList();
+
+    if (pendingMounts.isNotEmpty) {
+      await Future.wait(pendingMounts);
+    }
+  }
+
+  Set<Component> _currentClearTargets(Set<Component> currentWave) {
+    return <Component>{
+      ...currentWave,
+      ..._mountedNonDarkShapes(),
+    };
+  }
+
+  Iterable<PositionComponent> _mountedNonDarkShapes() {
+    return children.whereType<PositionComponent>().where((c) {
+      if (c is CircleShape ||
+          c is RectangleShape ||
+          c is PentagonShape ||
+          c is TriangleShape ||
+          c is HexagonShape) {
+        return !_isDarkShape(c) && c.isMounted;
+      }
+      return false;
+    });
+  }
+
+  PreparedEnemy? buildPreparedEnemy({
+    required EnemyData enemy,
+    required Vector2 Function(Vector2) flipY,
+    required Vector2 Function(Vector2, double, {bool clampInside}) toPlayArea,
+    required ShapeBehavior? Function(String movement, Vector2 actPosition) checkBehavior,
+  }) {
+    // 1. 도형 & 사이즈 파싱
+    String shapeType = "";
+    Vector2 size = Vector2.zero();
+    double rectAngle = 0.0;
+    // Size change "Circle S(4, 7, 9) (1)": spawn at size 4, tween to 7 over 9s.
+    final sizeChange = _parseSizeChange(enemy.shape);
+    Vector2? sizeChangeTarget;
+    debugPrint("[PreparedEnemy] enemy name : ${enemy.shape}");
+    if (enemy.shape.startsWith('Circle')) {
+      final sized = _indexedSize(Vector2.all(80), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
+
+      debugPrint("[PreparedEnemy] size = (${size.x}, ${size.y})");
+
+      shapeType = "Circle";
+
+    } else if (enemy.shape.startsWith('Rectangle')) {
+      // Rectangles use w:h for size; apply size-index scale only when S(...) is present.
+      final base = _parseRectSize(enemy.shape) ?? Vector2(40, 80);
+      size = sizeChange == null ? base : base * sizeChange.startScale;
+      sizeChangeTarget =
+          sizeChange == null ? null : base * sizeChange.endScale;
+      shapeType = "Rectangle";
+      rectAngle = _parseRectAngle(enemy.shape);
+
+    } else if (enemy.shape.startsWith('Pentagon')) {
+      final sized = _indexedSize(Vector2.all(100), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
+
+      shapeType = "Pentagon";
+
+    } else if (enemy.shape.startsWith('Triangle')) {
+      final sized = _indexedSize(Vector2.all(70), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
+
+      shapeType = "Triangle";
+
+    } else if (enemy.shape.startsWith('Hexagon')) {
+      final sized = _indexedSize(Vector2.all(100), enemy.shape, sizeChange);
+      size = sized.size;
+      sizeChangeTarget = sized.target;
+
+      shapeType = "Hexagon";
+
+    }
+
+    if (shapeType.isEmpty) {
+      debugPrint('[PreparedEnemy] Unsupported shape skipped: ${enemy.shape}');
+      return null;
+    }
+
+    // 2. 에너지 및 금지도형 파싱
+    final energy = enemy.energy;
+
+    bool isDark = false;
+    if(enemy.energy == -1) {
+      isDark = true;
+    }
+
+    // 4. order
+    final int? order = enemy.order;
+
+    // 5. 좌표 변환
+    // Keep sheet coordinates exact. Out-of-range values (e.g. -190 with
+    // editor minX=-170) may let the shape clip outside the play area.
+    final posMatch = RegExp(
+      r'\((-?\d+),\s*(-?\d+)\)',
+    ).firstMatch(enemy.position);
+    if (posMatch == null) {
+      throw FormatException('Invalid position: ${enemy.position}');
+    }
+    final x = double.parse(posMatch.group(1)!);
+    final y = double.parse(posMatch.group(2)!);
+
+    final halfSizeX = size.x / 2;
+    Vector2 actPosition = toPlayArea(
+      flipY(Vector2(x, y)),
+      halfSizeX,
+      clampInside: false,
+    );
+
+    final localPos = worldToVirtualPlay(actPosition);
+    debugPrint('playLocal = (${localPos.x}, ${localPos.y})');
+
+    // 6. behavior 파싱 (이미 만든 구조 활용)
+    final behavior = checkBehavior(
+      enemy.movement,
+      actPosition,
+    );
+
+    // 7. PreparedEnemy 생성
+    return PreparedEnemy(
+      shapeType: shapeType,
+      customSize: size,
+      energy: energy,
+      isDark: isDark,
+      actPosition: actPosition,
+      order: order,
+      behavior: behavior,
+      isBlinking: enemy.isBlinking,
+      attackTime: enemy.attackSeconds,
+      attackDamage: enemy.attackDamage,
+      angle: rectAngle,
+      zOrder: enemy.zOrder,
+      sizeChangeTarget: sizeChangeTarget,
+      sizeChangeSeconds: sizeChange?.seconds,
+    );
+  }
+
+  Future<void> spawnPreparedEnemy(
+      PreparedEnemy enemy,
+      Set<Component> spawnedThisMission,
+      Set<Component> currentWave, {
+      required int runId,
+      }) async {
+    final shape = _createShapeFromPrepared(enemy);
+    final behavior = enemy.behavior;
+    if (shape is AttackTimerGate && behavior is InitialWaitBehavior) {
+      shape.waitingForInitialMovement =
+          (behavior as InitialWaitBehavior).hasInitialWait;
+    }
+
+    shape.position = enemy.actPosition;
+
+    await add(shape);
+    await shape.loaded;
+
+    // z-order 적용: 각 도형의 onLoad가 크기 기반 priority를 설정하므로,
+    // load 이후에 생성(시트) 순서 + Top_/Bottom_ 대역 기반 priority로 덮어쓴다.
+    shape.priority = _computeZPriority(enemy.zOrder);
+
+    _attachSizeChange(shape, enemy);
+
+    // behavior attach
+    if (enemy.behavior != null) {
+      ShapeBehavior behavior = enemy.behavior!;
+      await behavior.apply(shape);
+    }
+    if (enemy.isBlinking) {
+      await add(BlinkingBehaviorComponent(
+        shape: shape,
+        visibleDuration: 1.5,
+        invisibleDuration: 1.5,
+      ));
+    }
+
+    // The awaits above (add/loaded/behavior) can take long enough for a
+    // fail->continue to supersede this run (new _runToken) while this shape
+    // was still spawning. If that happened, don't register it — the new
+    // run already cleared and rebuilt the scene from its own checkpoint, so
+    // leaving this shape in would leak a stray (often next-round) shape
+    // into it. Just drop what we built.
+    if (runId != _runToken) {
+      shape.removeFromParent();
+      return;
+    }
+
+    spawnedThisMission.add(shape);
+
+    if (!enemy.isDark) {
+      currentWave.add(shape);
+    }
+
+  }
+
+  PositionComponent _createShapeFromPrepared(PreparedEnemy enemy) {
+    PositionComponent? shape;
+
+    final isDark = enemy.isDark;
+    darkTouchPenalty() {
+      applyTimePenalty((enemy.attackDamage ?? 10.0).abs());
+      forbiddenShapeEffect.flash();
+    }
+    timeoutPenalty() {
+      if (!isDark) {
+        applyTimePenalty((enemy.attackDamage?? 1.0).abs());
+      }
+    }
+    shapePoppedReward() {
+      if (!isDark) {
+        addTimeReward(1.0);
+      }
+      _onOrderedShapeRemoved();
+    }
+
+    bool isAttackable = false;
+    if (enemy.attackTime != null) isAttackable = true;
+
+    switch (enemy.shapeType) {
+      case "Circle":
+        shape = CircleShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          isAttackable: isAttackable,
+          onForbiddenTouch: darkTouchPenalty,
+          attackTime: enemy.attackTime,
+          onExplode: timeoutPenalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+          onInteracted: _onOrderInteracted,
+          onRemoved: shapePoppedReward,
+        );
+      case "Rectangle":
+        shape = RectangleShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: darkTouchPenalty,
+          isAttackable: isAttackable,
+          attackTime: enemy.attackTime,
+          onExplode: timeoutPenalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+          onInteracted: _onOrderInteracted,
+          onRemoved: shapePoppedReward,
+          angle: enemy.angle,
+        );
+
+      case "Triangle":
+        shape = TriangleShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: darkTouchPenalty,
+          attackTime: enemy.attackTime,
+          onExplode: timeoutPenalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+        );
+
+      case "Pentagon":
+        shape = PentagonShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: darkTouchPenalty,
+          attackTime: enemy.attackTime,
+          onExplode: timeoutPenalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+        );
+
+      case "Hexagon":
+        shape = HexagonShape(
+          enemy.actPosition,
+          enemy.energy,
+          isDark: enemy.isDark,
+          onForbiddenTouch: darkTouchPenalty,
+          attackTime: enemy.attackTime,
+          onExplode: timeoutPenalty,
+          customSize: enemy.customSize,
+          order: enemy.order,
+        );
+
+      default:
+        throw Exception("Unknown shapeType");
+    }
+
+    return shape;
+  }
+
+  // 생성(시트) 순서를 유지하면서 Top_/Bottom_ 대역으로 z-order를 분리한다.
+  // bottom < normal < top 순서로 항상 정렬되고, 같은 대역 안에서는 생성 순서대로 쌓인다.
+  static const int _zBandNormalBase = 1000000;
+  static const int _zBandTopBase = 2000000;
+
+  int _computeZPriority(ShapeZOrder zOrder) {
+    final seq = _globalSpawnCounter++;
+    switch (zOrder) {
+      case ShapeZOrder.bottom:
+        return seq;
+      case ShapeZOrder.normal:
+        return _zBandNormalBase + seq;
+      case ShapeZOrder.top:
+        return _zBandTopBase + seq;
+    }
+  }
+
+  // 1) 스케일 파싱 (Circle2 -> 2 -> 0.5배, Default=4 -> 1.0배)
+  //    1~8: 0.25배씩 증가 (1=0.25, 4=1.0, 8=2.0)
+  //    9~ : 0.5배씩 증가 (9=2.5, 10=3.0 ...)
+  double _parseScale(String s) {
+    // "Circle2", "Circle4_02", "Pentagon12" 등에서 숫자 추출
+    // 도형 이름(알파벳) 뒤에 오는 숫자
+    final m = RegExp(r'[a-zA-Z]+(\d+)').firstMatch(s);
+    if (m != null) {
+      LoggerService.instance.appLog(
+        'one_second_game',
+        "[Scale parse] m not null : $m ",
+      );
+      final val = int.parse(m.group(1)!);
+      return _scaleForSizeIndex(val.toDouble());
+    }
+    LoggerService.instance.appLog(
+      'one_second_game',
+      "[Scale parse] m null : 1.0 ",
+    );
+    return 1.0; // 기본값 (Circle == Circle4)
+  }
+
+  // Size index -> scale (1–8: +0.25 each; from 9 onward: +0.5, since 8 = 2.0).
+  double _scaleForSizeIndex(double val) {
+    if (val <= 8) return val * 0.25;
+    return 2.0 + (val - 8) * 0.5;
+  }
+
+  // 1-1) Size-change parse: "Circle S(4, 7, 9) (1)" -> S(start, end, seconds)
+  //      Spawn at size-index start; tween to end over seconds.
+  //      (Spaces already stripped by normalizeShape: "CircleS(4,7,9)(1)")
+  _SizeChange? _parseSizeChange(String s) {
+    final m = RegExp(
+      r'S\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+      caseSensitive: false,
+    ).firstMatch(s);
+    if (m == null) return null;
+
+    return _SizeChange(
+      startScale: _scaleForSizeIndex(double.parse(m.group(1)!)),
+      endScale: _scaleForSizeIndex(double.parse(m.group(2)!)),
+      seconds: double.parse(m.group(3)!),
+    );
+  }
+
+  // Spawn size for index-based shapes (circle/pentagon/triangle/hexagon), plus
+  // optional S(...) target. base = size at index 4 (100%).
+  ({Vector2 size, Vector2? target}) _indexedSize(
+    Vector2 base,
+    String shape,
+    _SizeChange? change,
+  ) {
+    if (change == null) {
+      return (size: base * _parseScale(shape), target: null);
+    }
+    return (size: base * change.startScale, target: base * change.endScale);
+  }
+
+  // If S(...) is present, linearly tween size over seconds from spawn.
+  // Uses shape game time, so it pauses while the game is paused (ShapeTimerComponent).
+  static const double _sizeChangeMinStep = 0.5;
+
+  void _attachSizeChange(PositionComponent shape, PreparedEnemy enemy) {
+    final target = enemy.sizeChangeTarget;
+    final seconds = enemy.sizeChangeSeconds;
+    if (target == null || seconds == null || shape is! ResizableShape) return;
+
+    final resizable = shape as ResizableShape;
+    final from = shape.size.clone();
+    var last = from.clone();
+
+    shape.add(ShapeTimerComponent(
+      duration: seconds,
+      onTick: (progress) {
+        final next = Vector2(
+          from.x + (target.x - from.x) * progress,
+          from.y + (target.y - from.y) * progress,
+        );
+        // Outline path rebuild isn't free; skip sub-0.5px changes.
+        if (progress < 1.0 && (next - last).length < _sizeChangeMinStep) return;
+        last = next;
+        resizable.setShapeSize(next);
+      },
+    ));
+  }
+
+  // 2) Rectangle 직접 크기 파싱 (Rectangle40:200 or Rectangle40:200@45)
+  Vector2? _parseRectSize(String s) {
+    final m = RegExp(r'Rectangle(\d+):(\d+)').firstMatch(s);
+    if (m != null) {
+      LoggerService.instance.appLog(
+        'one_second_game',
+        "[Scale parse] m : $m ",
+      );
+      final w = double.parse(m.group(1)!);
+      final h = double.parse(m.group(2)!);
+      return Vector2(w, h);
+    }
+    return null;
+  }
+
+  // 3) Rectangle 회전 각도 파싱 (Rectangle4/45, Rectangle40:200/-30)
+  double _parseRectAngle(String s) {
+    final m = RegExp(r'/(-?\d+(?:\.\d+)?)').firstMatch(s);
+    if (m != null) {
+      final degrees = double.parse(m.group(1)!);
+      return degrees * math.pi / 180;
+    }
+    return 0.0;
+  }
+
+  ShapeBehavior? checkBehavior(
+      String raw,
+      Vector2 actPosition
+      ) {
+    // Strip leading timing lines ("Wait n", "Disappear(n)") from the movement
+    // cell, parse the remaining movement as usual, then wrap with TimingCommand
+    // when timing is present.
+    final timing = TimingCommand.parse(raw);
+    final behavior = _checkMovementBehavior(
+      timing.movement,
+      actPosition,
+      repeatDelaySeconds: timing.waitSeconds,
+    );
+    if (!timing.hasTiming) return behavior;
+
+    debugPrint(
+      "[Behavior check] timing: wait=${timing.waitSeconds}s, disappear=${timing.disappearSeconds}s",
+    );
+    return TimingCommand(
+      waitSeconds: timing.waitSeconds,
+      disappearSeconds: timing.disappearSeconds,
+      inner: behavior,
+      onDisappear: _disappearShape,
+    );
+  }
+
+  // Disappear(n): shape removes itself — leaves the wave with no penalty/reward.
+  // Also clear blink components so D/DR shapes do not reappear, and drop the
+  // shape from the order list so remaining ordered shapes are not blocked.
+  void _disappearShape(PositionComponent shape) {
+    final blinking = blinkingMap.remove(shape);
+    blinking?.removeFromParent();
+
+    if (shape is OrderableShape) {
+      final index = _orderedShapes.indexOf(shape as OrderableShape);
+      if (index >= 0) {
+        _orderedShapes.removeAt(index);
+        if (index < _currentOrderIndex) _currentOrderIndex--;
+      }
+    }
+
+    shape.removeFromParent();
+  }
+
+  ShapeBehavior? _checkMovementBehavior(
+      String raw,
+      Vector2 actPosition, {
+      double repeatDelaySeconds = 0,
+      }) {
+    debugPrint("[Behavior check] parsing command into behavior");
+
+    final behaviors = <ShapeBehavior>[];
+
+    final parabolaMatch = RegExp(
+      r'^\s*P\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$',
+      multiLine: true,
+    ).firstMatch(raw);
+    if (parabolaMatch != null) {
+      behaviors.add(ParabolaCommand(
+        velocityX: double.parse(parabolaMatch.group(1)!),
+        velocityY: double.parse(parabolaMatch.group(2)!),
+        gravity: double.parse(parabolaMatch.group(3)!),
+        flipY: flipY,
+        toPlayArea: toPlayArea,
+        onMiss: (shape) {
+          if (!_isDarkShape(shape)) applyTimePenalty(3);
+        },
+      ));
+    }
+
+    final lMatch = RegExp(
+      r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
+      multiLine: true,
+    ).firstMatch(raw.trim());
+
+    if (lMatch != null) {
+      debugPrint("[Behavior check] returning L command");
+
+      behaviors.add(
+        LCommand(
+          movementRaw: raw,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+        )
+      );
+    }
+
+    final cMatch = RegExp(
+      r'\b(CC|C)\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)',
+    ).firstMatch(raw);
+
+    if (cMatch != null) {
+      debugPrint("[Behavior check] returning c command");
+      final clockwise = cMatch.group(1) == 'C';
+      final r = double.parse(cMatch.group(2)!);
+      final s = double.parse(cMatch.group(3)!);
+
+      behaviors.add(
+        CCommand(
+          clockwise: clockwise,
+          radius: r,
+          degreePerSec: s,
+          actPosition: actPosition,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+        )
+      );
+    }
+
+    Rect timerRectWorld() => timerBar.toRect();
+
+    final drMatch = RegExp(
+      r'^\s*DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$',
+      multiLine: true,
+    ).firstMatch(raw);
+
+    if (drMatch != null) {
+      debugPrint("[Behavior check] returning dr command");
+      final a = double.parse(drMatch.group(1)!);
+      final b = double.parse(drMatch.group(2)!);
+
+      behaviors.add(
+         DDrCommand(
+          visibleDuration: a,
+          invisibleDuration: b,
+          isRandomRespawn: true,
+          timerRectWorld: timerRectWorld,
+          gameSize: size,
+          blinkingMap: blinkingMap,
+        )
+      );
+    }
+
+    final dMatch = RegExp(
+      r'^\s*D\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$',
+      multiLine: true,
+    ).firstMatch(raw);
+
+    if (dMatch != null) {
+      debugPrint("[Behavior check] returning d command");
+
+      final a = double.parse(dMatch.group(1)!);
+      final b = double.parse(dMatch.group(2)!);
+
+      behaviors.add(
+        DDrCommand(
+          visibleDuration: a,
+          invisibleDuration: b,
+          isRandomRespawn: false,
+          timerRectWorld: timerRectWorld,
+          gameSize: size,
+          blinkingMap: blinkingMap,
+        )
+      );
+    }
+
+    final mMatch = RegExp(
+      r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
+    ).firstMatch(raw);
+
+    if (mMatch != null) {
+      debugPrint("[Behavior check] returning m command");
+
+      final angle = double.parse(mMatch.group(1)!);
+      final speed = double.parse(mMatch.group(2)!);
+      final stopY = mMatch.group(3)!;
+
+      behaviors.add(
+        MCommand(
+          angleDeg: angle,
+          speed: speed,
+          stopY: stopY,
+          position: actPosition,
+          size: size,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+        )
+      );
+    }
+
+    if (raw.contains('Z(')) {
+      debugPrint("[Behavior check] returning z command");
+
+      behaviors.add(
+        ZCommand(
+          movementRaw: raw,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+          worldToVirtualPlay: worldToVirtualPlay,
+          repeatDelaySeconds: repeatDelaySeconds,
+        )
+      );
+    }
+
+    final bMatch = RegExp(
+      r'B\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
+    ).firstMatch(raw);
+
+    if (bMatch != null) {
+      final x0 = double.parse(bMatch.group(1)!);
+      final y0 = double.parse(bMatch.group(2)!);
+      final speed = double.parse(bMatch.group(3)!);
+
+      behaviors.add(
+        BCommand(
+          startEditor: Vector2(x0, y0),
+          directionWorld: actPosition, // 이미 toPlayArea 끝난 월드 좌표
+          speed: speed,
+          flipY: flipY,
+          toPlayArea: toPlayArea,
+          playAreaRect: () => playArea.toRect(),
+        )
+      );
+    }
+
+    if (behaviors.isEmpty) return null;
+
+    if (behaviors.length == 1) {
+      return behaviors.first;
+    }
+
+    debugPrint(
+      '[Behavior check] Composite: '
+          '${behaviors.map((b) => b.runtimeType).join(', ')}',
+    );
+
+    return CompositeBehavior(behaviors);
+  }
+
+  bool _isVisualEffectComponent(Component c) {
+    // 사각형 본체가 제거돼도 잘린 조각 연출이 끝나기 전에는 다음 wave를 시작하지 않는다.
+    if (c is FallingClippedPiece) return true;
+
+    // Flame Effect는 물론이고, 너가 만든 "xxxDisappearEffect" 같은 것도 잡기
+    if (c is Effect) return true;
+
+    final name = c.runtimeType.toString();
+    if (name.contains('DisappearEffect')) return true;
+    if (name.contains('ExplosionEffect')) return true;
+    if (name.contains('SliceEffect')) return true;
+
+    return false;
+  }
+
+  Future<void> _markMissionCleared(int stageIndex, int missionNo) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final key = 'stage_${stageIndex}_mission_${missionNo}_cleared';
+    
+    debugPrint("SAVE KEY: $key");
+    
+    await prefs.setBool(
+      'stage_${stageIndex}_mission_${missionNo}_cleared',
+      true,
+    );
+  }
+
+  bool _hasAnyActiveVisualEffectsInTree() {
+    bool found = false;
+
+    bool isAttachedToDarkShape(Component node) {
+      Component? current = node;
+
+      while (current != null) {
+        if (_isDarkShape(current)) return true;
+        current = current.parent;
+      }
+
+      return false;
+    }
+
+    void walk(Component node) {
+      if (found) return;
+
+      if (_isVisualEffectComponent(node)) {
+        // 🔥 금지도형에 붙은 effect면 무시
+        if (!isAttachedToDarkShape(node)) {
+          found = true;
+          return;
+        }
+      }
+
+      for (final child in node.children) {
+        walk(child);
+        if (found) return;
+      }
+    }
+
+    for (final c in children) {
+      walk(c);
+      if (found) break;
+    }
+
+    return found;
+  }
+
+  // 그냥 도형 다 죽였는지 여부
+    Future<StageResult> waitUntilMissionCleared(Set<Component> targets, {required int runId}) async {
+      // add 직후 같은 프레임 race 방지
+      await Future<void>.delayed(Duration.zero);
+
+      debugPrint('[CLEAR CHECK] start wave size=${targets.length}');
+
+      // to get log
+      // 순서도형이 마지막에 오는 경우 아래 로그 찍으면 에러남
+      // debugPrint("[CLEAR CHECK] mounted = ${targets.first.isMounted}");
+      // debugPrint("[CLEAR CHECK] parent = ${targets.first.parent}");
+      // debugPrint("[CLEAR CHECK] dark shape? ${_isDarkShape(targets.first)}");
+
+      while (true) {
+        // Check staleness/timeout BEFORE the visual-effects wait below, not
+        // after: a lingering unpaused effect (e.g. a top-level slice-line
+        // effect not covered by _pauseAllGameplayComponents) can otherwise
+        // keep this loop stuck in the "continue" branch, past the point
+        // where a fail->continue has already superseded this run, and it
+        // would resurface later mid-way through a *newer* run's attempt
+        // with a stale success/fail verdict computed against a scene that's
+        // no longer this run's.
+        if (runId != _runToken) return StageResult.cancelled;
+        if (_isTimeOver) return StageResult.fail;
+
+      // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
+        if (_hasAnyActiveVisualEffectsInTree()) {
+          await Future.delayed(const Duration(milliseconds: 60));
+          continue;
+        }
+
+        final remaining = targets.where((c) {
+          // 1) 다크 도형 제외
+          if (_isDarkShape(c)) return false;
+
+          // 2) 아직 트리에 붙어 있으면(=애니메이션 중 포함) 무조건 남아있는 것으로 간주
+          if (c.isMounted) return true;
+
+          // 3) mount 해제면 기본 cleared
+          //    단, blinking(D/DR)은 "다시 돌아올 예정"이면 남아있음 처리
+          if (c is PositionComponent) {
+            final blinking = blinkingMap[c];
+            if (blinking != null) {
+              if (!blinking.isRemoving && blinking.willReappear) return true;
+            }
+          }
+
+          return false;
+        }).toList();
+
+        if (remaining.isEmpty) {
+          debugPrint('Mission cleared');
+          break;
+        }
+        // else {
+        //   debugPrint('Still left : ${remaining.length}');
+        // }
+
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+
+      return StageResult.success;
+    }
+
+
+  bool _isDarkShape(Component c) {
+    if (c is CircleShape) return c.isDark;
+    if (c is RectangleShape) return c.isDark;
+    if (c is PentagonShape) return c.isDark;
+    if (c is TriangleShape) return c.isDark;
+    if (c is HexagonShape) return c.isDark;
+    return false;
+  }
+
+  bool _onOrderInteracted(OrderableShape c) {
+    // order 없는 도형은 항상 패스
+
+    debugPrint('[GAME] shape order YN(c.order == null) check = ${c.order == null}');
+    if (c.order == null) return true;
+
+    // 1) order 퍼즐인지 아닌지 판단
+    debugPrint('[GAME] order shape YN(_hasOrder) = $_hasOrder');
+    debugPrint('[GAME] _currentOrderIndex = $_currentOrderIndex, _orderedShapes.length = ${_orderedShapes.length}');
+
+    // 만약 모든 순서 도형을 제거한 상태라면 남은 도형 자유 터치 가능
+    if (_currentOrderIndex >= _orderedShapes.length) {
+      return true;
+    }
+
+    debugPrint('[GAME] order shape YN (order from shape)= ${c.order == null}');
+
+    // 순서 도형이 남아있는데, 순서 없는 다른 도형을 눌렀다면 터치 금지 (패널티 처리 유도)
+    if (c.order == null) return false;
+
+    // 2) order 퍼즐이고 순서가 맞는지 판단
+    final expected = _orderedShapes[_currentOrderIndex];
+
+    debugPrint('[GAME] shape input checking for validity. validity = ${identical(c, expected)}');
+    return identical(c.order, expected.order);
+  }
+
+  void _onOrderedShapeRemoved() {
+    _currentOrderIndex++;
+    debugPrint('[ORDER] next index = $_currentOrderIndex');
+  }
+
+
+  void _initOrder() {
+    debugPrint("[ORDER] order reset");
+    _orderedShapes = children
+        .whereType<OrderableShape>()
+        // RectangleShape는 슬라이스 전용 순서(_orderedRects)로 관리, 여기설 제외
+        .where((c) => c.order != null && c is! RectangleShape)
+        .toList()
+      ..sort((a, b) => a.order!.compareTo(b.order!));
+
+    _currentOrderIndex = 0;
+    _hasOrder = _orderedShapes.isNotEmpty;
+  }
+
+  // 화면에 살아있는 사각형 중 가장 낮은 order 반환
+  RectangleShape? _getExpectedRect() {
+    RectangleShape? expected;
+    for (final rect in children.whereType<RectangleShape>()) {
+      if (rect.order != null && rect.count > 0 && rect.parent != null) {
+        if (expected == null || rect.order! < expected.order!) {
+          expected = rect;
+        }
+      }
+    }
+    return expected;
+  }
+
+  // 슬라이스 경로에 닿는 사각형들이 순서 규칙을 만족하는지 검증
+  // 순서 있는 사각형이 경로에 포함될 경우, 가장 낮은 order가 현재 기대 순서와 같아야 함
+  // 경로가 사각형에 처음 닿는 path index를 반환
+  int _firstContactIndex(RectangleShape rect, List<Vector2> path) {
+    final bounds = rect.toRect();
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      if (bounds.contains(Offset(p1.x, p1.y)) ||
+          bounds.contains(Offset(p2.x, p2.y))) {
+        return i;
+      }
+      // 선분-사각형 교차 확인
+      final intersections = rect.getLineRectangleIntersections(p1, p2, bounds);
+      if (intersections.isNotEmpty) return i;
+    }
+    return path.length; // 미취시 가장 뒤로
+  }
+
+
+  // Convert from your coordinate system to play area coordinates
+  Vector2 toPlayArea(
+    Vector2 yourCoordinates,
+    double actShapePadding, {
+    bool clampInside = true,
+  }) {
+    if (rangeX > 0 && rangeY > 0) {
+      _lastValidRangeX = rangeX;
+      _lastValidRangeY = rangeY;
+    }
+
+    final safeRangeX = _lastValidRangeX;
+    final safeRangeY = _lastValidRangeY;
+
+    // 1) playArea 전역 영역 계산
+    final double playMinX = playArea.position.x - playArea.size.x / 2;
+    final double playMinY = playArea.position.y - playArea.size.y / 2;
+    final double playMaxX = playArea.position.x + playArea.size.x / 2;
+    final double playMaxY = playArea.position.y + playArea.size.y / 2;
+
+    // 2) 도형 중심의 이동 가능한 최소/최대 (반지름/반폭 보정)
+    final double minCenterX = playMinX + actShapePadding;
+    final double maxCenterX = playMaxX - actShapePadding;
+    final double minCenterY = playMinY + actShapePadding;
+    final double maxCenterY = playMaxY - actShapePadding;
+
+    debugPrint(
+      "[COORDINATE] my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding",
+    );
+
+    // 3) 에디터 좌표 → 정규화. clampInside=false면 0~1 밖도 허용해서
+    //    시트 좌표(-190 등)를 그대로 두고 도형이 playArea 밖으로 삐쳐도 된다.
+    double normalizedX = (yourCoordinates.x - minX) / safeRangeX;
+    double normalizedY = (yourCoordinates.y - minY) / safeRangeY;
+    if (clampInside) {
+      normalizedX = normalizedX.clamp(0.0, 1.0);
+      normalizedY = normalizedY.clamp(0.0, 1.0);
+    }
+
+    // 4) playArea 상대 좌표 → 절대 좌표 변환 (범위 밖이면 경계 밖으로 외삽)
+    double playX = minCenterX + (normalizedX * (maxCenterX - minCenterX));
+    double playY = minCenterY + (normalizedY * (maxCenterY - minCenterY));
+
+    // 5) 도형 전체가 안에 들어와야 할 때만 중심 clamp (스폰은 false)
+    if (clampInside) {
+      if (minCenterX > maxCenterX) {
+        // 도형이 화면보다 가로로 더 큰 경우: 화면 중앙 X
+        playX = playArea.position.x;
+      } else {
+        playX = playX.clamp(minCenterX, maxCenterX);
+      }
+
+      if (minCenterY > maxCenterY) {
+        // 도형이 화면보다 세로로 더 큰 경우: 화면 중앙 Y
+        playY = playArea.position.y;
+      } else {
+        playY = playY.clamp(minCenterY, maxCenterY);
+      }
+    }
+
+    final virtual = worldToVirtualPlay(Vector2(playX, playY));
+    debugPrint(
+      "Max (x,y) = (${virtual.x.toStringAsFixed(1)}, ${virtual.y.toStringAsFixed(1)})",
+    );
+
+    return Vector2(playX, playY);
+  }
+
+  Vector2 worldToPlayLocal(Vector2 worldPos) {
+    final double playMinX = playArea.position.x - playArea.size.x / 2;
+    final double playMinY = playArea.position.y - playArea.size.y / 2;
+
+    // playArea 왼쪽 위를 (0,0)으로 보는 로컬 좌표
+    return Vector2(worldPos.x - playMinX, worldPos.y - playMinY);
+  }
+
+  Vector2 worldToVirtualPlay(Vector2 worldPos) {
+    final local = worldToPlayLocal(worldPos); // 0 ~ playArea.size
+    final vx = local.x / playArea.size.x * targetPlayWidth;
+    final vy = local.y / playArea.size.y * targetPlayHeight;
+    return Vector2(vx, vy);
+  }
+
+  int _calculateStarRating(StageResult stgResult) {
+    return 3;
+  }
+
+  double? _parseTimeLimitToSeconds(String raw) {
+    if (raw.trim().isEmpty) return null;
+    final s = raw.trim();
+
+    // 1) MM:SS
+    final mmss = RegExp(r'^(\d{1,2}):([0-5]?\d)$').firstMatch(s);
+    if (mmss != null) {
+      final m = int.parse(mmss.group(1)!);
+      final sec = int.parse(mmss.group(2)!);
+      return (m * 60 + sec).toDouble();
+    }
+
+    // 2) X분Y초 / X분
+    final kr = RegExp(r'^(\d+)\s*분(?:\s*(\d+)\s*초)?$').firstMatch(s);
+    if (kr != null) {
+      final m = int.parse(kr.group(1)!);
+      final sec = kr.group(2) != null ? int.parse(kr.group(2)!) : 0;
+      return (m * 60 + sec).toDouble();
+    }
+
+    // 3) XmYs / Xm / Xs
+    final en = RegExp(r'^(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$').firstMatch(s);
+    if (en != null && (en.group(1) != null || en.group(2) != null)) {
+      final m = en.group(1) != null ? int.parse(en.group(1)!) : 0;
+      final sec = en.group(2) != null ? int.parse(en.group(2)!) : 0;
+      return (m * 60 + sec).toDouble();
+    }
+
+    // 4) 숫자만 → 초로 간주 (정수/실수)
+    final numOnly = RegExp(
+      r'^\d+(?:\.\d+)?$',
+    ).firstMatch(s.replaceAll(' ', '').replaceAll('초', ''));
+    if (numOnly != null) {
+      return double.parse(numOnly.group(0)!);
+    }
+
+    // 못 읽음
+    return null;
+  }
+
+  void toggleDebug() {
+    debugMode = !debugMode; // Toggle debugMode
+    _applyDebugToTree(this, debugMode);
+    if (debugMode) {
+      debugPrint('Debug mode is now ON');
+    } else {
+      debugPrint('Debug mode is now OFF');
+    }
+  }
+
+  Future<void> onRefresh() async {
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+      return;
+    }
+
+    _refreshCompleter = Completer<void>();
+    try {
+      _isContinuing = false;
+      _lastRoundStartIndex = 0;
+
+      if (_isPausedGlobally) {
+        _refreshCompleter?.complete();
+        _refreshCompleter = null;
+        return;
+      }
+
+      debugPrint("Refreshing Game...");
+
+      // refresh 이후 기존에 돌고있던 runSingleMission 취소 위함
+      _isMissionRunning = false; // 이전 미션 강제 종료 허용
+      _runToken++;
+
+      userPath.clear();
+      currentCircleCenter = null;
+      currentCircleRadius = null;
+      blinkingMap.clear();
+
+      // 결과 / 튜토리얼 화면도 제거
+      _removeAftermathOverlay();
+      _removeHowToPlayOverlay();
+
+      children.whereType<BlinkingBehaviorComponent>()
+          .forEach((b) => b.removeFromParent());
+
+      children.whereType<CircleShape>().forEach((s) => s.removeFromParent());
+      children.whereType<RectangleShape>().forEach((s) => s.removeFromParent());
+      children.whereType<PentagonShape>().forEach((s) => s.removeFromParent());
+      children.whereType<TriangleShape>().forEach((s) => s.removeFromParent());
+      children.whereType<HexagonShape>().forEach((s) => s.removeFromParent());
+
+      // 화면에 남은 도형이 완전히 제거될 때까지 대기 (최대 1.5초 안전망)
+      final deadline = DateTime.now().add(const Duration(milliseconds: 1500));
+      bool hasShapes() => children.any((c) =>
+          c is CircleShape ||
+          c is RectangleShape ||
+          c is PentagonShape ||
+          c is TriangleShape ||
+          c is HexagonShape);
+
+      while (hasShapes() && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      debugPrint('[REFRESH] All shapes cleared. Proceeding with fetch.');
+
+      final newStages = await sheetService.fetchData();
+      if (newStages.isEmpty) {
+        debugPrint("새로 불러온 데이터가 비어있음");
+        return;
+      }
+
+      _allStages = newStages;
+
+      // 기존 오브젝트, 타이머, 이펙트 다 정리
+      _stopEnemyBehaviors();
+      _clearAllShapes();
+      
+      debugPrint("stage hash: ${_allStages[_selectedStageIndex].hashCode}");
+
+      _refreshCompleter?.complete();
+      _refreshCompleter = null;
+
+      // 동일 스테이지 / 미션으로 재시작
+      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+    } catch (e, st) {
+      _refreshCompleter?.completeError(e, st);
+      _refreshCompleter = null;
+      rethrow;
+    }
+  }
+
+  void startMissionTimer(double seconds) {
+    currentMissionTime = seconds;
+    isTimeCritical = false;
+
+    _timerPaused = false;
+    _timerEndedNotified = false;
+    _accumulator = 0;
+    _lastShownTime = -1;
+    _isTimeOver = false;
+
+    // NOTE: timerBar.totalTime is already set in runSingleMissions
+    updateTimerUI();
+    debugPrint('[TIMER] startMissionTimer -> $seconds sec (Basis: ${timerBar.totalTime})');
+  }
+
+  void updateTimerUI() {
+    timerBar.updateTime(currentMissionTime, record: elapsedGameTime);
+    remainingTime = currentMissionTime; // Sync with legacy if needed
+  }
+
+  double _overlapHighlightTimer = 0.0;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    if (_isPausedGlobally) {
+      return;
+    }
+
+    _overlapHighlightTimer += dt;
+    if (_overlapHighlightTimer >= 0.05) {
+      _overlapHighlightTimer = 0.0;
+      _syncOverlapHighlight();
+    }
+
+    if (_timerPaused && !_isTimeOver) {
+      return;
+    }
+
+    if (currentMissionTime > 0) {
+      _accumulator += dt;
+      if (_accumulator >= 1.0) {
+        _accumulator -= 1.0;
+        currentMissionTime -= 1;
+
+        if (currentMissionTime != _lastShownTime) {
+          _lastShownTime = currentMissionTime;
+          // 필요할 때만 로그
+          debugPrint('currentMissionTime: $currentMissionTime');
+          updateTimerUI();
+        }
+
+        if (currentMissionTime <= 10) isTimeCritical = true;
+
+        if (currentMissionTime <= 0 && !_timerPaused) {
+          _timerEndedNotified = true;
+          // 마지막으로 0초 반영 후 더 이상 건드리지 않음
+          currentMissionTime = 0;
+          updateTimerUI();
+          // TODO: 타임오버 처리(스테이지 실패 등) 넣을 곳
+          // debugPrint("Time's up!");
+          if (!_isTimeOver) {
+            debugPrint('[UPDATE] Time is up → triggering _onTimeOver()');
+            _onTimeOver();
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> showAftermathScreen(
+    StageResult result,
+    int starCount,
+    int stgIndex,
+    int msnIndex,
+  ) async {
+    debugPrint("RESULT = $result");
+
+    for (final shape in children.whereType<PositionComponent>()) {
+      for (final b in shape.children.whereType<BounceMoveComponent>()) {
+        b.removeFromParent();
+      }
+    }
+    if (_isPausedGlobally){
+      _pendingResult=result;
+      return;
+    }
+    if (_missionResolved) return;
+    _missionResolved = true;
+    _timerPaused = true;
+
+    // Freeze shapes in place behind the aftermath dialog — without this,
+    // fail/continue results (which don't go through _clearAllShapes below)
+    // left every shape running its normal update loop under the overlay.
+    _pauseAllGameplayComponents();
+
+    if (result == StageResult.success) {
+      _stopEnemyBehaviors();
+      _clearAllShapes();
+      await _markMissionCleared(
+        _selectedStageIndex,
+        _selectedMissionIndex,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    _currentAftermathResult = result;
+    _currentAftermathStars = starCount;
+    _currentAftermathStgIndex = stgIndex;
+    _currentAftermathMsnIndex = msnIndex;
+    overlays.add('aftermath');
+  }
+
+  Future<void> _resumeFromFailure() async {
+    // TODO 광고 불러오기 & 광고 시청 마쳤을 경우 이어하기 처리
+    await AnalyticsService.instance.logEvent('Next_Clicked');
+    debugPrint('[RESUME] Resuming failed mission from last round...');
+
+    // Remove aftermath screen
+    _removeAftermathOverlay();
+
+    _isTimeOver = false;
+    _timerPaused = false;
+    _timerEndedNotified = false;
+    isTimeCritical = false;
+
+    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
+    // Set continuing flag
+    _isContinuing = true;
+
+    final int localToken = ++_runToken;
+
+    // Reset run token to stop previous mission loop if it's still running
+    // _isMissionRunning = false;
+    // _runToken++;
+
+    // Restart mission from the last saved round index
+    final stage = _allStages[_selectedStageIndex];
+    debugPrint('[RESUME] Restarting Stage $_selectedStageIndex, Mission $_selectedMissionIndex from index $_lastRoundStartIndex');
+    
+    runSingleMissions(
+      stage,
+      _selectedMissionIndex,
+      startIndex: _lastRoundStartIndex,
+    ).then((result) {
+      if (localToken != _runToken) {
+        debugPrint('[RESUME] outdated mission ignored');
+        return;
+      }
+
+      final starRating = _calculateStarRating(result);
+
+      if (result != StageResult.cancelled) {
+        showAftermathScreen(
+          result,
+          starRating,
+          _selectedStageIndex,
+          _selectedMissionIndex,
+        );
+      }
+    });
+  }
+
+  // ===========================================================================================================
+
+  Vector2 flipY(Vector2 point) {
+    return Vector2(point.x, -point.y);
+  }
+
+  // ==== gestures detect ======================================================================================
+  int _orientation(Vector2 a, Vector2 b, Vector2 c) {
+    final v = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+    const eps = 1e-9;
+    if (v.abs() < eps) return 0;     // collinear
+    return (v > 0) ? 1 : 2;          // 1: clockwise, 2: counterclockwise
+  }
+
+  bool _onSegment(Vector2 a, Vector2 b, Vector2 c) {
+    // b is on segment ac (collinear assumed)
+    return b.x >= math.min(a.x, c.x) - 1e-9 &&
+        b.x <= math.max(a.x, c.x) + 1e-9 &&
+        b.y >= math.min(a.y, c.y) - 1e-9 &&
+        b.y <= math.max(a.y, c.y) + 1e-9;
+  }
+
+  bool _doLinesIntersect(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2) {
+    final o1 = _orientation(p1, p2, q1);
+    final o2 = _orientation(p1, p2, q2);
+    final o3 = _orientation(q1, q2, p1);
+    final o4 = _orientation(q1, q2, p2);
+
+    // general case
+    if (o1 != o2 && o3 != o4) return true;
+
+    // special collinear cases
+    if (o1 == 0 && _onSegment(p1, q1, p2)) return true;
+    if (o2 == 0 && _onSegment(p1, q2, p2)) return true;
+    if (o3 == 0 && _onSegment(q1, p1, q2)) return true;
+    if (o4 == 0 && _onSegment(q1, p2, q2)) return true;
+
+    return false;
+  }
+
+  bool _isPathClosed(List<Vector2> path) {
+  if (path.length < 5) return false;
+
+  const double minLength = 80;
+  const double minArea = 8000;   // 이 값 조절 가능
+
+  // 전체 길이
+  double length = 0;
+  for (int i = 0; i < path.length - 1; i++) {
+    length += path[i].distanceTo(path[i + 1]);
+  }
+
+  if (length < minLength) return false;
+
+  final area = _calculatePolygonArea(path);
+
+  if (area < minArea) {
+    debugPrint("Path area too small: $area");
+    return false;
+  }
+
+  return true;
+}
+
+  double _calculatePolygonArea(List<Vector2> path) {
+    double area = 0;
+    for (int i = 0; i < path.length; i++) {
+      final p1 = path[i];
+      final p2 = path[(i + 1) % path.length];
+      area += (p1.x * p2.y) - (p2.x * p1.y);
+    }
+    return area.abs() / 2.0;
+  }
+  
+  bool _isPointInPolygon(Vector2 p, List<Vector2> poly) {
+    int count = 0;
+    for (int i = 0; i < poly.length; i++) {
+      final a = poly[i];
+      final b = poly[(i + 1) % poly.length];
+      if (((a.y > p.y) != (b.y > p.y)) &&
+          (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
+        count++;
+      }
+    }
+    return count.isOdd;
+  }
+
+  bool _isComponentEnclosed(PositionComponent comp, List<Vector2> path) {
+    // Check key points of the component. For simplicity, we check center and 4 corners.
+    final center = comp.absoluteCenter;
+    final hw = comp.size.x / 2 * comp.scale.x;
+    final hh = comp.size.y / 2 * comp.scale.y;
+
+    final points = [
+      center,
+      center + Vector2(-hw, -hh),
+      center + Vector2(hw, -hh),
+      center + Vector2(-hw, hh),
+      center + Vector2(hw, hh),
+    ];
+
+    for (final p in points) {
+      if (!_isPointInPolygon(p, path)) return false;
+    }
+    return true;
+  }
+
+  double _calculatePathLength(List<Vector2> path) {
+    double len = 0;
+    for (int i = 0; i < path.length - 1; i++) {
+      len += path[i].distanceTo(path[i + 1]);
+    }
+    return len;
+  }
+
+  void _resetPathState() {
+    userPath.clear();
+    currentCircleCenter = null;
+    currentCircleRadius = null;
+  }
+
+  void _applyTouchPenalty(List<PositionComponent> comps) {
+    if (comps.isEmpty) return;
+
+    double totalPenalty = 0;
+
+    for (final comp in comps) {
+
+      if (comp is BlinkAlphaTarget && comp.blinkAlpha <= 0) {
+        continue;
+      }
+
+      if (_isDarkShape(comp)) {
+        applyTimePenalty(10);
+        forbiddenShapeEffect.flash();
+        continue;
+      }
+
+      int energy = 0;
+
+      if (comp is CircleShape) energy = comp.count;
+      if (comp is RectangleShape) energy = comp.count;
+      if (comp is PentagonShape) energy = comp.energy;
+      if (comp is HexagonShape) energy = comp.energy;
+
+      totalPenalty += energy.abs();
+    }
+
+    if (totalPenalty > 0) {
+      applyTimePenalty(totalPenalty);
+    }
+  }
+
+bool _isStraightLine(List<Vector2> path) {
+  if (path.length < 2) return false;
+
+  final start = path.first;
+  final end = path.last;
+
+  final lineDir = (end - start);
+  final len = lineDir.length;
+  if (len == 0) return false;
+
+  final norm = lineDir / len;
+
+  double maxDeviation = 0;
+
+  for (final p in path) {
+    final v = p - start;
+    final projLength = v.dot(norm).clamp(0, len).toDouble();
+    final projPoint = start + norm * projLength;
+    final deviation = p.distanceTo(projPoint);
+    maxDeviation = math.max(maxDeviation, deviation);
+  }
+
+  return maxDeviation < 28;  // 허용 오차
+}
+
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    dragStart = event.canvasPosition;
+    userPath.clear();
+    userPath.add(event.canvasPosition);
+    debugPrint("=== userPath added : ${userPath.last} =============");
+
+    _dragStartPos = event.canvasPosition;
+    _dragLastPos = event.canvasPosition;
+    _dragStartTimeMs = DateTime.now().millisecondsSinceEpoch;
+  }
+
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    final endPos = _dragLastPos ?? _dragStartPos ?? Vector2.zero();
+    final nowMs = DateTime.now().millisecondsSinceEpoch.toDouble();
+    final durMs = nowMs - _dragStartTimeMs;
+    final startPos = _dragStartPos ?? endPos;
+    final moved = startPos.distanceTo(endPos);
+
+    // ─────────────────────────────
+    // 탭 처리
+    // ─────────────────────────────
+    if (durMs <= _tapWindowMs &&
+        moved <= _tapMoveMax &&
+        _calculatePathLength(userPath) <= _tapMoveMax) {
+      final corner = size.x * _cornerRatio;
+
+      if (endPos.x <= corner && endPos.y <= corner) {
+        pauseGame();
+        _resetPathState();
+        return;
+      }
+
+      if (endPos.x >= size.x - corner && endPos.y <= corner) {
+        if (_lastTapTime == 0 || (nowMs - _lastTapTime) <= _debugWindowMs) {
+          _debugTapCount += 1;
+        } else {
+          _debugTapCount = 1;
+        }
+        _lastTapTime = nowMs;
+
+        if (_debugTapCount >= _debugNeedTaps) {
+          toggleDebug();
+          _debugTapCount = 0;
+        }
+
+        _resetPathState();
+        return;
+      }
+
+      // 도형의 탭 처리 뒤 같은 입력에 드래그 패널티를 적용하지 않는다.
+      _resetPathState();
+      return;
+    }
+
+    // 2개 포인트(시작+끝)만 있어도 슬라이스 판정 가능
+    if (userPath.length < 2) {
+      _resetPathState();
+      return;
+    }
+    final filtered = _filterDensePoints(userPath, minDistance: 3);
+
+    // 빠른 제스처는 filtered 포인트가 적을 수 있음.
+    // 2개 이하이면 스무딩이 두 점을 같은 중간점으로 만들어 _isStraightLine이 false를 반환하므로
+    // 시작·끝만 남긴 직선 경로로 대체한다.
+    final List<Vector2> judgePath;
+    if (filtered.length >= 3) {
+      final adaptiveWindow = ((filtered.length - 1) ~/ 4).clamp(1, 4);
+      judgePath = _smoothPoints(filtered, window: adaptiveWindow);
+    } else {
+      judgePath = [userPath.first, userPath.last];
+    }
+
+    // straightDist는 스무딩 전 실제 제스처 시작·끝 거리로 측정
+    final pathLength = _calculatePathLength(judgePath);
+    final straightDist = userPath.first.distanceTo(userPath.last);
+
+
+    // ─────────────────────────────
+    // 슬라이스 제스처 판정
+    // ─────────────────────────────
+
+    // final bool isLongEnough = _isLongEnoughForAnyRect(straightDist);
+
+    final isSliceGesture = straightDist > 20 && // 너무 짧은 터치를 슬라이스로 오인 방지
+    _isStraightLine(judgePath);
+
+    debugPrint("straightDist: $straightDist");
+    debugPrint("pathLength: $pathLength");
+    debugPrint("ratio: ${straightDist / pathLength}");
+
+
+    if (isSliceGesture) {
+      // 경로에 닿는 사각형 목록을 먼저 수집 (blocker 면제 판단에도 사용)
+      final slicedRects = children
+          .whereType<RectangleShape>()
+          .where((r) => _isRealSlice(r, judgePath))
+          .toList();
+
+      // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
+      final overlappingShapes = <PositionComponent>[];
+      for (final comp in children.whereType<PositionComponent>()) {
+        bool isDarkRect = comp is RectangleShape && comp.isDark;
+
+        if (comp is CircleShape ||
+            comp is TriangleShape ||
+            comp is PentagonShape ||
+            comp is HexagonShape ||
+            isDarkRect) {
+          if (_doesPathTouchComponent(comp, judgePath)) {
+            overlappingShapes.add(comp);
+          }
+        }
+      }
+
+      if (overlappingShapes.isNotEmpty) {
+        // 슬라이스 대상 사각형 Rect 집합
+        final slicedRectBounds = slicedRects.map((r) => r.toRect()).toList();
+
+        // blocker(삼각형 등) 면제 판단:
+        // 경로가 blocker bounding box 안으로 들어오는 포인트가 없으면 → 면제 (노출된 rect만 통과)
+        // 포인트가 하나라도 있으면 → 삼각형 영역을 지나간 것 → 차단
+        final realBlockers = overlappingShapes.where((blocker) {
+          final blockerRect = blocker.toRect();
+
+          // blocker가 슬라이스 대상 사각형과 아예 안 겹치면 → 항상 차단 (무관한 도형)
+          final overlapsAnyRect = slicedRectBounds.any((r) => r.overlaps(blockerRect));
+          if (!overlapsAnyRect) return true;
+
+          // 경로 포인트가 blocker bounding box 안에 들어오는지 확인
+          final pathEntersBlocker = judgePath.any(
+            (p) => blockerRect.contains(Offset(p.x, p.y)),
+          );
+
+          // 선분 교차도 확인 (포인트는 밖에 있어도 선분이 bbox를 통과하는 경우)
+          final lineEntersBlocker = !pathEntersBlocker && (() {
+            for (int i = 0; i < judgePath.length - 1; i++) {
+              if (_lineIntersectsRect(judgePath[i], judgePath[i + 1], blockerRect)) {
+                return true;
+              }
+            }
+            return false;
+          })();
+
+          final touchesBbox = pathEntersBlocker || lineEntersBlocker;
+
+          // bounding box에 닿았으면 → 삼각형 영역 통과로 간주 → 차단
+          // 닿지 않았으면 → 노출된 rect만 통과 → 면제
+          return touchesBbox;
+        }).toList();
+
+        if (realBlockers.isNotEmpty) {
+          debugPrint('[SLICE BLOCKED] Path enters blocker bbox: ${realBlockers.map((c) => c.runtimeType)}');
+          _applyTouchPenalty(realBlockers);
+          _resetPathState();
+          return;
+        }
+
+        // 모든 blocker bounding box를 회피 → 슬라이스 허용
+        debugPrint('[SLICE ALLOWED] Path avoids all blocker bboxes: ${overlappingShapes.map((c) => c.runtimeType)}');
+      }
+
+      if (slicedRects.isNotEmpty) {
+        // 경로가 닿은 순서(traversal order)대로 정렬
+        slicedRects.sort((a, b) {
+          return _firstContactIndex(a, judgePath)
+              .compareTo(_firstContactIndex(b, judgePath));
+        });
+
+        bool isIllegalSlice = false;
+        bool stopSlicing = false;
+        bool hitAnyExpected = false;
+
+        for (final rect in slicedRects) {
+          if (stopSlicing) break;
+
+          if (rect.order == null) {
+            rect.touchAtPoint(judgePath);
+            continue;
+          }
+
+          final expected = _getExpectedRect();
+
+          if (expected == null || rect.order == expected.order) {
+            // 올바른 순서의 사각형을 타격함
+            rect.touchAtPoint(judgePath);
+            hitAnyExpected = true;
+          } else {
+            // 기대하지 않은 순서의 사각형을 타격함
+            if (hitAnyExpected) {
+              // 한 제스처 내에서 올바른 앞 번호 사각형을 쳤지만, 완전히 제거(카운트=0)되지 않아서
+              // 뒤에 있는 번호로 차례가 넘어가지 않은 경우입니다.
+              // 이 경우 뒤에 닿은 다른 번호의 사각형들은 슬라이스를 무시합니다. (페널티 없음)
+              debugPrint('[RECT ORDER] Ignored correctly-sequenced rect because expected rect is not yet destroyed. rect=${rect.order}, expected=${expected.order}');
+              stopSlicing = true;
+            } else {
+              // 처음부터 틀린 사각형을 타격 (예: 역방향) → 전체 차단 및 페널티 부여
+              isIllegalSlice = true;
+              break;
+            }
+          }
+        }
+
+        if (isIllegalSlice) {
+          debugPrint('[RECT ORDER BLOCKED] Wrong order slice attempted');
+          _applyTouchPenalty(slicedRects.cast<PositionComponent>());
+        }
+      }
+
+      _resetPathState();
+      return;
+    }
+
+    final touchedRects = children
+        .whereType<RectangleShape>()
+        .where((r) => _doesPathTouchComponent(r, judgePath))
+        .toList();
+
+    if (touchedRects.isNotEmpty) {
+      for (final rect in touchedRects) {
+        rect.touchAtPoint(judgePath);
+      }
+      _resetPathState();
+      return;
+    }
+
+    // ─────────────────────────────
+    // 원 판정 시작
+    // ─────────────────────────────
+    final isClosed = _isPathClosed(judgePath);
+    if (!isClosed && !isSliceGesture) {
+      debugPrint("triangle not enclosed");
+
+      final touchedOtherShapes = <PositionComponent>[];
+
+      for (final comp in children.whereType<PositionComponent>()) {
+
+        // 삼각형은 여기서 제외 (감싸기 전용)
+        if (comp is TriangleShape) continue;
+
+        if (_doesPathTouchComponent(comp, judgePath)) {
+          touchedOtherShapes.add(comp);
+        }
+      }
+
+      if (touchedOtherShapes.isNotEmpty) {
+        _applyTouchPenalty(touchedOtherShapes);
+      }
+
+      _resetPathState();
+      return;
+    }
+
+    final enclosedTriangles = <TriangleShape>[];
+    final touchedOtherShapes = <PositionComponent>[];
+
+    for (final comp in children.whereType<PositionComponent>()) {
+      // D/DR로 완전히 숨겨진 도형은 감싸기 대상이나 방해물이 아니다.
+      if (comp is BlinkAlphaTarget && comp.blinkAlpha <= 0) continue;
+
+      bool isDarkTriangle = comp is TriangleShape && comp.isDark;
+
+      if (comp is TriangleShape && !isDarkTriangle) {
+        // 일반 삼각형만 제거 대상
+        if (comp.isFullyEnclosedByUserPath(judgePath)) {
+          enclosedTriangles.add(comp);
+        }
+      } else if (comp is CircleShape ||
+          comp is RectangleShape ||
+          comp is PentagonShape ||
+          comp is HexagonShape ||
+          isDarkTriangle) {
+
+        // 삼각형 외 모든 게임 도형 + dark 삼각형 → 원 안에 있으면 막기
+        // Pentagon/Hexagon처럼 큰 도형은 꼭짓점이 원 밖에 나와 enclosed가 false일 수 있으므로
+        // 중심점이 원 안에 있는지도 추가로 체크
+        final enclosed = _isComponentEnclosed(comp, judgePath);
+        final touched = _doesPathTouchComponent(comp, judgePath);
+        final centerInside = _isPointInPolygon(comp.absoluteCenter, judgePath);
+
+        if (enclosed || touched || centerInside) {
+          touchedOtherShapes.add(comp);
+        }
+      }
+    }
+
+    // ─────────────────────────────
+    // 패널티 처리
+    // ─────────────────────────────
+    if (touchedOtherShapes.isNotEmpty) {
+      _applyTouchPenalty(touchedOtherShapes);
+      _resetPathState();
+      return;
+    }
+
+    // ─────────────────────────────
+    // 삼각형 제거
+    // ─────────────────────────────
+    if (enclosedTriangles.isNotEmpty) {
+      for (final comp in enclosedTriangles) {
+        if (comp.isDark) {
+          applyTimePenalty(5);
+        } else {
+          comp.triggerDisappear();
+        }
+      }
+    }
+
+    _resetPathState();
+  }
+
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
+
+    final p = event.canvasEndPosition;
+    _dragLastPos = p;
+    userPath.add(p);
+
+    // userPath.add(event.canvasEndPosition);
+
+    if (dragStart != null) {
+      // final end = event.canvasEndPosition;
+      // final radius = dragStart!.distanceTo(end);
+      final radius = dragStart!.distanceTo(p);
+      currentCircleCenter = dragStart!;
+      currentCircleRadius = radius;
+    }
+  }
+
+  // ===========================================================================================================
+
+  // ==== temporary functions ======================================================================================
+
+  // [CHANGED] 도형별 정밀 히트판정으로 교체 (bounding box → 실제 형태)
+  bool _doesPathTouchComponent(
+    PositionComponent comp,
+    List<Vector2> path,
+  ) {
+    if (comp is BlinkAlphaTarget && comp.blinkAlpha <= 0) return false;
+
+    if (comp is TriangleShape) {
+      // 삼각형: 기존 getTriangleVertices() 재사용 (월드 좌표)
+      return _doesPathTouchPolygon(comp.getTriangleVertices(), path);
+    }
+    if (comp is CircleShape) {
+      // 원: 중심 + 반지름으로 원 판정
+      return _doesPathTouchCircle(comp.absoluteCenter, comp.size.x * 0.48, path);
+    }
+    if (comp is PentagonShape) {
+      // 오각형: 월드 좌표 꼭짓점 5개 계산 후 폴리곤 판정
+      return _doesPathTouchPolygon(_getPentagonVertices(comp), path);
+    }
+    if (comp is HexagonShape) {
+      // 육각형: 월드 좌표 꼭짓점 6개 계산 후 폴리곤 판정
+      return _doesPathTouchPolygon(_getHexagonVertices(comp), path);
+    }
+    if (comp is RectangleShape) {
+      return _doesPathTouchPolygon(comp.getWorldCorners(), path);
+    }
+    return _doesPathTouchRect(comp.toRect(), path);
+  }
+
+  // [NEW] 기존 bbox 판정 분리
+  bool _doesPathTouchRect(Rect rect, List<Vector2> path) {
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      if (rect.contains(Offset(p1.x, p1.y)) || rect.contains(Offset(p2.x, p2.y))) {
+        return true;
+      }
+      if (_lineIntersectsRect(p1, p2, rect)) return true;
+    }
+    return false;
+  }
+
+  // [NEW] 경로-폴리곤 충돌 판정 (ray-casting + 선분 교차)
+  bool _doesPathTouchPolygon(List<Vector2> vertices, List<Vector2> path) {
+    if (vertices.length < 3) return false;
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      // 점이 폴리곤 내부에 있는지
+      if (_isPointInPolygon(p1, vertices) || _isPointInPolygon(p2, vertices)) {
+        return true;
+      }
+      // 선분이 폴리곤 변과 교차하는지
+      for (int j = 0; j < vertices.length; j++) {
+        final va = vertices[j];
+        final vb = vertices[(j + 1) % vertices.length];
+        if (_doLinesIntersect(p1, p2, va, vb)) return true;
+      }
+    }
+    return false;
+  }
+
+
+
+  // [NEW] 경로-원 충돌 판정
+  bool _doesPathTouchCircle(Vector2 center, double radius, List<Vector2> path) {
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+      if ((p1 - center).length <= radius || (p2 - center).length <= radius) {
+        return true;
+      }
+      if (_lineIntersectsCircle(p1, p2, center, radius)) return true;
+    }
+    return false;
+  }
+
+  // [NEW] 선분-원 교차 판정
+  bool _lineIntersectsCircle(Vector2 p1, Vector2 p2, Vector2 center, double radius) {
+    final d = p2 - p1;
+    final f = p1 - center;
+    final a = d.dot(d);
+    if (a < 0.00001) return false;
+    final b = 2 * f.dot(d);
+    final c = f.dot(f) - radius * radius;
+    double discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return false;
+    discriminant = math.sqrt(discriminant);
+    final t1 = (-b - discriminant) / (2 * a);
+    final t2 = (-b + discriminant) / (2 * a);
+    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+  }
+
+  // [NEW] 오각형 월드 꼭짓점 반환 (pentagon_shape.dart의 _buildPentagonPath와 동일한 공식)
+  List<Vector2> _getPentagonVertices(PentagonShape comp) {
+    // _visualPentagonCenter 오프셋 반영
+    final localCenter = Vector2(
+      comp.size.x / 2 - comp.size.x * 0.04,
+      comp.size.y / 2 + comp.size.y * 0.04,
+    );
+    // 월드 좌표로 변환 (anchor = center이므로 position이 도형 중심)
+    final topLeft = comp.position - comp.size / 2;
+    final worldCenter = topLeft + localCenter;
+    final radius = comp.size.x * 0.392;
+
+    return List.generate(5, (i) {
+      final a = (-90 + i * 72) * math.pi / 180;
+      return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
+    });
+  }
+
+  // [NEW] 육각형 월드 꼭짓점 반환 (hexagon_shape.dart의 _buildHexagonPath와 동일한 공식)
+  List<Vector2> _getHexagonVertices(HexagonShape comp) {
+    final worldCenter = comp.absoluteCenter;
+    // inset = strokeWidth/2 + 10 = 3 + 10 = 13, radius = size.x/2 - 13
+    final radius = comp.size.x / 2 - 13.0;
+    const angleOffset = -math.pi / 30;
+
+    return List.generate(6, (i) {
+      final a = (math.pi / 3) * i + angleOffset;
+      return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
+    });
+  }
+
+  bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
+    final vertices = rect.getWorldCorners();
+    int hits = 0;
+
+    for (int i = 0; i < path.length - 1; i++) {
+      final p1 = path[i];
+      final p2 = path[i + 1];
+
+      final p1Inside = _isPointInPolygon(p1, vertices);
+      final p2Inside = _isPointInPolygon(p2, vertices);
+
+      if (p1Inside != p2Inside) {
+        hits++;
+        continue;
+      }
+
+      if (!p1Inside && !p2Inside) {
+        int edgeHits = 0;
+        for (int j = 0; j < vertices.length; j++) {
+          if (_doLinesIntersect(p1, p2, vertices[j], vertices[(j + 1) % vertices.length])) {
+            edgeHits++;
+            // break;
+          }
+        }
+        hits += edgeHits;
+      }
+    }
+
+    return hits >= 2 || (hits >= 1 && _isPointInPolygon(path.first, vertices));
+  }
+
+
+  bool _lineIntersectsRect(Vector2 p1, Vector2 p2, Rect rect) {
+    final edges = [
+      [rect.topLeft, rect.topRight],
+      [rect.topRight, rect.bottomRight],
+      [rect.bottomRight, rect.bottomLeft],
+      [rect.bottomLeft, rect.topLeft],
+    ];
+
+    for (final edge in edges) {
+      if (_doLinesIntersect(
+        p1,
+        p2,
+        Vector2(edge[0].dx, edge[0].dy),
+        Vector2(edge[1].dx, edge[1].dy),
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+
+  void pauseGame() {
+    debugPrint("blinkingMap:${blinkingMap.values}");
+    if (overlays.isActive('howto')) return;
+    if (overlays.isActive('pause')) return;
+
+    if (!_missionResolved && remainingTime <= 0) {
+      _timerEndedNotified = true;
+      _isTimeOver = true;                 // "이미 끝난 상태"로 마킹
+      _pendingResult = StageResult.fail;  // resume 시 결과창 띄우기용
+      _timerPaused = true;
+    }
+
+    // if (_missionResolved) {
+    //   _timerEndedNotified = true;
+    // }
+    _isPausedGlobally = true;
+    _timerPaused = true;
+    // _timerEndedNotified = true;
+
+    _pauseAllGameplayComponents();
+
+    overlays.add('pause');
+  }
+
+  // Freezes every shape/effect/behavior component in place — used both by
+  // the manual pause overlay and by the aftermath overlay (fail/continue),
+  // which otherwise leaves shapes moving/blinking behind the blurred dialog
+  // since showAftermathScreen doesn't go through pauseGame()'s flow.
+  void _pauseAllGameplayComponents() {
+    AudioManager.instance.stopLoopingSfx();
+
+    for (final c in children.whereType<CircleShape>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<TriangleShape>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<RectangleShape>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<PentagonShape>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<HexagonShape>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<AttackExplosionEffect>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<EncircleSliceEffect>()) {
+      c.isPaused = true;
+    }
+    for (final c in children.whereType<CircleDisappearEffect>()) {
+      c.isPaused = true;
+    }
+
+    for (final b in blinkingMap.values) {
+      debugPrint('Pausing ${b.shape}');
+      b.isPaused = true;
+    }
+
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final e in c.children.whereType<Effect>()) {
+        e.pause();
+      }
+    }
+
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final o in c.children.whereType<OrbitingComponent>()) {
+        o.pause();
+      }
+    }
+
+    for (final c in children.whereType<PositionComponent>()) {
+      for (final b in c.children.whereType<BounceMoveComponent>()) {
+        b.isPaused = true;
+      }
+    }
+  }
+
+  void resumeGame() {
+  debugPrint("resumed");
+
+  // pause 상태 먼저 해제
+  _isPausedGlobally = false;
+  _timerPaused = true; // 결과창 뜰 동안 타이머는 멈춤 유지
+
+  // pause UI 제거
+  if (overlays.isActive('pause')) overlays.remove('pause');
+
+  if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
+    _pendingResult = StageResult.fail;
+  }
+
+  for (final c in children.whereType<PositionComponent>()) {
+    for (final e in c.children.whereType<Effect>()) {
+      e.resume();
+    }
+  }
+
+  for (final c in children.whereType<PositionComponent>()) {
+    for (final o in c.children.whereType<OrbitingComponent>()) {
+      o.resume();
+    }
+  }
+
+  for (final c in children.whereType<PositionComponent>()) {
+      for (final b in c.children.whereType<BounceMoveComponent>()) {
+        b.isPaused = false;
+      }
+    }
+
+  // 3️⃣ pending 결과 있으면 → 결과창 띄우고 return
+  if (_pendingResult != null) {
+    final result = _pendingResult!;
+    _pendingResult = null;
+
+    _missionResolved = false;
+
+    final starRating = _calculateStarRating(result);
+    Future.microtask(() {
+    showAftermathScreen(
+      result,
+      starRating,
+      _selectedStageIndex,
+      _selectedMissionIndex,
+    );
+    });
+    return;
+  }
+
+  // 4️⃣ 진짜 resume인 경우만 타이머/도형 재개
+  _timerPaused = false;
+
+  for (final c in children.whereType<CircleShape>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<TriangleShape>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<RectangleShape>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<PentagonShape>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<HexagonShape>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<AttackExplosionEffect>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<EncircleSliceEffect>()) {
+    c.isPaused = false;
+  }
+  for (final c in children.whereType<CircleDisappearEffect>()) {
+    c.isPaused = false;
+  }
+  for (final b in blinkingMap.values) {
+    b.isPaused = false;
+  }
+}
+  
+  void _removeAftermathOverlay() {
+    if (overlays.isActive('aftermath')) overlays.remove('aftermath');
+  }
+
+  void _removeHowToPlayOverlay() {
+    if (overlays.isActive('howto')) overlays.remove('howto');
+    final completer = _howToPlayCompleter;
+    _howToPlayCompleter = null;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+  }
+
+  /// Stage 1 Mission 1 intro. Returns false if the run was cancelled while waiting.
+  Future<bool> _awaitHowToPlayIfNeeded(
+    int stageIndex,
+    int missionIndex,
+    int runId,
+  ) async {
+    if (stageIndex != 0 || missionIndex != 1 || _isContinuing) {
+      return true;
+    }
+
+    // 이번 세션에서 "다시 보지 않기"를 켰으면 건너뛴다. (앱 재시작 시엔 초기화되어 다시 표시)
+    if (_tutorialHiddenThisSession) {
+      return runId == _runToken;
+    }
+
+    _howToPlayCompleter = Completer<void>();
+    overlays.add('howto');
+    await _howToPlayCompleter!.future;
+    _howToPlayCompleter = null;
+
+    return runId == _runToken;
+  }
+
+  void handleHowToPlayContinue(bool dontShowAgain) {
+    if (dontShowAgain) {
+      _tutorialHiddenThisSession = true;
+    }
+    _removeHowToPlayOverlay();
+  }
+
+  void handleAftermathContinue() {
+    _removeAftermathOverlay();
+    _resumeFromFailure();
+  }
+
+  Future<void> handleAftermathRetry() async {
+    await AnalyticsService.instance.logEvent('Aftermath_Restart_Clicked');
+    _removeAftermathOverlay();
+    runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+  }
+
+  Future<void> handleAftermathPlay() async {
+    _removeAftermathOverlay();
+
+    // 마지막 미션 여부는 "미션 개수"가 아니라 "실제 존재하는 최대 미션 번호"로 판단한다.
+    // (미션 키가 비연속적이거나 보스 미션 등으로 개수 != 최대 번호일 수 있음)
+    final missionKeys = _allStages[_selectedStageIndex].missions.keys.toList()
+      ..sort();
+
+    final maxMissionNo =
+        missionKeys.isNotEmpty ? missionKeys.last : _selectedMissionIndex;
+
+    final isLastMission = _selectedMissionIndex >= maxMissionNo;
+
+    if (!isLastMission) {
+      // 같은 스테이지의 다음(실제 존재하는) 미션으로 이동
+      final nextMissionNo = missionKeys.firstWhere(
+        (k) => k > _selectedMissionIndex,
+        orElse: () => _selectedMissionIndex + 1,
+      );
+      _selectedMissionIndex = nextMissionNo;
+      runStageWithAftermath(_selectedStageIndex, _selectedMissionIndex);
+      return;
+    }
+
+    // 락 기능 -> 마지막 클리어스테이지 + 1
+    // Special Stage는 일반 스테이지 진행도에 반영하지 않는다.
+    final stageName = _allStages[_selectedStageIndex].name;
+    final isSpecialStage =
+    stageName.toLowerCase().contains('special');
+
+    if (!isSpecialStage) {
+      await StageLockService.completeStage(_selectedStageIndex + 1);
+    }
+
+    // 마지막 미션 — 스테이지 선택 화면으로 이동
+    // 마지막 스테이지 여부는 인덱스로만 판단한다. (다음 스테이지에 미션 데이터가
+    // 아직 없더라도, 실제 마지막 스테이지가 아니면 다음 스테이지를 띄워준다.)
+    final nextStageIndex = _selectedStageIndex + 1;
+    final hasNextStage = nextStageIndex < _allStages.length;
+
+    // 다음 스테이지가 있으면 다음 스테이지를, 마지막 스테이지였다면 현재(마지막) 스테이지를 띄워준다.
+    final targetStageIndex = hasNextStage ? nextStageIndex : _selectedStageIndex;
+
+    rootNavigatorKey.currentContext!.go(
+      '/stages',
+      extra: StageRouteArgs(stages: stages, initialStageIndex: targetStageIndex),
+    );
+  }
+
+  void handleAftermathMenu() {
+    _removeAftermathOverlay();
+    rootNavigatorKey.currentContext!.pop();
+  }
+
+  void handlePauseResume() => resumeGame();
+
+  Future<void> handlePauseRetry() async {
+    overlays.remove('pause');
+    await AnalyticsService.instance.logEvent('Pause_Restart_Clicked');
+
+    _isPausedGlobally = false;
+    _timerPaused = false;
+    _pendingResult = null;
+    _missionResolved = false;
+
+    _isMissionRunning = false;
+    _runToken++;
+
+    runStageWithAftermath(
+      _selectedStageIndex,
+      _selectedMissionIndex,
+    );  }
+
+  void handlePauseMenu() {
+    _removeAftermathOverlay();
+    rootNavigatorKey.currentContext!.pop();
+  }
+
+  void _drawDashedPath(
+    Canvas canvas,
+    Path source, {
+    required Paint paint,
+    double dashLength = 10,
+    double gapLength = 6,
+  }) {
+    for (final metric in source.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final len = math.min(dashLength, metric.length - distance);
+        final segment = metric.extractPath(distance, distance + len);
+        canvas.drawPath(segment, paint);
+        distance += dashLength + gapLength;
+      }
+    }
+  }
+  
+  // ===== path smoothing helper =====
+  Path _buildSmoothedPath(List<Vector2> points) {
+    if (points.length < 3) {
+      final p = Path();
+      if (points.isNotEmpty) {
+        p.moveTo(points.first.x, points.first.y);
+        for (final pt in points.skip(1)) {
+          p.lineTo(pt.x, pt.y);
+        }
+      }
+      return p;
+    }
+
+    final path = Path();
+    path.moveTo(points.first.x, points.first.y);
+
+    for (int i = 1; i < points.length - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+
+      final mid = Offset(
+        (p0.x + p1.x) / 2,
+        (p0.y + p1.y) / 2,
+      );
+
+      path.quadraticBezierTo(
+        p0.x,
+        p0.y,
+        mid.dx,
+        mid.dy,
+      );
+    }
+
+    path.lineTo(points.last.x, points.last.y);
+    return path;
+  }
+
+  List<Vector2> _filterDensePoints(
+    List<Vector2> points, {
+    double minDistance = 6,
+  }) {
+    if (points.isEmpty) return [];
+
+    final result = <Vector2>[points.first];
+    for (final p in points.skip(1)) {
+      if (p.distanceTo(result.last) >= minDistance) {
+        result.add(p);
+      }
+    }
+    // 마지막 점이 경계 밖으로 막 벗어난 짧은 구간도 유지한다.
+    if (result.last != points.last) result.add(points.last);
+    return result;
+  }
+
+  List<Vector2> _smoothPoints(
+    List<Vector2> pts, {
+    int window = 3,
+  }) {
+    final smoothed = <Vector2>[];
+
+    for (int i = 0; i < pts.length; i++) {
+      // 양끝을 평균내면 도형을 관통한 경로가 내부에서 끝나는 경로로 짧아진다.
+      if (i == 0 || i == pts.length - 1) {
+        smoothed.add(pts[i].clone());
+        continue;
+      }
+      Vector2 sum = Vector2.zero();
+      int count = 0;
+
+      for (int j = i - window; j <= i + window; j++) {
+        if (j >= 0 && j < pts.length) {
+          sum += pts[j];
+          count++;
+        }
+      }
+      smoothed.add(sum / count.toDouble());
+    }
+    return smoothed;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    // 디버그용 원 보기
+    if (userPath.length > 1) {
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFF757575);
+
+      // 1) 손떨림 제거용 1차 필터 (너무 촘촘한 포인트 제거)
+      final filteredPoints = _filterDensePoints(
+        userPath,
+        minDistance: 6,
+      );
+
+      // 2) 저주파 스무딩 (낙서 느낌 유지)
+      final smoothedPoints = _smoothPoints(
+        filteredPoints,
+        window: 2,
+      );
+
+      // 3) 시각용 Path 생성 (판정에는 userPath 그대로 사용)
+      final renderPath = _buildSmoothedPath(smoothedPoints);
+
+      // 4) 점선 렌더 (판정 로직은 judgePath 기반이라 영향 없음)
+      _drawDashedPath(canvas, renderPath, paint: paint);
+    }
+  }
+}
+
+
+// Parsed S(start, end, seconds) size-change command (scales from size indices).
+class _SizeChange {
+  const _SizeChange({
+    required this.startScale,
+    required this.endScale,
+    required this.seconds,
+  });
+
+  final double startScale;
+  final double endScale;
+  final double seconds;
+}

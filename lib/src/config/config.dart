@@ -21,8 +21,8 @@ final targetPlayWidth = rangeX + shapePadding;
 final targetPlayHeight = rangeY + shapePadding;
 final aspectRatio = targetPlayWidth / targetPlayHeight;
 
-const UItopPadding = 120.0;
-const UIsidePadding = 10.0;
+const uiTopPadding = 120.0;
+const uiSidePadding = 10.0;
 
 // Game Font
 String appFontFamily = 'Gaegu';
@@ -34,7 +34,7 @@ const darkBgColor = 0xFF1E1C18;
 const grainTexture = 'assets/noise_texture.png';
 
 // Enums
-enum shapes { Circle, Rectangle, Pentagon, Triangle, Hexagon }
+enum ShapeKind { circle, rectangle, pentagon, triangle, hexagon }
 enum StageResult { success, fail, cancelled }
 
 // 도형 겹침(z-order) 힌트. 시트 G열 위치값 접두사(Top_/Bottom_)로 지정한다.

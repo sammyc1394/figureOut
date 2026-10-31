@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flame/flame.dart';
 import 'dart:ui';
 
@@ -10,7 +12,7 @@ import 'package:figureout/src/services/translation_sheet_service.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
 
 // common libraries
-import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -21,16 +23,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:figureout/src/services/sheet_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:figureout/src/routes/MainGameScreen.dart';
-import 'package:figureout/src/routes/MainMenu.dart';
-import 'package:figureout/src/routes/MissionSelect.dart';
-import 'package:figureout/src/routes/StageSelect.dart';
-import 'package:figureout/src/routes/EndlessGameScreen.dart';
-import 'package:figureout/src/routes/CreditsScreen.dart';
-import 'package:figureout/src/routes/OpenSourceInfoScreen.dart';
-import 'package:figureout/src/routes/SettingsScreen.dart';
-import 'package:figureout/src/routes/SunnyGamesScreen.dart';
-import 'package:figureout/src/routes/UserDataScreen.dart';
+import 'package:figureout/src/routes/main_game_screen.dart';
+import 'package:figureout/src/routes/main_menu.dart';
+import 'package:figureout/src/routes/mission_select.dart';
+import 'package:figureout/src/routes/stage_select.dart';
+import 'package:figureout/src/routes/endless_game_screen.dart';
+import 'package:figureout/src/routes/credits_screen.dart';
+import 'package:figureout/src/routes/open_source_info_screen.dart';
+import 'package:figureout/src/routes/settings_screen.dart';
+import 'package:figureout/src/routes/sunny_games_screen.dart';
+import 'package:figureout/src/routes/user_data_screen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
@@ -174,27 +176,32 @@ void main() async {
   Flame.device.fullScreen();
 
   await AudioManager.instance.init();
-  await AudioManager.instance.setBgmTrack(5);
+  if (kIsWeb) {
+    // 브라우저의 오디오 사용자 입력 대기가 첫 화면 표시를 막지 않도록 한다.
+    unawaited(AudioManager.instance.setBgmTrack(5));
+  } else {
+    await AudioManager.instance.setBgmTrack(5);
+  }
 
   await AdManager.instance.init();
 
-  runApp(figureoutMain());
+  runApp(FigureoutMain());
 }
 
-class figureoutMain extends StatefulWidget {
-  const figureoutMain({super.key});
+class FigureoutMain extends StatefulWidget {
+  const FigureoutMain({super.key});
 
   /// 언어 변경처럼 앱 전체를 새로 그려야 할 때 호출한다.
   /// 내비게이션 스택을 초기 위치('/')로 리셋하며 다시 빌드한다.
   static void restart(BuildContext context) {
-    context.findAncestorStateOfType<_figureoutMainState>()?._restart();
+    context.findAncestorStateOfType<_FigureoutMainState>()?._restart();
   }
 
   @override
-  State<figureoutMain> createState() => _figureoutMainState();
+  State<FigureoutMain> createState() => _FigureoutMainState();
 }
 
-class _figureoutMainState extends State<figureoutMain> {
+class _FigureoutMainState extends State<FigureoutMain> {
   Key _rebuildKey = UniqueKey();
 
   void _restart() {
@@ -328,15 +335,35 @@ class _FigureoutAppState extends State<_FigureoutApp> with WidgetsBindingObserve
       child: Builder(
         builder: (context) {
           final dark = ThemeModeScope.of(context);
-          return MaterialApp.router(
+          final app = MaterialApp.router(
             routerConfig: _router,
             debugShowCheckedModeBanner: false,
             title: "figure out",
+            builder: kIsWeb
+                ? (context, child) => MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        size: const Size(393, 852),
+                      ),
+                      child: child!,
+                    )
+                : null,
             theme: ThemeData(
               brightness: dark ? Brightness.dark : Brightness.light,
               scaffoldBackgroundColor: Color(dark ? darkBgColor : bgColor),
               appBarTheme: AppBarTheme(
                 backgroundColor: Color(dark ? darkBgColor : bgColor),
+              ),
+            ),
+          );
+          if (!kIsWeb) return app;
+
+          // 모바일 기준 1179:2556 비율을 유지하며 패널 안에 전체 화면을 맞춘다.
+          return ColoredBox(
+            color: const Color(0xFF202124),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(width: 393, height: 852, child: app),
               ),
             ),
           );

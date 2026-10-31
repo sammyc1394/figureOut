@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Central Audio Manager for BGM and Sound Effects (SFX)
-class AudioManager {
+class AudioManager extends ChangeNotifier {
   static final AudioManager _instance = AudioManager._internal();
   static AudioManager get instance => _instance;
 
@@ -19,10 +22,21 @@ class AudioManager {
   static const Duration _handoffWindow = Duration(milliseconds: 120);
   static const int _crossfadeSteps = 8;
 
-  bool isSoundEnabled = true; // Always true for now as requested
-  bool isBgmEnabled = true; // Always true for now as requested
+  static const _preferencesKey = 'figureout.audio-preferences.v1';
+  bool _allEnabled = true;
+  bool _effectsEnabled = true;
+  bool _bgmEnabled = true;
+  bool _preferencesReady = false;
+  bool _saving = false;
+  Future<void>? _initialization;
+
+  bool get isAllSoundEnabled => _allEnabled;
+  bool get isSoundEnabled => _allEnabled && _effectsEnabled;
+  bool get isBgmEnabled => _allEnabled && _bgmEnabled;
+  bool get canChangePreferences => _preferencesReady && !_saving;
 
   bool _isBgmPlaying = false;
+  bool _isBgmStarting = false;
   bool get isBgmPlaying => _isBgmPlaying;
 
   final _TailSustainPlayer _pentagonHold = _TailSustainPlayer(
@@ -35,9 +49,25 @@ class AudioManager {
   );
 
   /// Initialize Audio Manager and pool of SFX players
-  Future<void> init() async {
+  Future<void> init() => _initialization ??= _initialize();
+
+  Future<void> _initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_preferencesKey);
+    if (stored != null) {
+      final data = jsonDecode(stored);
+      if (data is! Map<String, dynamic> ||
+          data['all'] is! bool ||
+          data['effects'] is! bool ||
+          data['bgm'] is! bool) {
+        throw const FormatException('Invalid stored audio preferences');
+      }
+      _allEnabled = data['all'] as bool;
+      _effectsEnabled = data['effects'] as bool;
+      _bgmEnabled = data['bgm'] as bool;
+    }
     await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
-    await _bgmPlayer.setVolume(0.85);
+    await _bgmPlayer.setVolume(isBgmEnabled ? 0.85 : 0);
 
     await _pentagonHold.init();
     await _hexagonStretch.init();
@@ -46,9 +76,59 @@ class AudioManager {
       for (int i = 0; i < _poolSize; i++) {
         final player = AudioPlayer();
         await player.setReleaseMode(ReleaseMode.stop);
-        await player.setVolume(1.0);
+        await player.setVolume(isSoundEnabled ? 1.0 : 0);
         _sfxPool.add(player);
       }
+    }
+    _preferencesReady = true;
+    notifyListeners();
+  }
+
+  Future<void> setAllSoundEnabled(bool enabled) =>
+      _savePreferences(enabled, enabled, enabled);
+
+  Future<void> setSoundEnabled(bool enabled) async {
+    if (!_allEnabled) return;
+    await _savePreferences(_allEnabled, enabled, _bgmEnabled);
+  }
+
+  Future<void> setBgmEnabled(bool enabled) async {
+    if (!_allEnabled) return;
+    await _savePreferences(_allEnabled, _effectsEnabled, enabled);
+  }
+
+  Future<void> _savePreferences(bool all, bool effects, bool bgm) async {
+    if (!canChangePreferences) return;
+    _saving = true;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = await prefs.setString(
+        _preferencesKey,
+        jsonEncode({'all': all, 'effects': effects, 'bgm': bgm}),
+      );
+      if (!saved) throw StateError('Audio preferences were not saved');
+      _allEnabled = all;
+      _effectsEnabled = effects;
+      _bgmEnabled = bgm;
+      // Mute the player too: a web autoplay request may still be awaiting input.
+      await _bgmPlayer.setVolume(isBgmEnabled ? 0.85 : 0);
+      for (final player in _sfxPool) {
+        await player.setVolume(isSoundEnabled ? 1.0 : 0);
+        if (!isSoundEnabled) await player.stop();
+      }
+      if (!isSoundEnabled) await stopLoopingSfx();
+      if (!isBgmEnabled) {
+        await stopBGM();
+      } else {
+        unawaited(playBGM());
+      }
+    } catch (error, stack) {
+      debugPrint('[Audio] Preference update failed: $error');
+      debugPrintStack(stackTrace: stack);
+    } finally {
+      _saving = false;
+      notifyListeners();
     }
   }
 
@@ -98,7 +178,6 @@ class AudioManager {
     await playPopSound('pop.mp3');
   }
 
-  Future<void> playPentagonPop() => playPentagonBurst();
 
   /// Play the stretch clip once, then sustain on a soft loop tail.
   Future<void> startHexagonStretch() async {
@@ -113,7 +192,6 @@ class AudioManager {
     await playPopSound('pop.mp3');
   }
 
-  Future<void> playHexagonPop() => playHexagonBurst();
 
   /// Stop looping SFX (pause / overlay / hard reset).
   Future<void> stopLoopingSfx() async {
@@ -153,15 +231,23 @@ class AudioManager {
   /// Play background music (BGM)
   Future<void> playBGM() async {
     if (!isBgmEnabled) return;
-    if (_isBgmPlaying) return;
+    if (_isBgmPlaying || _isBgmStarting) return;
 
+    _isBgmStarting = true;
     try {
       await _bgmPlayer.stop();
       await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
       await _bgmPlayer.play(AssetSource('audio/$_currentBgmTrack'));
+      if (!isBgmEnabled) {
+        await stopBGM();
+        return;
+      }
       _isBgmPlaying = true;
     } catch (e) {
       _isBgmPlaying = false;
+      debugPrint('[Audio] BGM playback failed: $e');
+    } finally {
+      _isBgmStarting = false;
     }
   }
 
@@ -184,12 +270,7 @@ class AudioManager {
 
   /// Toggle BGM ON/OFF
   Future<void> toggleBGM() async {
-    isBgmEnabled = !isBgmEnabled;
-    if (isBgmEnabled) {
-      await playBGM();
-    } else {
-      await stopBGM();
-    }
+    await setBgmEnabled(!isBgmEnabled);
   }
 
   /// Stop background music

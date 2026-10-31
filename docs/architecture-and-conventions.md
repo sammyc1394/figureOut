@@ -5,6 +5,10 @@
 
 > 관련 문서(작성 예정): 요건 정의(명령어) md, 상수 정리 md
 
+> 포물선 이동 명령: [P 명령과 Stage 5 M6 구성](parabola-movement.md)
+
+> 직선 이동과 가속: [Z 명령](z-movement.md)
+
 ## 1. 폴더 구조
 
 ```
@@ -34,7 +38,7 @@ lib/
 | `game_modes/` | 게임 모드 | 모드별 `FlameGame` 클래스와 모드 컨트롤러 | `OneSecondGame`, `endless_game_controller` |
 | `routes/` | 화면 이동과 화면 UI | 라우트로 열리는 화면, 오버레이 위젯, 라우트 인자 클래스 | `MainMenu`, `StageSelect`, `PausedScreen`, `route_args` |
 | `services/` | 서비스 계층 | 저장소, API, SDK, 광고, 분석, 오디오 등 외부 시스템 또는 지속 상태와 상호작용 | `HeartService`, `AdManager`, `AudioManager`, `AnalyticsService`, `SheetService` |
-| `temp/` | 임시 구현 | 삭제 예정인 임시 코드. 새 코드는 넣지 않는다 | `RefreshButton`, `svgButton`, `logger` |
+| `temp/` | 임시 구현 | 삭제 예정인 임시 코드. 새 코드는 넣지 않는다 | `RefreshButton` |
 
 ### 새 파일을 어디에 둘지 판단하는 순서
 
@@ -60,7 +64,7 @@ assets/
 ├── .env                   # API 키 등 비밀 값 (git 추적 대상 아님, 코드에 값 직접 기재 금지)
 ├── audio/                 # BGM(bgm_*.mp3), 도형별 효과음(pop_*.mp3)
 ├── fonts/                 # 폰트 파일 (Gaegu, Moulpali)
-├── shapes/                # 게임 도형 이미지 (Circle.png, Hexagon_3x.png 등)
+├── shapes/                # 게임 도형 이미지 (Circle_3x.png, Hexagon_3x.png 등)
 ├── menu/
 │   ├── common/            # 공통 UI 아이콘/카드 (하트, 설정, 결과 팝업, 시작 화면 등)
 │   ├── mission/           # 미션 선택 화면 (미션 카드, 별, 잠금)
@@ -74,10 +78,10 @@ assets/
 |---|---|---|
 | `audio/` | 재생되는 모든 사운드. BGM은 `bgm_*`, 효과음은 도형/동작 이름 접두사 | `bgm_lofi.mp3`, `pop_circle.mp3`, `pop_hexagon_loop.mp3` |
 | `fonts/` | 폰트 파일. `pubspec.yaml`의 `fonts:`에 family로 등록 | `Gaegu-Regular.ttf` |
-| `shapes/` | 게임 월드에 그려지는 도형 이미지 | `Circle_3x.png`, `Pentagon.png` |
-| `menu/common/` | 여러 화면에서 함께 쓰는 UI 요소 | `Heart_full.svg`, `Result_card.svg`, `bg.svg` |
-| `menu/mission/` | 미션 선택 화면 전용 | `Star_3.svg`, `lock.svg` |
-| `menu/stage/` | 스테이지 선택 화면 전용 | `Blue_Default.svg`, `stage_1.png` |
+| `shapes/` | 게임 월드에 그려지는 도형 이미지 | `Circle_3x.png`, `Pentagon_3x.png` |
+| `menu/common/` | 여러 화면에서 함께 쓰는 UI 요소 | `Heart_full.svg`, `Result_card.svg`, `Pause_button_blue.svg` |
+| `menu/mission/` | 미션 선택 화면 전용 | `Star_gold_left.svg`, `Star_blue_center.svg` |
+| `menu/stage/` | 스테이지 선택 화면 전용 | `stage_1.png`, `stage_name_outline.png` |
 | 루트 | 기존에 루트에 있던 UI 이미지, 텍스처. **새 에셋은 루트에 추가하지 않는다** | `noise_texture.png`, `tutorial_hand.png` |
 
 ### 에셋 규칙
@@ -99,8 +103,8 @@ assets/
 ### 파일/클래스 이름
 
 - 클래스 이름은 `UpperCamelCase`, 변수·메서드는 `lowerCamelCase`, 상수는 `lowerCamelCase`(예: `maxHearts`).
-- 클래스를 담는 파일 이름은 기존 코드가 PascalCase(`CircleShape.dart`)와 snake_case(`heart_service.dart`)로 섞여 있다.
-  **새 파일은 snake_case를 사용한다.** 기존 파일 이름은 변경하지 않는다.
+- Dart 파일 이름은 `snake_case`를 사용한다 (예: `circle_shape.dart`, `heart_service.dart`).
+  기존 PascalCase 파일은 2026-10-31 린트 정리 요청에 따라 import와 함께 변경했다.
 - 한 파일에는 대표 클래스 하나를 두고, 파일 이름은 그 클래스 이름과 대응시킨다.
 - private 위젯/보조 클래스는 같은 파일 안에서 `_` 접두사를 붙인다 (예: `_ResultPanel`).
 
@@ -124,7 +128,7 @@ assets/
 
 ### 로그
 
-- 디버그 로그는 `appLog(tag, message, level: ...)`(`temp/logger.dart`) 또는 `LoggerService`를 사용한다.
+- 디버그 로그는 `LoggerService`를 사용한다.
 - 분석 이벤트는 `AnalyticsService.instance.logEvent(...)`로 보낸다.
 
 ### 주석
@@ -164,7 +168,9 @@ assets/
 - 업로드는 한 번에 한 명이 담당하고, 번호가 겹치지 않도록 업로드 전에 공유한다.
 - `pubspec.lock`은 Flutter SDK 버전 차이로 로컬에서 바뀔 수 있다. SDK 버전을 팀이 함께 올릴 때를 제외하고는 커밋하지 않는다.
 
-| 마지막 업로드 빌드 | 다음 업로드 빌드 |
+아래 표는 과거 기록이며 현재 스토어 상태를 보장하지 않는다. 다음 번호는 업로드 전 실제 스토어와 `pubspec.yaml`을 확인해 결정한다.
+
+| 과거 마지막 업로드 빌드 | 당시 다음 업로드 빌드 |
 |---|---|
 | 82 | 83 |
 
@@ -193,6 +199,6 @@ assets/
 
 ## 6. 알려진 정리 대상
 
-- 파일 이름 규칙이 PascalCase와 snake_case로 섞여 있다. 새 파일부터 snake_case를 적용한다.
-- `OneSecondGame.dart`가 3,000줄 이상이다. 기능 추가 시 `behaviors/`, `effect/`, `functions/`로 분리를 검토한다.
+- Dart 파일 이름은 `snake_case`로 통일했다. 추가 파일도 같은 규칙을 적용한다.
+- `one_second_game.dart`가 3,000줄 이상이다. 기능 추가 시 `behaviors/`, `effect/`, `functions/`로 분리를 검토한다.
 - `temp/`의 파일은 대체 구현이 생기면 삭제한다.

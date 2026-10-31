@@ -1,3 +1,4 @@
+import 'package:figureout/src/services/logger_service.dart';
 import 'dart:math' as math;
 
 import 'package:figureout/src/config/config.dart';
@@ -37,7 +38,8 @@ class RandomContext {
         max.toInt(),
       );
 
-      print(
+      LoggerService.instance.appLog(
+        'random_context',
         'URD run = (${min.toInt()}, ${max.toInt()}), '
             'field = $field, ret = $ret',
       );
