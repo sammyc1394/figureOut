@@ -350,18 +350,16 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                         curve: Curves.easeOutCubic,
                                       );
                                     },
-                                    child: SizedBox.square(
-                                      dimension: 44,
-                                      child: Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: indicatorGap),
                                         child: SvgPicture.asset(
                                           _currentIndex == index
                                               ? "assets/menu/stage/carousel_selected.svg"
-                                              : "assets/menu/stage/carousel_notSelected.svg",
+                                                : "assets/menu/stage/carousel_notSelected.svg",
                                           width: indicatorSize,
                                           height: indicatorSize,
                                         ),
                                       ),
-                                    ),
                                   );
                                 }),
                               ),
