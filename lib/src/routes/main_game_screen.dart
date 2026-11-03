@@ -89,20 +89,23 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
   /// 체크포인트 재개 로직(g.handleAftermathContinue) 자체는 건드리지 않는다.
   void _continueAfterAd(OneSecondGame g) {
     bool rewardEarned = false;
+    bool closed = false;
+    bool continued = false;
+    void continueIfEarnedAndClosed() {
+      if (!mounted || !rewardEarned || !closed || continued) return;
+      continued = true;
+      g.handleAftermathContinue();
+    }
     AdManager.instance.showRewardedAd(
       onUserEarnedReward: () {
         rewardEarned = true;
+        continueIfEarnedAndClosed();
       },
       onAdClosed: () {
-        if (rewardEarned) {
-          g.handleAftermathContinue();
-        }
-        // 보상을 못 받았으면(광고를 중간에 닫음) 화면은 그대로 두어 다시 시도할 수 있게 한다.
+        closed = true;
+        continueIfEarnedAndClosed();
       },
-      onAdUnavailable: () {
-        // 광고가 아직 준비되지 않았을 때 진행이 막히지 않도록 바로 이어서 진행한다.
-        g.handleAftermathContinue();
-      },
+      // Unavailable/failed ads leave the existing continue overlay in place.
     );
   }
 

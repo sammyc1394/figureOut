@@ -365,3 +365,9 @@ claimed by the source delivery.
 ### 2026-10-12 승인 후 검증
 
 analyze: 실패 또는 차단(원본 로그 확인); test: 실패 또는 차단(원본 로그 확인). 앞 절의 미실행 기록은 소스 반영 당시 상태입니다. Android APK/AAB 및 기기 검증 완료를 뜻하지 않습니다. 이번 커밋에는 정책 적용 변경만 포함하며 기존 다른 작업과 생성 산출물은 보존·제외합니다.
+
+### 2026-11-03 rewarded callback and retry review
+
+Reward presentation now reserves one immutable ad instance, ignores duplicate terminal/reward callbacks, rejects overlapping shows, and discards cached ads after one hour (also checked before reuse after suspension). A late earned callback is handled at most once. Heart credit is persisted on the earned callback instead of depending on a still-open dialog; checkpoint continuation waits for both earned and closed signals and a mounted route. Per the user's explicit decision on 2026-11-03, a failed/unavailable ad no longer bypasses the checkpoint reward requirement; the existing continue overlay remains available for a user retry. No new app-facing text was added.
+
+`flutter analyze --no-pub` on the three affected source files and the regression test passed after correcting one braces-style finding. `flutter test --no-pub test/ad_manager_lifecycle_test.dart` passed against the real manager and SDK Dart objects with a mocked native channel: duplicate/late earned callbacks, duplicate dismissal, overlapping presentation, one-hour cache expiry, and next-load-without-auto-show. This is mock-boundary evidence, not device verification. This app uses consumable hearts/continuation rather than a timed ad-free entitlement, so benefit-expiry testing does not apply in the same way. Android device QA and iOS remain unverified. Existing demo IDs and the missing UMP integration are separate release-readiness limitations, not corrected by this scoped lifecycle work.

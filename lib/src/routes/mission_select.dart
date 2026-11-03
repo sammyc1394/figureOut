@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:figureout/src/services/sheet_service.dart';
@@ -242,16 +243,11 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                     child: NoHeartsOverlay(
                                       onClose: () => Navigator.of(ctx).pop(),
                                       onWatchAd: () {
-                                        bool rewardEarned = false;
                                         AdManager.instance.showRewardedAd(
                                           onUserEarnedReward: () {
-                                            rewardEarned = true;
+                                            unawaited(HeartService.addHeart());
                                           },
                                           onAdClosed: () async {
-                                            // 보상을 받은 경우에만 하트를 충전한다.
-                                            if (rewardEarned) {
-                                              await HeartService.addHeart();
-                                            }
                                             if (ctx.mounted) Navigator.of(ctx).pop();
                                           },
                                           onAdUnavailable: () {

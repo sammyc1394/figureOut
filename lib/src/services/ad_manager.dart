@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// 리워드(보상형) 광고의 로드/노출을 담당하는 싱글턴.
@@ -21,8 +24,26 @@ class AdManager {
 
   RewardedAd? _rewardedAd;
   bool _isLoading = false;
+  bool _showing = false;
+  DateTime? _loadedAt;
+  Timer? _validityTimer;
 
-  bool get isAdReady => _rewardedAd != null;
+  void _expireCachedAd() {
+    if (_loadedAt == null || DateTime.now().difference(_loadedAt!) < const Duration(hours: 1)) return;
+    _discardCachedAd();
+  }
+
+  void _discardCachedAd() {
+    _validityTimer?.cancel();
+    _rewardedAd?.dispose();
+    _rewardedAd = null;
+    _loadedAt = null;
+  }
+
+  bool get isAdReady {
+    _expireCachedAd();
+    return !_showing && _rewardedAd != null;
+  }
 
   /// Mobile Ads SDK 초기화 + 첫 리워드 광고 미리 로드.
   Future<void> init() async {
@@ -33,7 +54,8 @@ class AdManager {
 
   /// 다음에 보여줄 리워드 광고를 미리 로드해둔다.
   void loadRewardedAd() {
-    if (kIsWeb || _isLoading || _rewardedAd != null) return;
+    _expireCachedAd();
+    if (kIsWeb || _isLoading || _showing || _rewardedAd != null) return;
     _isLoading = true;
 
     RewardedAd.load(
@@ -42,6 +64,9 @@ class AdManager {
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
           _rewardedAd = ad;
+          _loadedAt = DateTime.now();
+          _validityTimer?.cancel();
+          _validityTimer = Timer(const Duration(hours: 1), _discardCachedAd);
           _isLoading = false;
         },
         onAdFailedToLoad: (error) {
@@ -62,6 +87,11 @@ class AdManager {
     VoidCallback? onAdClosed,
     VoidCallback? onAdUnavailable,
   }) {
+    if (_showing || WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.inactive) {
+      return;
+    }
+    _expireCachedAd();
     final ad = _rewardedAd;
     if (kIsWeb || ad == null) {
       onAdUnavailable?.call();
@@ -69,27 +99,54 @@ class AdManager {
       return;
     }
 
-    // 재사용 방지: 보여줄 광고를 즉시 비우고 다음 광고를 새로 로드한다.
+    // Reserve synchronously; callbacks belong to this immutable ad instance.
+    _showing = true;
     _rewardedAd = null;
-
+    _loadedAt = null;
+    _validityTimer?.cancel();
+    var earned = false;
+    var closed = false;
+    var failed = false;
+    var opened = false;
+    void fail(Object error) {
+      if (closed || failed || earned || opened) return;
+      failed = true;
+      _showing = false;
+      ad.dispose();
+      debugPrint('[AdManager] Rewarded ad failed to show: $error');
+      onAdUnavailable?.call();
+      loadRewardedAd();
+    }
     ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
+      onAdShowedFullScreenContent: (callbackAd) {
+        if (identical(callbackAd, ad) && !closed && !failed) opened = true;
+      },
+      onAdDismissedFullScreenContent: (callbackAd) {
+        if (!identical(callbackAd, ad) || closed || failed) return;
+        closed = true;
+        _showing = false;
         ad.dispose();
         onAdClosed?.call();
         loadRewardedAd();
       },
-      onAdFailedToShowFullScreenContent: (ad, error) {
-        ad.dispose();
-        debugPrint('[AdManager] Rewarded ad failed to show: $error');
-        onAdUnavailable?.call();
-        loadRewardedAd();
+      onAdFailedToShowFullScreenContent: (callbackAd, error) {
+        if (identical(callbackAd, ad)) fail(error);
       },
     );
-
-    ad.show(
-      onUserEarnedReward: (ad, reward) {
+    unawaited(ad.show(
+      onUserEarnedReward: (callbackAd, reward) {
+        if (!identical(callbackAd, ad) || earned || failed) return;
+        earned = true;
         onUserEarnedReward();
       },
-    );
+    ).catchError((Object error) {
+      if (error is PlatformException && error.code == 'AdShowError') {
+        fail(error);
+      } else {
+        // An ambiguous rejection is not proof that the native window ended.
+        debugPrint('[AdManager] Awaiting terminal ad callback after: $error');
+      }
+    }));
   }
 }
+
