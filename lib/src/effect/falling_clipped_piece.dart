@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flame/components.dart';
-import '../services/audio_manager.dart';
 
 class FallingClippedPiece extends PositionComponent {
   // clipPath is built in the source rectangle coordinate space.
@@ -42,12 +41,6 @@ class FallingClippedPiece extends PositionComponent {
           size: sizePx,
           anchor: Anchor.center,
         );
-
-  @override
-  void onMount() {
-    super.onMount();
-    AudioManager.instance.playRectanglePop();
-  }
 
   @override
   Future<void> onLoad() async {

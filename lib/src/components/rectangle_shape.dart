@@ -378,7 +378,11 @@ class RectangleShape extends PositionComponent
     debugPrint("=== slice check : $isSliced ============");
     if (isSliced) {
       applyValidInteraction();
-      AudioManager.instance.playRectanglePop();
+      if (count >= 1) {
+        AudioManager.instance.playRectangleHit();
+      } else {
+        AudioManager.instance.playRectanglePop();
+      }
     } else {
       onForbiddenTouch?.call();
       return;
