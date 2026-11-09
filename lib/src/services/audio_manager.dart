@@ -153,6 +153,9 @@ class AudioManager extends ChangeNotifier {
 
   Future<void> playCirclePop() => playPopSound('pop_circle.mp3');
 
+  /// Circle with HP >= 2 tapped: HP drops, circle stays.
+  Future<void> playCirclePress() => playPopSound('pop_circle_press.mp3');
+
   Future<void> playRectanglePop() async {
     final now = DateTime.now();
     if (_lastRectanglePopTime != null &&
@@ -164,6 +167,9 @@ class AudioManager extends ChangeNotifier {
   }
 
   Future<void> playTrianglePop() => playPopSound('pop_triangle.mp3');
+
+  /// Triangle with HP >= 2 enclosed: HP drops, triangle stays.
+  Future<void> playTriangleHit() => playPopSound('pop_triangle_hit.mp3');
 
   /// Play the hold clip once, then sustain on a soft loop tail.
   Future<void> startPentagonHold() async {
