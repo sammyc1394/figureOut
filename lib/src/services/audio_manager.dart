@@ -216,7 +216,7 @@ class AudioManager extends ChangeNotifier {
 
   Future<void> playHexagonBurst() async {
     await stopHexagonStretch();
-    await playPopSound('pop.mp3');
+    await playPopSound('pop_circle.mp3');
   }
 
 
