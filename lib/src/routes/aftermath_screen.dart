@@ -2,10 +2,11 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/services/ad_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class AftermathOverlayWidget extends StatelessWidget {
+class AftermathOverlayWidget extends StatefulWidget {
   final StageResult result;
   final int starCount;
   final int stgIndex;
@@ -28,8 +29,22 @@ class AftermathOverlayWidget extends StatelessWidget {
   });
 
   @override
+  State<AftermathOverlayWidget> createState() => _AftermathOverlayState();
+}
+
+class _AftermathOverlayState extends State<AftermathOverlayWidget> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.result == StageResult.success) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AdManager.instance.prepareExpiredOnPopupOpen();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isSuccess = result == StageResult.success;
+    final isSuccess = widget.result == StageResult.success;
 
     return BackdropFilter(
       filter: isSuccess
@@ -48,13 +63,17 @@ class AftermathOverlayWidget extends StatelessWidget {
                 width: base * _ResultPanel.widthRatio,
                 child: FittedBox(
                   fit: BoxFit.fitWidth,
-                  child: _ResultPanel(
-                    success: isSuccess,
-                    stageLabel: '${stgIndex + 1}-$msnIndex',
-                    starCount: starCount,
-                    onMenu: onMenu,
-                    onPrimary: isSuccess ? onPlay : onContinue,
-                    onRetry: onRetry,
+                  child: ListenableBuilder(
+                    listenable: AdManager.instance,
+                    builder: (context, _) => _ResultPanel(
+                      success: isSuccess,
+                      stageLabel: '${widget.stgIndex + 1}-${widget.msnIndex}',
+                      starCount: widget.starCount,
+                      onMenu: widget.onMenu,
+                      onPrimary: isSuccess ? widget.onPlay :
+                          (AdManager.instance.isAdReady ? widget.onContinue : null),
+                      onRetry: widget.onRetry,
+                    ),
                   ),
                 ),
               );
@@ -72,7 +91,7 @@ class _ResultPanel extends StatelessWidget {
   final String stageLabel;
   final int starCount;
   final VoidCallback onMenu;
-  final VoidCallback onPrimary;
+  final VoidCallback? onPrimary;
   final VoidCallback onRetry;
 
   const _ResultPanel({

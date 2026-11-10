@@ -184,6 +184,15 @@ final Map<String, Map<String, String>> translationData = {
     'fr': 'Infos open source',
     'es': 'Información de código abierto',
   },
+  'settings_ad_privacy_choices': {
+    'en': 'Ad privacy choices',
+    'ko': '광고 개인정보 설정',
+    'ja': '広告のプライバシー設定',
+    'zh-Hans': '广告隐私选项',
+    'zh-Hant': '廣告隱私選項',
+    'fr': 'Options de confidentialité des annonces',
+    'es': 'Opciones de privacidad de los anuncios',
+  },
   'settings_app_version': {
     'en': 'App Version',
     'ko': '앱 버전',

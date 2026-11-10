@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/services/localization_service.dart';
 import 'package:figureout/src/services/audio_manager.dart';
+import 'package:figureout/src/services/ad_manager.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
 import 'how_to_play_overlay.dart';
 
@@ -143,6 +144,24 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () => context.push('/settings/open-source-info'),
                     ),
                     const _RowDivider(),
+                    ListenableBuilder(
+                      listenable: AdManager.instance,
+                      builder: (context, _) {
+                        final ads = AdManager.instance;
+                        if (!ads.privacyOptionsRequired) return const SizedBox.shrink();
+                        return Column(
+                          children: [
+                            _SettingsRow(
+                              label: i18n.t('settings_ad_privacy_choices'),
+                              onTap: ads.privacyOptionsAvailable
+                                  ? ads.showPrivacyOptions
+                                  : null,
+                            ),
+                            const _RowDivider(),
+                          ],
+                        );
+                      },
+                    ),
                     FutureBuilder<PackageInfo>(
                       future: PackageInfo.fromPlatform(),
                       builder: (context, snapshot) {

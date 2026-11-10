@@ -183,9 +183,8 @@ void main() async {
     await AudioManager.instance.playBGM();
   }
 
-  await AdManager.instance.init();
-
   runApp(FigureoutMain());
+  WidgetsBinding.instance.addPostFrameCallback((_) => AdManager.instance.init());
 }
 
 class FigureoutMain extends StatefulWidget {

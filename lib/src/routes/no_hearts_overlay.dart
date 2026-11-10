@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:figureout/src/config/config.dart';
+import 'package:figureout/src/services/ad_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,13 +29,22 @@ class _NoHeartsOverlayState extends State<NoHeartsOverlay> {
   @override
   void initState() {
     super.initState();
+    AdManager.instance.addListener(_updateAdAvailability);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AdManager.instance.prepareExpiredOnPopupOpen();
+    });
     _refresh();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  void _updateAdAvailability() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    AdManager.instance.removeListener(_updateAdAvailability);
     super.dispose();
   }
 
@@ -171,7 +181,7 @@ class _NoHeartsOverlayState extends State<NoHeartsOverlay> {
                                     height: 47.1,
                                     child: GestureDetector(
                                       behavior: HitTestBehavior.opaque,
-                                      onTap: widget.onWatchAd,
+                                      onTap: AdManager.instance.isAdReady ? widget.onWatchAd : null,
                                       child: Stack(
                                         alignment: Alignment.center,
                                         clipBehavior: Clip.none,

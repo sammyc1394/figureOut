@@ -250,10 +250,6 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
                                           onAdClosed: () async {
                                             if (ctx.mounted) Navigator.of(ctx).pop();
                                           },
-                                          onAdUnavailable: () {
-                                            // 아직 광고가 로드되지 않음: 다이얼로그는 유지하고
-                                            // 다음 로드는 AdManager 내부에서 자동으로 재시도된다.
-                                          },
                                         );
                                       },
                                     ),
