@@ -13,7 +13,8 @@ class AudioManager extends ChangeNotifier {
 
   AudioManager._internal();
 
-  final AudioPlayer _bgmPlayer = AudioPlayer();
+  AudioPlayer _bgmPlayer = AudioPlayer();
+  AudioPlayer _bgmSpare = AudioPlayer(); // incoming player for BGM crossfades
   final List<AudioPlayer> _sfxPool = [];
   int _poolIndex = 0;
   static const int _poolSize = 5;
@@ -155,7 +156,126 @@ class AudioManager extends ChangeNotifier {
     'pop_rectangle_4.mp3',
   ];
   int _rectangleSoundIndex = -1; // next call advances to index 0 (sound 1)
-  String _currentBgmTrack = 'bgm_tiny_garden.mp3';
+  /// Main (menu) BGM candidates. One is picked at random per app launch and
+  /// kept until the app restarts or the user picks another in settings.
+  static const mainBgmTracks = ['bgm_main_1.mp3', 'bgm_main_2.mp3'];
+  int _mainBgmIndex = math.Random().nextInt(mainBgmTracks.length);
+  int get mainBgmIndex => _mainBgmIndex;
+
+  late String _currentBgmTrack = mainBgmTracks[_mainBgmIndex];
+
+  Future<void> setMainBgm(int index) async {
+    if (index == _mainBgmIndex) return;
+    _mainBgmIndex = index;
+    notifyListeners();
+    await _switchBgm(mainBgmTracks[index]);
+  }
+
+  /// One calm track per stage (stage 1..6); later stages reuse the last one.
+  static const _stageBgmCount = 6;
+  int _stageBgmToken = 0;
+
+  /// Switch to the stage's mission track. Returns a token for [releaseStageBgm].
+  int playStageBgm(int stageIndex) {
+    final n = stageIndex.clamp(0, _stageBgmCount - 1) + 1;
+    final token = ++_stageBgmToken;
+    unawaited(_switchBgm('bgm_stage_$n.mp3'));
+    return token;
+  }
+
+  /// Back to the main track, unless a newer stage screen has taken over.
+  Future<void> releaseStageBgm(int token) async {
+    if (token != _stageBgmToken) return;
+    await _switchBgm(mainBgmTracks[_mainBgmIndex]);
+  }
+
+  Future<void> _switchBgm(String track) async {
+    if (track == _currentBgmTrack && _isBgmPlaying) return;
+    _currentBgmTrack = track;
+    _isBgmPlaying = false;
+    await playBGM();
+  }
+
+  /// Endless mode: the same loop rendered at three tempos. Tempo changes
+  /// crossfade into the new file at the same musical position.
+  static const _endlessTiers = [
+    'bgm_endless_calm.mp3',
+    'bgm_endless_mid.mp3',
+    'bgm_endless_urgent.mp3',
+  ];
+  int _endlessTier = 0;
+  bool _crossfading = false;
+
+  /// Start the endless track on the calm tempo. Returns a token for [releaseStageBgm].
+  int playEndlessBgm() {
+    final token = ++_stageBgmToken;
+    _endlessTier = 0;
+    unawaited(_switchBgm(_endlessTiers[0]));
+    return token;
+  }
+
+  /// Change tempo (0 calm, 1 medium, 2 urgent).
+  void setEndlessTier(int tier) {
+    if (tier == _endlessTier) return;
+    _endlessTier = tier;
+    unawaited(_syncEndlessTempo());
+  }
+
+  Future<void> _syncEndlessTempo() async {
+    if (_crossfading || !_endlessTiers.contains(_currentBgmTrack)) return;
+    _crossfading = true;
+    try {
+      // Re-check after each fade: the tier may have changed meanwhile.
+      while (_endlessTiers.contains(_currentBgmTrack) &&
+          _endlessTiers[_endlessTier] != _currentBgmTrack) {
+        await _crossfadeTo(_endlessTiers[_endlessTier]);
+      }
+    } finally {
+      _crossfading = false;
+    }
+  }
+
+  Future<void> _crossfadeTo(String track) async {
+    final level = isBgmEnabled ? 0.85 : 0.0;
+    if (!_isBgmPlaying || level == 0) {
+      await _switchBgm(track);
+      return;
+    }
+    final old = _bgmPlayer;
+    final next = _bgmSpare;
+    try {
+      final pos = await old.getCurrentPosition();
+      final oldDur = await old.getDuration();
+      await next.stop();
+      await next.setReleaseMode(ReleaseMode.loop);
+      await next.setVolume(0);
+      await next.setSource(AssetSource('audio/$track'));
+      final newDur = await next.getDuration();
+      if (pos != null && oldDur != null && newDur != null && oldDur > Duration.zero) {
+        await next.seek(newDur * (pos.inMilliseconds / oldDur.inMilliseconds));
+      }
+      await next.resume();
+      const steps = 8;
+      for (var i = 1; i <= steps; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        await old.setVolume(level * (1 - i / steps));
+        await next.setVolume(level * i / steps);
+      }
+      if (!_endlessTiers.contains(_currentBgmTrack)) {
+        // Left endless mode during the fade: drop the incoming track.
+        await next.stop();
+        await old.setVolume(level);
+        return;
+      }
+      await old.stop();
+      _bgmPlayer = next;
+      _bgmSpare = old;
+      _currentBgmTrack = track;
+    } catch (e) {
+      debugPrint('[Audio] BGM crossfade failed: $e');
+      await _switchBgm(track);
+    }
+  }
 
   Future<void> playCirclePop() => playPopSound('pop_circle.mp3');
 

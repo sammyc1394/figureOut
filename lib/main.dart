@@ -178,9 +178,9 @@ void main() async {
   await AudioManager.instance.init();
   if (kIsWeb) {
     // 브라우저의 오디오 사용자 입력 대기가 첫 화면 표시를 막지 않도록 한다.
-    unawaited(AudioManager.instance.setBgmTrack(5));
+    unawaited(AudioManager.instance.playBGM());
   } else {
-    await AudioManager.instance.setBgmTrack(5);
+    await AudioManager.instance.playBGM();
   }
 
   await AdManager.instance.init();

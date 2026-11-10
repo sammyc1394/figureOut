@@ -13,6 +13,7 @@ import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/services/analytics_service.dart';
 import 'package:figureout/src/services/sheet_service.dart';
 import '../services/ad_manager.dart';
+import '../services/audio_manager.dart';
 import '../services/play_time_tracker.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
 
@@ -36,12 +37,14 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
   bool _initialized = false;
   late OneSecondGame oneSec;
   final _playTimeTracker = PlayTimeTracker();
+  late final int _bgmToken;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _playTimeTracker.start();
+    _bgmToken = AudioManager.instance.playStageBgm(widget.stageIndex);
     _decreaseHeartOnStart();
 
     _runAnalytics();
@@ -67,6 +70,7 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _playTimeTracker.stopAndPersist();
+    AudioManager.instance.releaseStageBgm(_bgmToken);
     super.dispose();
   }
 
