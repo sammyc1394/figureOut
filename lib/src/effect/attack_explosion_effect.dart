@@ -50,7 +50,7 @@ class AttackExplosionEffect extends PositionComponent {
   @override
   void onMount() {
     super.onMount();
-    AudioManager.instance.playPopSound();
+    AudioManager.instance.playCirclePop();
   }
 
   @override

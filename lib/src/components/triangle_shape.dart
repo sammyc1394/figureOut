@@ -12,6 +12,7 @@ import '../effect/encircle_slice_effect.dart';
 import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import 'shape_path_utils.dart';
+import '../services/audio_manager.dart';
 
 class TriangleShape extends PositionComponent
     with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget, AttackTimerGate
@@ -128,6 +129,7 @@ class TriangleShape extends PositionComponent
     if (_isDisappearing) return;
 
     if (energy > 1) {
+      AudioManager.instance.playTriangleHit();
       energy--;
       if (energy >= 1) {
         _hpTextComponent?.text = energy.toString();

@@ -13,6 +13,7 @@ import 'package:figureout/src/components/resizable_shape.dart';
 import '../effect/attack_explosion_effect.dart';
 import '../effect/circle_disappear_effect.dart';
 import 'shape_path_utils.dart';
+import '../services/audio_manager.dart';
 
 // 원에서 시작한 드래그도 원이 받아, 탭 이후 게임의 슬라이스로 중복 처리되지 않게 한다.
 class CircleShape extends PositionComponent
@@ -316,6 +317,7 @@ class CircleShape extends PositionComponent
     count--;
 
     if (count >= 1) {
+      AudioManager.instance.playCirclePress();
       _hpTextComponent?.text = count.toString();
     } else {
       _hpTextComponent?.removeFromParent();

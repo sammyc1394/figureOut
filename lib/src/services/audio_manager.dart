@@ -148,22 +148,52 @@ class AudioManager extends ChangeNotifier {
     }
   }
 
-  DateTime? _lastRectanglePopTime;
+  static const _rectangleSounds = [
+    'pop_rectangle_1.mp3',
+    'pop_rectangle_2.mp3',
+    'pop_rectangle_3.mp3',
+    'pop_rectangle_4.mp3',
+  ];
+  int _rectangleSoundIndex = -1; // next call advances to index 0 (sound 1)
   String _currentBgmTrack = 'bgm_tiny_garden.mp3';
 
   Future<void> playCirclePop() => playPopSound('pop_circle.mp3');
 
-  Future<void> playRectanglePop() async {
+  /// Circle with HP >= 2 tapped: HP drops, circle stays.
+  Future<void> playCirclePress() => playPopSound('pop_circle_press.mp3');
+
+  // Rectangles cut in the same frame would all start at the same instant and
+  // blend into one sound, so each rectangle sound is pushed back by a small
+  // gap after the previous one.
+  static const _rectangleBurstGap = Duration(milliseconds: 70);
+  DateTime _rectangleNextSlot = DateTime.fromMillisecondsSinceEpoch(0);
+
+  Future<void> _playRectangleStaggered(String soundFile) async {
     final now = DateTime.now();
-    if (_lastRectanglePopTime != null &&
-        now.difference(_lastRectanglePopTime!).inMilliseconds < 40) {
-      return; // Ignore sub-40ms duplicate calls from same frame
-    }
-    _lastRectanglePopTime = now;
-    await playPopSound('sword-slicing.mp3');
+    final slot = _rectangleNextSlot.isAfter(now) ? _rectangleNextSlot : now;
+    _rectangleNextSlot = slot.add(_rectangleBurstGap);
+    final wait = slot.difference(now);
+    if (wait > Duration.zero) await Future<void>.delayed(wait);
+    await playPopSound(soundFile);
   }
 
+  /// Rectangle break. Plays 1 -> 4 in call order, then loops.
+  Future<void> playRectanglePop() {
+    _rectangleSoundIndex = (_rectangleSoundIndex + 1) % _rectangleSounds.length;
+    return _playRectangleStaggered(_rectangleSounds[_rectangleSoundIndex]);
+  }
+
+  /// Rectangle with HP >= 2 cut: HP drops, rectangle stays.
+  Future<void> playRectangleHit() =>
+      _playRectangleStaggered('pop_rectangle_hit.mp3');
+
+  /// Forbidden (dark) shape touched: single buzzer.
+  Future<void> playForbiddenTouch() => playPopSound('warn_forbidden.mp3');
+
   Future<void> playTrianglePop() => playPopSound('pop_triangle.mp3');
+
+  /// Triangle with HP >= 2 enclosed: HP drops, triangle stays.
+  Future<void> playTriangleHit() => playPopSound('pop_triangle_hit.mp3');
 
   /// Play the hold clip once, then sustain on a soft loop tail.
   Future<void> startPentagonHold() async {
@@ -175,7 +205,7 @@ class AudioManager extends ChangeNotifier {
 
   Future<void> playPentagonBurst() async {
     await stopPentagonHold();
-    await playPopSound('pop.mp3');
+    await playPopSound('pop_circle.mp3');
   }
 
 
@@ -189,7 +219,7 @@ class AudioManager extends ChangeNotifier {
 
   Future<void> playHexagonBurst() async {
     await stopHexagonStretch();
-    await playPopSound('pop.mp3');
+    await playPopSound('pop_circle.mp3');
   }
 
 
