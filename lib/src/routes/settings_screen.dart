@@ -290,6 +290,57 @@ class SettingsScreen extends StatelessWidget {
 class _SoundOptions extends StatelessWidget {
   const _SoundOptions();
 
+  static TextStyle _labelStyle(bool dark) => TextStyle(
+        fontFamily: appFontFamily,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: dark ? Colors.white70 : Colors.black87,
+      );
+
+  void _showBgmPicker(BuildContext context) {
+    final dark = ThemeModeScope.of(context);
+    final audio = AudioManager.instance;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Color(dark ? darkBgColor : bgColor),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final textColor = dark ? Colors.white : Colors.black;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < AudioManager.mainBgmTracks.length; i++)
+                ListTile(
+                  title: Text(
+                    '${i18n.t('settings_bgm')} ${i + 1}',
+                    style: TextStyle(
+                      fontFamily: appFontFamily,
+                      fontSize: 18,
+                      color: textColor,
+                      fontWeight: i == audio.mainBgmIndex
+                          ? FontWeight.w800
+                          : FontWeight.w400,
+                    ),
+                  ),
+                  trailing: i == audio.mainBgmIndex
+                      ? const Icon(Icons.check, color: Color(0xFFED613D))
+                      : null,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    audio.setMainBgm(i);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final audio = AudioManager.instance;
@@ -319,15 +370,26 @@ class _SoundOptions extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          i18n.t(keys[index]),
-                          style: TextStyle(
-                            fontFamily: appFontFamily,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: dark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
+                        child: index == 2
+                            ? InkWell(
+                                onTap: () => _showBgmPicker(context),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        i18n.t(keys[index]),
+                                        style: _labelStyle(dark),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: dark ? Colors.white38 : Colors.black45,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : Text(i18n.t(keys[index]), style: _labelStyle(dark)),
                       ),
                       Switch.adaptive(
                         value: values[index],

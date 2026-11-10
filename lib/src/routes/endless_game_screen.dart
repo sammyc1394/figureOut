@@ -6,6 +6,7 @@ import 'package:flame/components.dart';
 import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/game_modes/endless_game_controller.dart';
 import 'package:figureout/src/services/leaderboard_service.dart';
+import '../services/audio_manager.dart';
 import '../services/play_time_tracker.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
 import 'package:figureout/src/game_modes/one_second_game.dart';
@@ -26,12 +27,14 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
   bool _isHighScore = false;
   String _userNickname = '익명';
   final _playTimeTracker = PlayTimeTracker();
+  late final int _bgmToken;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _playTimeTracker.start();
+    _bgmToken = AudioManager.instance.playEndlessBgm();
     _initGame();
   }
 
@@ -48,6 +51,7 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _playTimeTracker.stopAndPersist();
+    AudioManager.instance.releaseStageBgm(_bgmToken);
     super.dispose();
   }
 
@@ -262,6 +266,11 @@ class EndlessOneSecondGame extends OneSecondGame {
       }
       survivedTimeNotifier.value = elapsedGameTime;
       updateTimerUI();
+
+      // BGM tempo follows remaining time: >30s calm, 15-30s medium, <=15s urgent.
+      AudioManager.instance.setEndlessTier(
+        currentMissionTime > 30 ? 0 : (currentMissionTime > 15 ? 1 : 2),
+      );
 
       if (currentMissionTime <= 0) {
         currentMissionTime = 0.0;
