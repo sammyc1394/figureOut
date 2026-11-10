@@ -1,3 +1,4 @@
+import 'ad_network.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -42,10 +43,11 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
   bool _showing = false;
   bool _expired = false;
   bool _preloadRequested = false;
+  bool _popupExpiryPending = false;
 
   bool get _foreground =>
       WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-  bool get _canLoad => _foreground && _adsAllowed && !_consentBusy;
+  bool get _canLoad => AdNetwork.instance.allowed && _foreground && _adsAllowed && !_consentBusy;
   bool get privacyOptionsRequired => _privacyRequired;
   bool get privacyOptionsAvailable =>
       _privacyRequired && !_consentBusy && !_showing && _foreground;
@@ -69,6 +71,8 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
   void init() {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
     WidgetsBinding.instance.addObserver(this);
+    AdNetwork.instance.addListener(_networkChanged);
+    AdNetwork.instance.start();
     if (_foreground) unawaited(_startConsent());
   }
 
@@ -153,13 +157,25 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
 
   void prepareExpiredOnPopupOpen() {
     _expireCachedAd();
+    if (_expired) _popupExpiryPending = true;
     if (!_expired || !_canLoad || _showing || _isLoading || _retryAt != null) return;
     _expired = false;
+    _popupExpiryPending = false;
     _attempts = 0;
     unawaited(_requestAd());
   }
 
+  void _networkChanged() {
+    if (!AdNetwork.instance.allowed) { _retryTimer?.cancel(); _retryTimer = null; }
+    else {
+      if (_popupExpiryPending) prepareExpiredOnPopupOpen();
+      _resumePreparation();
+    }
+    notifyListeners();
+  }
+
   void _resumePreparation() {
+    if (_popupExpiryPending && _canLoad) prepareExpiredOnPopupOpen();
     if (!_canLoad || _isLoading || _rewardedAd != null) return;
     final retryAt = _retryAt;
     if (retryAt != null) {
@@ -180,6 +196,7 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _requestAd() async {
     if (!_canLoad || _isLoading || _rewardedAd != null) return;
     _isLoading = true;
+    _popupExpiryPending = false;
     _attempts++;
     notifyListeners();
 

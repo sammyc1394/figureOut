@@ -371,3 +371,18 @@ analyze: 실패 또는 차단(원본 로그 확인); test: 실패 또는 차단(
 Reward presentation now reserves one immutable ad instance, ignores duplicate terminal/reward callbacks, rejects overlapping shows, and discards cached ads after one hour (also checked before reuse after suspension). A late earned callback is handled at most once. Heart credit is persisted on the earned callback instead of depending on a still-open dialog; checkpoint continuation waits for both earned and closed signals and a mounted route. Per the user's explicit decision on 2026-11-03, a failed/unavailable ad no longer bypasses the checkpoint reward requirement; the existing continue overlay remains available for a user retry. No new app-facing text was added.
 
 `flutter analyze --no-pub` on the three affected source files and the regression test passed after correcting one braces-style finding. `flutter test --no-pub test/ad_manager_lifecycle_test.dart` passed against the real manager and SDK Dart objects with a mocked native channel: duplicate/late earned callbacks, duplicate dismissal, overlapping presentation, one-hour cache expiry, and next-load-without-auto-show. This is mock-boundary evidence, not device verification. This app uses consumable hearts/continuation rather than a timed ad-free entitlement, so benefit-expiry testing does not apply in the same way. Android device QA and iOS remain unverified. Existing demo IDs and the missing UMP integration are separate release-readiness limitations, not corrected by this scoped lifecycle work.
+
+## 2026-11-10 보상 광고 오프라인 복구 — 소스 반영
+
+`lib/src/services/ad_manager.dart`에서 connectivity_plus 6.1.5의 연결 상태를 이용합니다.
+최초 연결 확인 전·확인된 오프라인 중에는 새 보상 광고 요청과 표시를 막고,
+기존 재시도 횟수·예정 시각 및 진행 중 SDK 요청의 콜백 소유권을 보존합니다.
+연결 복구는 남아 있는 준비만 재개하며 실패 횟수 소진을 초기화하거나 자동 재생하지 않습니다.
+팝업 진입 시 만료 광고 교체 준비를 요청하며, 오프라인이면 연결 복구 후 이어갑니다.
+준비 완료 후 기존 Watch Ad 버튼을 새로 눌러야 표시됩니다.
+
+상세 기준은 [공통 광고 정책](https://github.com/ssongyc/development-policies/blob/main/skills/mobile-app-production/references/rewarded-ads.md#confirmed-offline-state-and-rewarded-requests)을 따릅니다.
+이번 변경은 소스 검토와 필요한 의존성·잠금 파일 갱신 범위입니다. 새 앱 문구·번역, 보상 기간, 광고 ID, UMP 설정은 변경하지 않았습니다.
+빌드·린트·테스트·기기 설치·커밋·푸시는 실행하지 않았습니다. 기존 APK·AAB·TestFlight에 포함됐다는 의미가 아닙니다.
+다음 승인된 검증에서 오프라인 시작, 재시도 대기 중 단절, 늦은 로드 콜백, 백그라운드 복귀,
+오프라인 중 만료 팝업 열기, 복구 후 새 Watch Ad 탭을 확인해야 합니다.
