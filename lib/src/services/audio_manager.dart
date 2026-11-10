@@ -187,6 +187,9 @@ class AudioManager extends ChangeNotifier {
   Future<void> playRectangleHit() =>
       _playRectangleStaggered('pop_rectangle_hit.mp3');
 
+  /// Forbidden (dark) shape touched: single buzzer.
+  Future<void> playForbiddenTouch() => playPopSound('warn_forbidden.mp3');
+
   Future<void> playTrianglePop() => playPopSound('pop_triangle.mp3');
 
   /// Triangle with HP >= 2 enclosed: HP drops, triangle stays.

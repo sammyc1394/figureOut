@@ -1054,7 +1054,7 @@ class OneSecondGame extends FlameGame
     final isDark = enemy.isDark;
     darkTouchPenalty() {
       applyTimePenalty((enemy.attackDamage ?? 10.0).abs());
-      forbiddenShapeEffect.flash();
+      _forbiddenHit();
     }
     timeoutPenalty() {
       if (!isDark) {
@@ -1962,9 +1962,21 @@ class OneSecondGame extends FlameGame
 
   double _overlapHighlightTimer = 0.0;
 
+  // Forbidden touch feedback: red flash + buzzer + brief screen shake.
+  static const double _shakeDuration = 0.35;
+  static const double _shakeAmplitude = 10.0;
+  double _shakeLeft = 0;
+
+  void _forbiddenHit() {
+    forbiddenShapeEffect.flash();
+    AudioManager.instance.playForbiddenTouch();
+    _shakeLeft = _shakeDuration;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
+    if (_shakeLeft > 0) _shakeLeft = math.max(0, _shakeLeft - dt);
 
     if (_isPausedGlobally) {
       return;
@@ -2239,7 +2251,7 @@ class OneSecondGame extends FlameGame
 
       if (_isDarkShape(comp)) {
         applyTimePenalty(10);
-        forbiddenShapeEffect.flash();
+        _forbiddenHit();
         continue;
       }
 
@@ -3195,7 +3207,17 @@ bool _isStraightLine(List<Vector2> path) {
 
   @override
   void render(Canvas canvas) {
+    canvas.save();
+    if (_shakeLeft > 0) {
+      final fade = _shakeLeft / _shakeDuration;
+      final phase = (_shakeDuration - _shakeLeft) * 90;
+      canvas.translate(
+        math.sin(phase) * _shakeAmplitude * fade,
+        math.cos(phase * 0.8) * _shakeAmplitude * 0.6 * fade,
+      );
+    }
     super.render(canvas);
+    canvas.restore();
 
     // 디버그용 원 보기
     if (userPath.length > 1) {
