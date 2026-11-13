@@ -21,7 +21,6 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   bool _visible = true;
   final _rng = Random();
 
-  bool get isBlinkingInvisible => !_visible;
   bool get willReappear => !_visible && !isRemoving && !shape.isRemoving;
   bool isPaused = false;
 

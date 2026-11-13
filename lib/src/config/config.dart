@@ -2,7 +2,6 @@ import 'package:figureout/src/services/localization_service.dart';
 
 const gameWidth = 1179.0; //117.90;
 const gameHeight = 2556.0; //255.60;
-const elementCount = 10;
 
 // editor min/max coordinate
 const double minX = -170.0;
@@ -26,15 +25,13 @@ const uiSidePadding = 10.0;
 
 // Game Font
 String appFontFamily = 'Gaegu';
-const fallbackFontFamily = ['Gaegu'];
 
 const bgColor = 0xFFF2EFE6;
 const darkBgColor = 0xFF1E1C18;
 
-const grainTexture = 'assets/noise_texture.png';
+const grainTexture = 'assets/menu/common/noise_texture.webp';
 
 // Enums
-enum ShapeKind { circle, rectangle, pentagon, triangle, hexagon }
 enum StageResult { success, fail, cancelled }
 
 // 도형 겹침(z-order) 힌트. 시트 G열 위치값 접두사(Top_/Bottom_)로 지정한다.

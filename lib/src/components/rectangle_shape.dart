@@ -12,13 +12,12 @@ import 'package:flutter/material.dart';
 import '../effect/attack_explosion_effect.dart';
 import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/components/orderable_shape.dart';
-import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 class RectangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget, AttackTimerGate
+    with TapCallbacks, UserRemovable, BlinkAlphaTarget, AttackTimerGate
     implements OrderableShape, ResizableShape {
   static final _images = Images(prefix: 'assets/');
 

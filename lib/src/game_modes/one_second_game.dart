@@ -1,8 +1,5 @@
 import 'package:figureout/src/services/logger_service.dart';
-import 'package:figureout/src/behaviors/b_command.dart';
-import 'package:figureout/src/behaviors/m_command.dart';
-import 'package:figureout/src/behaviors/z_command.dart';
-import 'package:figureout/src/behaviors/parabola_command.dart';
+import 'package:figureout/src/behaviors/b_command.dart' show BounceMoveComponent;
 import 'package:flame/components.dart';
 
 import 'dart:async';
@@ -18,6 +15,7 @@ import 'package:figureout/main.dart';
 
 import 'package:figureout/src/components/circle_shape.dart';
 import 'package:figureout/src/components/attack_timer_gate.dart';
+import 'package:figureout/src/components/user_removable.dart';
 import 'package:figureout/src/components/hexagon_shape.dart';
 import 'package:figureout/src/components/pentagon_shape.dart';
 import 'package:figureout/src/components/rectangle_shape.dart';
@@ -30,22 +28,19 @@ import 'package:figureout/src/effect/falling_clipped_piece.dart';
 
 import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
+import 'package:figureout/src/functions/gesture_geometry.dart' as gesture_geometry;
+import 'package:figureout/src/functions/play_coordinates.dart' as play_coordinates;
 
 import 'package:figureout/src/services/sheet_service.dart';
 import 'package:figureout/src/behaviors/orbiting_component.dart';
 import 'package:figureout/src/behaviors/blinking_behavior.dart';
 import 'package:figureout/src/components/pause_button.dart';
 import 'package:go_router/go_router.dart';
-import '../behaviors/c_command.dart';
-import '../behaviors/d_dr_command.dart';
-import '../behaviors/l_command.dart';
-import '../behaviors/timing_command.dart';
-import '../behaviors/composite_behavior.dart';
+import '../behaviors/movement_command_parser.dart';
 import '../behaviors/shape_behavior.dart';
 import '../components/prepared_enemy.dart';
 import '../effect/penalty_effect.dart';
 import 'package:figureout/src/components/orderable_shape.dart';
-import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import 'package:figureout/src/services/analytics_service.dart';
 import 'package:figureout/src/components/blink_alpha_target.dart';
@@ -115,9 +110,7 @@ class OneSecondGame extends FlameGame
   final SheetService sheetService = SheetService();
 
   //timer data
-  Timer? countdownTimer;
   double remainingTime = 0;
-  double missionTimeLimit = 0;
   bool isTimeCritical = false;
   late GameTimerComponent timerBar;
   late double _accumulator = 0;
@@ -156,7 +149,6 @@ class OneSecondGame extends FlameGame
   late double playAreaScaleX;
   late double playAreaScaleY;
   double _lastValidRangeX = 1;
-  double _lastValidRangeY = 1;
 
 
   // order (circle / other shapes)
@@ -167,34 +159,11 @@ class OneSecondGame extends FlameGame
 
   // gestures
   Vector2? dragStart;
-  Vector2? sliceStartPoint;
-  Vector2? sliceEndPoint;
   List<Vector2> userPath = [];
   Vector2? currentCircleCenter;
   double? currentCircleRadius;
 
   int _globalSpawnCounter = 100;
-
-  void _syncOverlapHighlight() {
-    final shapes = children.whereType<OverlapHighlightable>().toList();
-
-    // 일단 전부 꺼짐
-    for (final s in shapes) {
-      s.setOverlapping(false);
-    }
-
-    // 겹치는 쌍 찾아서 둘 다 켬
-    for (int i = 0; i < shapes.length; i++) {
-      for (int j = i + 1; j < shapes.length; j++) {
-        final a = shapes[i] as PositionComponent;
-        final b = shapes[j] as PositionComponent;
-        if (a.toRect().overlaps(b.toRect())) {
-          shapes[i].setOverlapping(true);
-          shapes[j].setOverlapping(true);
-        }
-      }
-    }
-  }
 
   void _updateShapeCount() {
     final Map<String, int> counts = {};
@@ -1120,6 +1089,7 @@ class OneSecondGame extends FlameGame
           enemy.energy,
           isDark: enemy.isDark,
           onForbiddenTouch: darkTouchPenalty,
+          findForbiddenTouch: _findForbiddenTouchAbove,
           attackTime: enemy.attackTime,
           onExplode: timeoutPenalty,
           customSize: enemy.customSize,
@@ -1273,30 +1243,22 @@ class OneSecondGame extends FlameGame
     return 0.0;
   }
 
-  ShapeBehavior? checkBehavior(
-      String raw,
-      Vector2 actPosition
-      ) {
-    // Strip leading timing lines ("Wait n", "Disappear(n)") from the movement
-    // cell, parse the remaining movement as usual, then wrap with TimingCommand
-    // when timing is present.
-    final timing = TimingCommand.parse(raw);
-    final behavior = _checkMovementBehavior(
-      timing.movement,
-      actPosition,
-      repeatDelaySeconds: timing.waitSeconds,
-    );
-    if (!timing.hasTiming) return behavior;
+  late final _movementParser = MovementCommandParser(
+    flipY: flipY,
+    toPlayArea: toPlayArea,
+    worldToVirtualPlay: worldToVirtualPlay,
+    gameSize: () => size,
+    playAreaRect: () => playArea.toRect(),
+    timerRectWorld: () => timerBar.toRect(),
+    blinkingMap: blinkingMap,
+    onDisappear: _disappearShape,
+    onParabolaMiss: (shape) {
+      if (!_isDarkShape(shape)) applyTimePenalty(3);
+    },
+  );
 
-    debugPrint(
-      "[Behavior check] timing: wait=${timing.waitSeconds}s, disappear=${timing.disappearSeconds}s",
-    );
-    return TimingCommand(
-      waitSeconds: timing.waitSeconds,
-      disappearSeconds: timing.disappearSeconds,
-      inner: behavior,
-      onDisappear: _disappearShape,
-    );
+  ShapeBehavior? checkBehavior(String raw, Vector2 actPosition) {
+    return _movementParser.parse(raw, actPosition);
   }
 
   // Disappear(n): shape removes itself — leaves the wave with no penalty/reward.
@@ -1315,191 +1277,6 @@ class OneSecondGame extends FlameGame
     }
 
     shape.removeFromParent();
-  }
-
-  ShapeBehavior? _checkMovementBehavior(
-      String raw,
-      Vector2 actPosition, {
-      double repeatDelaySeconds = 0,
-      }) {
-    debugPrint("[Behavior check] parsing command into behavior");
-
-    final behaviors = <ShapeBehavior>[];
-
-    final parabolaMatch = RegExp(
-      r'^\s*P\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$',
-      multiLine: true,
-    ).firstMatch(raw);
-    if (parabolaMatch != null) {
-      behaviors.add(ParabolaCommand(
-        velocityX: double.parse(parabolaMatch.group(1)!),
-        velocityY: double.parse(parabolaMatch.group(2)!),
-        gravity: double.parse(parabolaMatch.group(3)!),
-        flipY: flipY,
-        toPlayArea: toPlayArea,
-        onMiss: (shape) {
-          if (!_isDarkShape(shape)) applyTimePenalty(3);
-        },
-      ));
-    }
-
-    final lMatch = RegExp(
-      r'^(?:L)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)$',
-      multiLine: true,
-    ).firstMatch(raw.trim());
-
-    if (lMatch != null) {
-      debugPrint("[Behavior check] returning L command");
-
-      behaviors.add(
-        LCommand(
-          movementRaw: raw,
-          flipY: flipY,
-          toPlayArea: toPlayArea,
-        )
-      );
-    }
-
-    final cMatch = RegExp(
-      r'\b(CC|C)\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)',
-    ).firstMatch(raw);
-
-    if (cMatch != null) {
-      debugPrint("[Behavior check] returning c command");
-      final clockwise = cMatch.group(1) == 'C';
-      final r = double.parse(cMatch.group(2)!);
-      final s = double.parse(cMatch.group(3)!);
-
-      behaviors.add(
-        CCommand(
-          clockwise: clockwise,
-          radius: r,
-          degreePerSec: s,
-          actPosition: actPosition,
-          flipY: flipY,
-          toPlayArea: toPlayArea,
-        )
-      );
-    }
-
-    Rect timerRectWorld() => timerBar.toRect();
-
-    final drMatch = RegExp(
-      r'^\s*DR\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$',
-      multiLine: true,
-    ).firstMatch(raw);
-
-    if (drMatch != null) {
-      debugPrint("[Behavior check] returning dr command");
-      final a = double.parse(drMatch.group(1)!);
-      final b = double.parse(drMatch.group(2)!);
-
-      behaviors.add(
-         DDrCommand(
-          visibleDuration: a,
-          invisibleDuration: b,
-          isRandomRespawn: true,
-          timerRectWorld: timerRectWorld,
-          gameSize: size,
-          blinkingMap: blinkingMap,
-        )
-      );
-    }
-
-    final dMatch = RegExp(
-      r'^\s*D\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*$',
-      multiLine: true,
-    ).firstMatch(raw);
-
-    if (dMatch != null) {
-      debugPrint("[Behavior check] returning d command");
-
-      final a = double.parse(dMatch.group(1)!);
-      final b = double.parse(dMatch.group(2)!);
-
-      behaviors.add(
-        DDrCommand(
-          visibleDuration: a,
-          invisibleDuration: b,
-          isRandomRespawn: false,
-          timerRectWorld: timerRectWorld,
-          gameSize: size,
-          blinkingMap: blinkingMap,
-        )
-      );
-    }
-
-    final mMatch = RegExp(
-      r'M\((-?\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9\-.]+)\)',
-    ).firstMatch(raw);
-
-    if (mMatch != null) {
-      debugPrint("[Behavior check] returning m command");
-
-      final angle = double.parse(mMatch.group(1)!);
-      final speed = double.parse(mMatch.group(2)!);
-      final stopY = mMatch.group(3)!;
-
-      behaviors.add(
-        MCommand(
-          angleDeg: angle,
-          speed: speed,
-          stopY: stopY,
-          position: actPosition,
-          size: size,
-          flipY: flipY,
-          toPlayArea: toPlayArea,
-        )
-      );
-    }
-
-    if (raw.contains('Z(')) {
-      debugPrint("[Behavior check] returning z command");
-
-      behaviors.add(
-        ZCommand(
-          movementRaw: raw,
-          flipY: flipY,
-          toPlayArea: toPlayArea,
-          worldToVirtualPlay: worldToVirtualPlay,
-          repeatDelaySeconds: repeatDelaySeconds,
-        )
-      );
-    }
-
-    final bMatch = RegExp(
-      r'B\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+(?:\.\d+)?)\s*\)',
-    ).firstMatch(raw);
-
-    if (bMatch != null) {
-      final x0 = double.parse(bMatch.group(1)!);
-      final y0 = double.parse(bMatch.group(2)!);
-      final speed = double.parse(bMatch.group(3)!);
-
-      behaviors.add(
-        BCommand(
-          startEditor: Vector2(x0, y0),
-          directionWorld: actPosition, // 이미 toPlayArea 끝난 월드 좌표
-          speed: speed,
-          flipY: flipY,
-          toPlayArea: toPlayArea,
-          playAreaRect: () => playArea.toRect(),
-        )
-      );
-    }
-
-    if (behaviors.isEmpty) return null;
-
-    if (behaviors.length == 1) {
-      return behaviors.first;
-    }
-
-    debugPrint(
-      '[Behavior check] Composite: '
-          '${behaviors.map((b) => b.runtimeType).join(', ')}',
-    );
-
-    return CompositeBehavior(behaviors);
   }
 
   bool _isVisualEffectComponent(Component c) {
@@ -1643,6 +1420,35 @@ class OneSecondGame extends FlameGame
     return false;
   }
 
+  VoidCallback? _findForbiddenTouchAbove(PentagonShape held, Vector2 point) {
+    if (_isPausedGlobally || _isTimeOver || _missionResolved) return null;
+
+    // Match the tap order. Only a visible shape above the held pentagon can
+    // intercept the touch, and a normal shape can cover a forbidden one.
+    for (final component in children.reversed()) {
+      if (identical(component, held)) break;
+      if (component is! PositionComponent ||
+          component.isRemoving ||
+          (component is BlinkAlphaTarget && component.blinkAlpha <= 0)) {
+        continue;
+      }
+      if (component case UserRemovable(wasRemovedByUser: true)) continue;
+
+      final VoidCallback? onHit = switch (component) {
+        CircleShape s => s.onForbiddenTouch,
+        RectangleShape s => s.onForbiddenTouch,
+        TriangleShape s => s.onForbiddenTouch,
+        PentagonShape s => s.onForbiddenTouch,
+        HexagonShape s => s.onForbiddenTouch,
+        _ => null,
+      };
+      if (onHit == null || !component.containsPoint(point)) continue;
+      return _isDarkShape(component) ? onHit : null;
+    }
+
+    return null;
+  }
+
   bool _onOrderInteracted(OrderableShape c) {
     // order 없는 도형은 항상 패스
 
@@ -1730,79 +1536,43 @@ class OneSecondGame extends FlameGame
   }) {
     if (rangeX > 0 && rangeY > 0) {
       _lastValidRangeX = rangeX;
-      _lastValidRangeY = rangeY;
     }
 
     final safeRangeX = _lastValidRangeX;
-    final safeRangeY = _lastValidRangeY;
-
-    // 1) playArea 전역 영역 계산
-    final double playMinX = playArea.position.x - playArea.size.x / 2;
-    final double playMinY = playArea.position.y - playArea.size.y / 2;
-    final double playMaxX = playArea.position.x + playArea.size.x / 2;
-    final double playMaxY = playArea.position.y + playArea.size.y / 2;
-
-    // 2) 도형 중심의 이동 가능한 최소/최대 (반지름/반폭 보정)
-    final double minCenterX = playMinX + actShapePadding;
-    final double maxCenterX = playMaxX - actShapePadding;
-    final double minCenterY = playMinY + actShapePadding;
-    final double maxCenterY = playMaxY - actShapePadding;
 
     debugPrint(
       "[COORDINATE] my coordinate = (${yourCoordinates.x}, ${yourCoordinates.y}), shape size = $actShapePadding",
     );
 
-    // 3) 에디터 좌표 → 정규화. clampInside=false면 0~1 밖도 허용해서
-    //    시트 좌표(-190 등)를 그대로 두고 도형이 playArea 밖으로 삐쳐도 된다.
-    double normalizedX = (yourCoordinates.x - minX) / safeRangeX;
-    double normalizedY = (yourCoordinates.y - minY) / safeRangeY;
-    if (clampInside) {
-      normalizedX = normalizedX.clamp(0.0, 1.0);
-      normalizedY = normalizedY.clamp(0.0, 1.0);
-    }
+    final playPoint = play_coordinates.editorToPlayArea(
+      yourCoordinates,
+      playCenter: playArea.position,
+      playSize: playArea.size,
+      safeRangeX: safeRangeX,
+      playAreaScaleY: playAreaScaleY,
+      actShapePadding: actShapePadding,
+      clampInside: clampInside,
+    );
 
-    // 4) playArea 상대 좌표 → 절대 좌표 변환 (범위 밖이면 경계 밖으로 외삽)
-    double playX = minCenterX + (normalizedX * (maxCenterX - minCenterX));
-    double playY = minCenterY + (normalizedY * (maxCenterY - minCenterY));
-
-    // 5) 도형 전체가 안에 들어와야 할 때만 중심 clamp (스폰은 false)
-    if (clampInside) {
-      if (minCenterX > maxCenterX) {
-        // 도형이 화면보다 가로로 더 큰 경우: 화면 중앙 X
-        playX = playArea.position.x;
-      } else {
-        playX = playX.clamp(minCenterX, maxCenterX);
-      }
-
-      if (minCenterY > maxCenterY) {
-        // 도형이 화면보다 세로로 더 큰 경우: 화면 중앙 Y
-        playY = playArea.position.y;
-      } else {
-        playY = playY.clamp(minCenterY, maxCenterY);
-      }
-    }
-
-    final virtual = worldToVirtualPlay(Vector2(playX, playY));
+    final virtual = worldToVirtualPlay(playPoint);
     debugPrint(
       "Max (x,y) = (${virtual.x.toStringAsFixed(1)}, ${virtual.y.toStringAsFixed(1)})",
     );
 
-    return Vector2(playX, playY);
+    return playPoint;
   }
 
   Vector2 worldToPlayLocal(Vector2 worldPos) {
-    final double playMinX = playArea.position.x - playArea.size.x / 2;
-    final double playMinY = playArea.position.y - playArea.size.y / 2;
-
-    // playArea 왼쪽 위를 (0,0)으로 보는 로컬 좌표
-    return Vector2(worldPos.x - playMinX, worldPos.y - playMinY);
+    return play_coordinates.worldToPlayLocal(
+      worldPos,
+      playCenter: playArea.position,
+      playSize: playArea.size,
+    );
   }
 
   Vector2 worldToVirtualPlay(Vector2 worldPos) {
-    final local = worldToPlayLocal(worldPos); // 0 ~ playArea.size
-    final vx = local.x / playArea.size.x * targetPlayWidth;
-    final vy = local.y / playArea.size.y * targetPlayHeight;
-    return Vector2(vx, vy);
+    final local = worldToPlayLocal(worldPos);
+    return play_coordinates.playLocalToVirtual(local, playArea.size);
   }
 
   int _calculateStarRating(StageResult stgResult) {
@@ -1960,7 +1730,6 @@ class OneSecondGame extends FlameGame
     remainingTime = currentMissionTime; // Sync with legacy if needed
   }
 
-  double _overlapHighlightTimer = 0.0;
 
   // Forbidden touch feedback: red flash + buzzer + brief screen shake.
   static const double _shakeDuration = 0.35;
@@ -1980,12 +1749,6 @@ class OneSecondGame extends FlameGame
 
     if (_isPausedGlobally) {
       return;
-    }
-
-    _overlapHighlightTimer += dt;
-    if (_overlapHighlightTimer >= 0.05) {
-      _overlapHighlightTimer = 0.0;
-      _syncOverlapHighlight();
     }
 
     if (_timerPaused && !_isTimeOver) {
@@ -2124,39 +1887,6 @@ class OneSecondGame extends FlameGame
   }
 
   // ==== gestures detect ======================================================================================
-  int _orientation(Vector2 a, Vector2 b, Vector2 c) {
-    final v = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
-    const eps = 1e-9;
-    if (v.abs() < eps) return 0;     // collinear
-    return (v > 0) ? 1 : 2;          // 1: clockwise, 2: counterclockwise
-  }
-
-  bool _onSegment(Vector2 a, Vector2 b, Vector2 c) {
-    // b is on segment ac (collinear assumed)
-    return b.x >= math.min(a.x, c.x) - 1e-9 &&
-        b.x <= math.max(a.x, c.x) + 1e-9 &&
-        b.y >= math.min(a.y, c.y) - 1e-9 &&
-        b.y <= math.max(a.y, c.y) + 1e-9;
-  }
-
-  bool _doLinesIntersect(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2) {
-    final o1 = _orientation(p1, p2, q1);
-    final o2 = _orientation(p1, p2, q2);
-    final o3 = _orientation(q1, q2, p1);
-    final o4 = _orientation(q1, q2, p2);
-
-    // general case
-    if (o1 != o2 && o3 != o4) return true;
-
-    // special collinear cases
-    if (o1 == 0 && _onSegment(p1, q1, p2)) return true;
-    if (o2 == 0 && _onSegment(p1, q2, p2)) return true;
-    if (o3 == 0 && _onSegment(q1, p1, q2)) return true;
-    if (o4 == 0 && _onSegment(q1, p2, q2)) return true;
-
-    return false;
-  }
-
   bool _isPathClosed(List<Vector2> path) {
   if (path.length < 5) return false;
 
@@ -2171,7 +1901,7 @@ class OneSecondGame extends FlameGame
 
   if (length < minLength) return false;
 
-  final area = _calculatePolygonArea(path);
+  final area = gesture_geometry.calculatePolygonArea(path);
 
   if (area < minArea) {
     debugPrint("Path area too small: $area");
@@ -2180,29 +1910,6 @@ class OneSecondGame extends FlameGame
 
   return true;
 }
-
-  double _calculatePolygonArea(List<Vector2> path) {
-    double area = 0;
-    for (int i = 0; i < path.length; i++) {
-      final p1 = path[i];
-      final p2 = path[(i + 1) % path.length];
-      area += (p1.x * p2.y) - (p2.x * p1.y);
-    }
-    return area.abs() / 2.0;
-  }
-  
-  bool _isPointInPolygon(Vector2 p, List<Vector2> poly) {
-    int count = 0;
-    for (int i = 0; i < poly.length; i++) {
-      final a = poly[i];
-      final b = poly[(i + 1) % poly.length];
-      if (((a.y > p.y) != (b.y > p.y)) &&
-          (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
-        count++;
-      }
-    }
-    return count.isOdd;
-  }
 
   bool _isComponentEnclosed(PositionComponent comp, List<Vector2> path) {
     // Check key points of the component. For simplicity, we check center and 4 corners.
@@ -2219,17 +1926,9 @@ class OneSecondGame extends FlameGame
     ];
 
     for (final p in points) {
-      if (!_isPointInPolygon(p, path)) return false;
+      if (!gesture_geometry.isPointInPolygon(p, path)) return false;
     }
     return true;
-  }
-
-  double _calculatePathLength(List<Vector2> path) {
-    double len = 0;
-    for (int i = 0; i < path.length - 1; i++) {
-      len += path[i].distanceTo(path[i + 1]);
-    }
-    return len;
   }
 
   void _resetPathState() {
@@ -2270,32 +1969,6 @@ class OneSecondGame extends FlameGame
     }
   }
 
-bool _isStraightLine(List<Vector2> path) {
-  if (path.length < 2) return false;
-
-  final start = path.first;
-  final end = path.last;
-
-  final lineDir = (end - start);
-  final len = lineDir.length;
-  if (len == 0) return false;
-
-  final norm = lineDir / len;
-
-  double maxDeviation = 0;
-
-  for (final p in path) {
-    final v = p - start;
-    final projLength = v.dot(norm).clamp(0, len).toDouble();
-    final projPoint = start + norm * projLength;
-    final deviation = p.distanceTo(projPoint);
-    maxDeviation = math.max(maxDeviation, deviation);
-  }
-
-  return maxDeviation < 28;  // 허용 오차
-}
-
-
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
@@ -2323,7 +1996,7 @@ bool _isStraightLine(List<Vector2> path) {
     // ─────────────────────────────
     if (durMs <= _tapWindowMs &&
         moved <= _tapMoveMax &&
-        _calculatePathLength(userPath) <= _tapMoveMax) {
+        gesture_geometry.calculatePathLength(userPath) <= _tapMoveMax) {
       final corner = size.x * _cornerRatio;
 
       if (endPos.x <= corner && endPos.y <= corner) {
@@ -2373,7 +2046,7 @@ bool _isStraightLine(List<Vector2> path) {
     }
 
     // straightDist는 스무딩 전 실제 제스처 시작·끝 거리로 측정
-    final pathLength = _calculatePathLength(judgePath);
+    final pathLength = gesture_geometry.calculatePathLength(judgePath);
     final straightDist = userPath.first.distanceTo(userPath.last);
 
 
@@ -2384,7 +2057,7 @@ bool _isStraightLine(List<Vector2> path) {
     // final bool isLongEnough = _isLongEnoughForAnyRect(straightDist);
 
     final isSliceGesture = straightDist > 20 && // 너무 짧은 터치를 슬라이스로 오인 방지
-    _isStraightLine(judgePath);
+    gesture_geometry.isStraightLine(judgePath);
 
     debugPrint("straightDist: $straightDist");
     debugPrint("pathLength: $pathLength");
@@ -2395,7 +2068,7 @@ bool _isStraightLine(List<Vector2> path) {
       // 경로에 닿는 사각형 목록을 먼저 수집 (blocker 면제 판단에도 사용)
       final slicedRects = children
           .whereType<RectangleShape>()
-          .where((r) => _isRealSlice(r, judgePath))
+          .where((r) => gesture_geometry.isRealSlice(r.getWorldCorners(), judgePath))
           .toList();
 
       // 다른 주요 게임 도형들이 슬라이스 경로에 있는지 확인
@@ -2436,7 +2109,7 @@ bool _isStraightLine(List<Vector2> path) {
           // 선분 교차도 확인 (포인트는 밖에 있어도 선분이 bbox를 통과하는 경우)
           final lineEntersBlocker = !pathEntersBlocker && (() {
             for (int i = 0; i < judgePath.length - 1; i++) {
-              if (_lineIntersectsRect(judgePath[i], judgePath[i + 1], blockerRect)) {
+              if (gesture_geometry.lineIntersectsRect(judgePath[i], judgePath[i + 1], blockerRect)) {
                 return true;
               }
             }
@@ -2563,7 +2236,9 @@ bool _isStraightLine(List<Vector2> path) {
 
       if (comp is TriangleShape && !isDarkTriangle) {
         // 일반 삼각형만 제거 대상
-        if (comp.isFullyEnclosedByUserPath(judgePath)) {
+        if (!comp.isRemoving &&
+            !comp.wasRemovedByUser &&
+            comp.isFullyEnclosedByUserPath(judgePath)) {
           enclosedTriangles.add(comp);
         }
       } else if (comp is CircleShape ||
@@ -2577,7 +2252,7 @@ bool _isStraightLine(List<Vector2> path) {
         // 중심점이 원 안에 있는지도 추가로 체크
         final enclosed = _isComponentEnclosed(comp, judgePath);
         final touched = _doesPathTouchComponent(comp, judgePath);
-        final centerInside = _isPointInPolygon(comp.absoluteCenter, judgePath);
+        final centerInside = gesture_geometry.isPointInPolygon(comp.absoluteCenter, judgePath);
 
         if (enclosed || touched || centerInside) {
           touchedOtherShapes.add(comp);
@@ -2594,17 +2269,33 @@ bool _isStraightLine(List<Vector2> path) {
       return;
     }
 
-    // ─────────────────────────────
-    // 삼각형 제거
-    // ─────────────────────────────
-    if (enclosedTriangles.isNotEmpty) {
-      for (final comp in enclosedTriangles) {
-        if (comp.isDark) {
-          applyTimePenalty(5);
-        } else {
-          comp.triggerDisappear();
+    if (enclosedTriangles.any((triangle) => triangle.order != null)) {
+      int? expectedOrder;
+      for (final triangle in children.whereType<TriangleShape>()) {
+        final order = triangle.order;
+        if (order == null ||
+            triangle.isDark ||
+            triangle.isRemoving ||
+            triangle.wasRemovedByUser) {
+          continue;
+        }
+        if (expectedOrder == null || order < expectedOrder) {
+          expectedOrder = order;
         }
       }
+
+      // Validate the whole gesture before damaging any enclosed triangle.
+      for (final triangle in enclosedTriangles) {
+        if (triangle.order != null && triangle.order != expectedOrder) {
+          triangle.onForbiddenTouch?.call();
+          _resetPathState();
+          return;
+        }
+      }
+    }
+
+    for (final triangle in enclosedTriangles) {
+      triangle.triggerDisappear();
     }
 
     _resetPathState();
@@ -2643,88 +2334,24 @@ bool _isStraightLine(List<Vector2> path) {
 
     if (comp is TriangleShape) {
       // 삼각형: 기존 getTriangleVertices() 재사용 (월드 좌표)
-      return _doesPathTouchPolygon(comp.getTriangleVertices(), path);
+      return gesture_geometry.doesPathTouchPolygon(comp.getTriangleVertices(), path);
     }
     if (comp is CircleShape) {
       // 원: 중심 + 반지름으로 원 판정
-      return _doesPathTouchCircle(comp.absoluteCenter, comp.size.x * 0.48, path);
+      return gesture_geometry.doesPathTouchCircle(comp.absoluteCenter, comp.size.x * 0.48, path);
     }
     if (comp is PentagonShape) {
       // 오각형: 월드 좌표 꼭짓점 5개 계산 후 폴리곤 판정
-      return _doesPathTouchPolygon(_getPentagonVertices(comp), path);
+      return gesture_geometry.doesPathTouchPolygon(_getPentagonVertices(comp), path);
     }
     if (comp is HexagonShape) {
       // 육각형: 월드 좌표 꼭짓점 6개 계산 후 폴리곤 판정
-      return _doesPathTouchPolygon(_getHexagonVertices(comp), path);
+      return gesture_geometry.doesPathTouchPolygon(_getHexagonVertices(comp), path);
     }
     if (comp is RectangleShape) {
-      return _doesPathTouchPolygon(comp.getWorldCorners(), path);
+      return gesture_geometry.doesPathTouchPolygon(comp.getWorldCorners(), path);
     }
-    return _doesPathTouchRect(comp.toRect(), path);
-  }
-
-  // [NEW] 기존 bbox 판정 분리
-  bool _doesPathTouchRect(Rect rect, List<Vector2> path) {
-    for (int i = 0; i < path.length - 1; i++) {
-      final p1 = path[i];
-      final p2 = path[i + 1];
-      if (rect.contains(Offset(p1.x, p1.y)) || rect.contains(Offset(p2.x, p2.y))) {
-        return true;
-      }
-      if (_lineIntersectsRect(p1, p2, rect)) return true;
-    }
-    return false;
-  }
-
-  // [NEW] 경로-폴리곤 충돌 판정 (ray-casting + 선분 교차)
-  bool _doesPathTouchPolygon(List<Vector2> vertices, List<Vector2> path) {
-    if (vertices.length < 3) return false;
-    for (int i = 0; i < path.length - 1; i++) {
-      final p1 = path[i];
-      final p2 = path[i + 1];
-      // 점이 폴리곤 내부에 있는지
-      if (_isPointInPolygon(p1, vertices) || _isPointInPolygon(p2, vertices)) {
-        return true;
-      }
-      // 선분이 폴리곤 변과 교차하는지
-      for (int j = 0; j < vertices.length; j++) {
-        final va = vertices[j];
-        final vb = vertices[(j + 1) % vertices.length];
-        if (_doLinesIntersect(p1, p2, va, vb)) return true;
-      }
-    }
-    return false;
-  }
-
-
-
-  // [NEW] 경로-원 충돌 판정
-  bool _doesPathTouchCircle(Vector2 center, double radius, List<Vector2> path) {
-    for (int i = 0; i < path.length - 1; i++) {
-      final p1 = path[i];
-      final p2 = path[i + 1];
-      if ((p1 - center).length <= radius || (p2 - center).length <= radius) {
-        return true;
-      }
-      if (_lineIntersectsCircle(p1, p2, center, radius)) return true;
-    }
-    return false;
-  }
-
-  // [NEW] 선분-원 교차 판정
-  bool _lineIntersectsCircle(Vector2 p1, Vector2 p2, Vector2 center, double radius) {
-    final d = p2 - p1;
-    final f = p1 - center;
-    final a = d.dot(d);
-    if (a < 0.00001) return false;
-    final b = 2 * f.dot(d);
-    final c = f.dot(f) - radius * radius;
-    double discriminant = b * b - 4 * a * c;
-    if (discriminant < 0) return false;
-    discriminant = math.sqrt(discriminant);
-    final t1 = (-b - discriminant) / (2 * a);
-    final t2 = (-b + discriminant) / (2 * a);
-    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+    return gesture_geometry.doesPathTouchRect(comp.toRect(), path);
   }
 
   // [NEW] 오각형 월드 꼭짓점 반환 (pentagon_shape.dart의 _buildPentagonPath와 동일한 공식)
@@ -2757,60 +2384,6 @@ bool _isStraightLine(List<Vector2> path) {
       return worldCenter + Vector2(math.cos(a) * radius, math.sin(a) * radius);
     });
   }
-
-  bool _isRealSlice(RectangleShape rect, List<Vector2> path) {
-    final vertices = rect.getWorldCorners();
-    int hits = 0;
-
-    for (int i = 0; i < path.length - 1; i++) {
-      final p1 = path[i];
-      final p2 = path[i + 1];
-
-      final p1Inside = _isPointInPolygon(p1, vertices);
-      final p2Inside = _isPointInPolygon(p2, vertices);
-
-      if (p1Inside != p2Inside) {
-        hits++;
-        continue;
-      }
-
-      if (!p1Inside && !p2Inside) {
-        int edgeHits = 0;
-        for (int j = 0; j < vertices.length; j++) {
-          if (_doLinesIntersect(p1, p2, vertices[j], vertices[(j + 1) % vertices.length])) {
-            edgeHits++;
-            // break;
-          }
-        }
-        hits += edgeHits;
-      }
-    }
-
-    return hits >= 2 || (hits >= 1 && _isPointInPolygon(path.first, vertices));
-  }
-
-
-  bool _lineIntersectsRect(Vector2 p1, Vector2 p2, Rect rect) {
-    final edges = [
-      [rect.topLeft, rect.topRight],
-      [rect.topRight, rect.bottomRight],
-      [rect.bottomRight, rect.bottomLeft],
-      [rect.bottomLeft, rect.topLeft],
-    ];
-
-    for (final edge in edges) {
-      if (_doLinesIntersect(
-        p1,
-        p2,
-        Vector2(edge[0].dx, edge[0].dy),
-        Vector2(edge[1].dx, edge[1].dy),
-      )) {
-        return true;
-      }
-    }
-    return false;
-  }
-
 
   void pauseGame() {
     debugPrint("blinkingMap:${blinkingMap.values}");

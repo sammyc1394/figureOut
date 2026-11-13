@@ -1,6 +1,7 @@
 import 'package:figureout/src/components/user_removable.dart';
 import 'package:figureout/src/components/blink_alpha_target.dart';
 import 'package:figureout/src/components/attack_timer_gate.dart';
+import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/game_modes/one_second_game.dart';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
@@ -9,18 +10,21 @@ import 'package:flutter/material.dart';
 
 import '../effect/attack_explosion_effect.dart';
 import '../effect/encircle_slice_effect.dart';
-import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import 'shape_path_utils.dart';
 import '../services/audio_manager.dart';
 
 class TriangleShape extends PositionComponent
-    with TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget, AttackTimerGate
+    with TapCallbacks, UserRemovable, BlinkAlphaTarget, AttackTimerGate
     implements ResizableShape {
   static final _images = Images(prefix: 'assets/');
 
   int energy = 0;
   TextComponent? _hpTextComponent;
+  CircleComponent? _orderBadge;
+  TextComponent? _orderBadgeText;
+  static const _orderBadgeColor = Color(0xFFFFA94D);
+  static const double _badgeSizeRatio = 0.32;
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
@@ -48,7 +52,18 @@ class TriangleShape extends PositionComponent
     _hpTextComponent?.textRenderer = TextPaint(
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: _blinkAlpha)),
     );
+    _orderBadge?.paint.color = _orderBadgeColor.withValues(alpha: _blinkAlpha);
+    _orderBadgeText?.textRenderer = _orderTextPaint();
   }
+
+  TextPaint _orderTextPaint() => TextPaint(
+        style: TextStyle(
+          fontFamily: appFontFamily,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white.withValues(alpha: _blinkAlpha),
+        ),
+      );
 
   late Sprite _sprite;
   late Path _outlinePath;
@@ -78,8 +93,14 @@ class TriangleShape extends PositionComponent
   }) : super(
           position: position,
           size: customSize ?? Vector2.all(70),
-          anchor: Anchor(0.5, 0.62),
+          anchor: Anchor.center,
         );
+
+  // The effects still rotate and expand around the triangle's centroid.
+  Offset get _effectPivot => Offset(
+        size.x / 2,
+        size.y * (3.5 + 78.5 * 2) / (86 * 3),
+      );
 
   @override
   Future<void> onLoad() async {
@@ -87,6 +108,23 @@ class TriangleShape extends PositionComponent
     await super.onLoad();
 
     _sprite = await Sprite.load('shapes/Triangle_3x.png', images: _images);
+    final order = this.order;
+    if (!isDark && order != null) {
+      final badgeText = TextComponent(
+        text: order.toString(),
+        anchor: Anchor.center,
+        textRenderer: _orderTextPaint(),
+      );
+      final badge = CircleComponent(
+        anchor: Anchor.center,
+        paint: Paint()..color = _orderBadgeColor.withValues(alpha: _blinkAlpha),
+        priority: 999,
+        children: [badgeText],
+      );
+      _orderBadge = badge;
+      _orderBadgeText = badgeText;
+      add(badge);
+    }
     _rebuildGeometry();
 
     if (!isDark && energy >= 1) {
@@ -120,6 +158,13 @@ class TriangleShape extends PositionComponent
     _wobblePath = ShapePathUtils.wobble(_outlinePath, amplitude: size.x * 0.009);
     _hpTextComponent?.position =
         Vector2(size.x / 2, size.y * (3.5 + 78.5 * 2) / (86 * 3));
+    final badge = _orderBadge;
+    if (badge != null) {
+      final badgeSize = size.x * _badgeSizeRatio;
+      badge.radius = badgeSize / 2;
+      badge.position = Vector2(size.x - badgeSize * 0.6, badgeSize * 0.6);
+      _orderBadgeText?.position = badge.size / 2;
+    }
   }
 
   // ==========================================================
@@ -150,18 +195,15 @@ class TriangleShape extends PositionComponent
       parentGame.blinkingMap.remove(this);
     }
 
-    // 삼각형 centroid = anchor(0.5, 0.62) = position(world)
-    const svgW = 96.0, svgH = 86.0;
-    final pivotX = size.x * (48.0 + 2.1 + 93.9) / (3 * svgW);  // size.x / 2
-    final pivotY = size.y * (3.5 + 78.5 + 78.5) / (3 * svgH);  // size.y * 0.622
+    final pivot = _effectPivot;
 
     parent?.add(
       EncircleSliceEffect(
         basePath: _buildExplosionTrianglePath(),
         color: const Color(0xFFF2AC32),
-        position: Vector2(position.x - 2.0, position.y),
+        position: positionOf(Vector2(pivot.dx, pivot.dy)) - Vector2(2, 0),
         size: size.clone(),
-        pivot: Offset(pivotX, pivotY),
+        pivot: pivot,
         initialAngle: angle,
       ),
     );
@@ -189,17 +231,15 @@ class TriangleShape extends PositionComponent
 
       wasRemovedByUser = false;
 
-      const svgW = 96.0, svgH = 86.0;
-      final pivotX = size.x * (48.0 + 2.1 + 93.9) / (3 * svgW);
-      final pivotY = size.y * (3.5 + 78.5 + 78.5) / (3 * svgH);
+      final pivot = _effectPivot;
 
       parent?.add(
         AttackExplosionEffect(
           basePath: _buildExplosionTrianglePath(),
-          position: Vector2(position.x - 2.0, position.y),
+          position: positionOf(Vector2(pivot.dx, pivot.dy)) - Vector2(2, 0),
           size: size.clone(),
           color: const Color(0xFFF2AC32),
-          pivot: Offset(pivotX, pivotY),
+          pivot: pivot,
           maxScale: 4.5,
           ringSpacing: 0.45,
           maxRings: 9,

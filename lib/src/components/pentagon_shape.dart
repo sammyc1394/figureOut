@@ -13,13 +13,12 @@ import 'package:flutter/material.dart' hide Matrix4;
 
 import '../effect/attack_explosion_effect.dart';
 import '../effect/pentagon_burst_effect.dart';
-import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
 
 class PentagonShape extends PositionComponent
-    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, OverlapHighlightable, BlinkAlphaTarget, AttackTimerGate
+    with HasPaint, TapCallbacks, UserRemovable, HasGameReference<FlameGame>, BlinkAlphaTarget, AttackTimerGate
     implements ResizableShape {
 
   static final _images = Images(prefix: 'assets/');
@@ -30,6 +29,7 @@ class PentagonShape extends PositionComponent
 
   final bool isDark;
   final VoidCallback? onForbiddenTouch;
+  final VoidCallback? Function(PentagonShape, Vector2)? findForbiddenTouch;
   final double? attackTime;
   final VoidCallback? onExplode;
   final int? order;
@@ -63,6 +63,8 @@ class PentagonShape extends PositionComponent
 
   double _pressElapsed = 0.0;
   static const double _pressTick = 1.0;
+  int? _pressPointerId;
+  Vector2? _pressPoint;
   Vector2? _frozenPosition;
 
   double _shakeElapsed = 0.0;
@@ -118,6 +120,7 @@ class PentagonShape extends PositionComponent
     this.energy, {
     this.isDark = false,
     this.onForbiddenTouch,
+    this.findForbiddenTouch,
     this.attackTime,
     this.onExplode,
     Vector2? customSize,
@@ -162,7 +165,7 @@ class PentagonShape extends PositionComponent
 
   @override
   void onRemove() {
-    AudioManager.instance.stopPentagonHold();
+    AudioManager.instance.stopPentagonHold(this);
     super.onRemove();
   }
 
@@ -206,14 +209,16 @@ class PentagonShape extends PositionComponent
       // Pause/aftermath freezes update but the looping hold SFX would keep
       // playing otherwise (and tap-up may be lost while the overlay is up).
       if (_isLongPressing) {
-        AudioManager.instance.stopPentagonHold();
+        AudioManager.instance.stopPentagonHold(this);
       }
       return;
     }
 
+    _cancelPressOnForbiddenTouch();
+
     if (_isLongPressing && !isDark) {
       // Resume the loop if pause stopped it while the finger is still down.
-      AudioManager.instance.startPentagonHold();
+      AudioManager.instance.startPentagonHold(this);
 
       if (_pulseThicknessT < 1.0) {
         _pulseThicknessT += dt / _pulseAppearTime;
@@ -233,7 +238,7 @@ class PentagonShape extends PositionComponent
 
         if (energy <= 0) {
           wasRemovedByUser = true;
-          AudioManager.instance.stopPentagonHold();
+          AudioManager.instance.stopPentagonHold(this);
           _playRemoveEffect();
           removeFromParent();
           return;
@@ -296,29 +301,25 @@ class PentagonShape extends PositionComponent
   // RENDER
   // ===============================
 
+  // Normalized vertices follow the painted outline of Pentagon_3x.png.
+  static final Path _touchOutline = Path()
+    ..moveTo(0.495, 0)
+    ..lineTo(1, 0.4)
+    ..lineTo(0.8, 1)
+    ..lineTo(0.2, 1)
+    ..lineTo(0, 0.4)
+    ..close();
+  static const double _touchScale = 1.10;
+
   @override
   bool containsLocalPoint(Vector2 point) {
-    final cx = size.x / 2 - size.x * 0.04;
-    final cy = size.y / 2 + size.y * 0.04;
-    final r = size.x * 0.392;
-    final pts = List.generate(5, (i) {
-      final a = (-90 + i * 72) * pi / 180;
-      return Vector2(cx + cos(a) * r, cy + sin(a) * r);
-    });
-    return _pointInPolygon(point, pts);
-  }
-
-  bool _pointInPolygon(Vector2 p, List<Vector2> poly) {
-    int count = 0;
-    for (int i = 0; i < poly.length; i++) {
-      final a = poly[i];
-      final b = poly[(i + 1) % poly.length];
-      if (((a.y > p.y) != (b.y > p.y)) &&
-          (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 0.0001) + a.x)) {
-        count++;
-      }
-    }
-    return count.isOdd;
+    if (_blinkAlpha <= 0 || size.x <= 0 || size.y <= 0) return false;
+    return _touchOutline.contains(
+      Offset(
+        0.5 + (point.x / size.x - 0.5) / _touchScale,
+        0.5 + (point.y / size.y - 0.5) / _touchScale,
+      ),
+    );
   }
 
   static const double _borderHalo = 0.05;
@@ -489,7 +490,10 @@ class PentagonShape extends PositionComponent
   void onTapDown(TapDownEvent event) {
     event.continuePropagation = false;
     if (isDark) onForbiddenTouch?.call();
+    if (_pressPointerId != null) return;
 
+    _pressPointerId = event.pointerId;
+    if (!isDark) _pressPoint = event.canvasPosition.clone();
     _frozenPosition = position.clone();
     children.whereType<Effect>().forEach((effect) => effect.pause());
     _myBlinking()?.isPaused = true;
@@ -497,8 +501,7 @@ class PentagonShape extends PositionComponent
 
   @override
   void onLongTapDown(TapDownEvent event) {
-
-    if (_blinkAlpha <= 0) return;
+    if (event.pointerId != _pressPointerId || _blinkAlpha <= 0) return;
 
     if (isDark) {
 
@@ -507,8 +510,10 @@ class PentagonShape extends PositionComponent
       return;
     }
 
+    if (_cancelPressOnForbiddenTouch()) return;
+
     _isLongPressing = true;
-    AudioManager.instance.startPentagonHold();
+    AudioManager.instance.startPentagonHold(this);
 
     _pulseThicknessT = 0.0;
     _pressElapsed = 0.0;
@@ -516,7 +521,7 @@ class PentagonShape extends PositionComponent
     energy--;
     if (energy <= 0) {
       wasRemovedByUser = true;
-      AudioManager.instance.stopPentagonHold();
+      AudioManager.instance.stopPentagonHold(this);
       _playRemoveEffect();
       removeFromParent();
       return;
@@ -527,14 +532,28 @@ class PentagonShape extends PositionComponent
 
   @override
   void onTapUp(TapUpEvent event) {
-    _stopHold();
-    _frozenPosition = null;
-    children.whereType<Effect>().forEach((effect) => effect.resume());
-    _myBlinking()?.isPaused = false;
+    if (event.pointerId == _pressPointerId) _releasePress();
   }
 
   @override
   void onTapCancel(TapCancelEvent event) {
+    if (event.pointerId == _pressPointerId) _releasePress();
+  }
+
+  bool _cancelPressOnForbiddenTouch() {
+    final point = _pressPoint;
+    if (point == null) return false;
+    final hit = findForbiddenTouch?.call(this, point);
+    if (hit == null) return false;
+
+    _releasePress();
+    hit();
+    return true;
+  }
+
+  void _releasePress() {
+    _pressPointerId = null;
+    _pressPoint = null;
     _stopHold();
     _frozenPosition = null;
     children.whereType<Effect>().forEach((effect) => effect.resume());
@@ -544,7 +563,7 @@ class PentagonShape extends PositionComponent
   void _stopHold() {
     if (!_isLongPressing) return;
     _isLongPressing = false;
-    AudioManager.instance.stopPentagonHold();
+    AudioManager.instance.stopPentagonHold(this);
   }
 
   BlinkingBehaviorComponent? _myBlinking() {

@@ -80,19 +80,4 @@ class StageLockService {
 
     debugPrint('[StageLock] setLockEnabled: $enabled');
   }
-
-  /// 개발용 스테이지 진행도 초기화
-  /// 락 ON/OFF 설정은 유지하고 클리어 기록만 초기화한다.
-  static Future<void> resetProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setInt(
-      _keyHighestClearedStage,
-      _defaultHighestClearedStage,
-    );
-
-    debugPrint(
-      '[StageLock] progress reset: $_defaultHighestClearedStage',
-    );
-  }
 }

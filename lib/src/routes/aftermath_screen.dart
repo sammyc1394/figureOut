@@ -347,7 +347,7 @@ class _ResultPanel extends StatelessWidget {
           _placed(
             cx: 306.0, cy: 47.97, innerW: 85.388, innerH: 54.994,
             oy: -1.65, deg: 5.18, flipX: true,
-            child: _svg('Result_ribbon_tail_right'),
+            child: _svg('Result_ribbon_tail_left'),
           ),
           _placed(
             cx: 45.0, cy: 47.97, innerW: 85.388, innerH: 54.994,

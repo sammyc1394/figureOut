@@ -120,9 +120,4 @@ class EndlessGameController {
     );
   }
 
-  /// 45초 이후 블링킹/사라짐 기믹 적용 여부
-  bool shouldBlink(double elapsedSeconds) {
-    if (elapsedSeconds < 45.0) return false;
-    return _random.nextDouble() < 0.5;
-  }
 }

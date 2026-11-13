@@ -9,7 +9,6 @@ import 'dart:math' as math;
 
 import '../effect/attack_explosion_effect.dart';
 import '../effect/hexagon_burst_effect.dart';
-import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import '../services/audio_manager.dart';
 import 'shape_path_utils.dart';
@@ -22,7 +21,7 @@ enum HexagonState {
 }
 
 class HexagonShape extends PositionComponent
-    with DragCallbacks, TapCallbacks, UserRemovable, OverlapHighlightable, BlinkAlphaTarget, AttackTimerGate
+    with DragCallbacks, TapCallbacks, UserRemovable, BlinkAlphaTarget, AttackTimerGate
     implements ResizableShape {
 
   static final _images = Images(prefix: 'assets/');

@@ -153,7 +153,7 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
                          0,  0,  0, 1,   0,
                       ]),
                       child: Image.asset(
-                        'assets/noise_texture.png',
+                        grainTexture,
                         fit: BoxFit.cover,
                       ),
                     ),

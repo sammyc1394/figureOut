@@ -8,7 +8,6 @@ import 'package:figureout/src/components/blink_alpha_target.dart';
 import 'package:figureout/src/components/attack_timer_gate.dart';
 import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/components/orderable_shape.dart';
-import 'package:figureout/src/components/overlap_highlightable.dart';
 import 'package:figureout/src/components/resizable_shape.dart';
 import '../effect/attack_explosion_effect.dart';
 import '../effect/circle_disappear_effect.dart';
@@ -17,7 +16,7 @@ import '../services/audio_manager.dart';
 
 // 원에서 시작한 드래그도 원이 받아, 탭 이후 게임의 슬라이스로 중복 처리되지 않게 한다.
 class CircleShape extends PositionComponent
-    with TapCallbacks, DragCallbacks, UserRemovable, HasGameReference, OverlapHighlightable, BlinkAlphaTarget, AttackTimerGate
+    with TapCallbacks, DragCallbacks, UserRemovable, HasGameReference, BlinkAlphaTarget, AttackTimerGate
     implements OrderableShape, ResizableShape {
 
   static final _images = Images(prefix: 'assets/');

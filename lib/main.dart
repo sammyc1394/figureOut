@@ -187,32 +187,12 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) => AdManager.instance.init());
 }
 
-class FigureoutMain extends StatefulWidget {
+class FigureoutMain extends StatelessWidget {
   const FigureoutMain({super.key});
-
-  /// 언어 변경처럼 앱 전체를 새로 그려야 할 때 호출한다.
-  /// 내비게이션 스택을 초기 위치('/')로 리셋하며 다시 빌드한다.
-  static void restart(BuildContext context) {
-    context.findAncestorStateOfType<_FigureoutMainState>()?._restart();
-  }
-
-  @override
-  State<FigureoutMain> createState() => _FigureoutMainState();
-}
-
-class _FigureoutMainState extends State<FigureoutMain> {
-  Key _rebuildKey = UniqueKey();
-
-  void _restart() {
-    setState(() => _rebuildKey = UniqueKey());
-  }
 
   @override
   Widget build(BuildContext context) {
-    return KeyedSubtree(
-      key: _rebuildKey,
-      child: const _FigureoutApp(),
-    );
+    return const _FigureoutApp();
   }
 }
 

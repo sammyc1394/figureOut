@@ -16,7 +16,7 @@ for maintained implementation notes.
 - GoRouter
 - Google Sheet based stage, mission, translation, and log data
 - PNG sprite gameplay shapes with Canvas paths for gestures and attack indicators
-- SVG and image assets for menu and UI under `assets/`
+- SVG and image assets for menu and UI, including a lossless WebP background
 
 ## Run
 
@@ -31,15 +31,22 @@ Local web preview (mobile portrait frame):
 flutter run --no-pub -d web-server --web-hostname 127.0.0.1 --web-port 5317
 ```
 
-Lint after dependency resolution:
+Lint and automated tests after dependency resolution:
 
 ```powershell
 flutter analyze --no-pub
+flutter test --no-pub
 ```
 
-The lint configuration includes `package:flutter_lints/flutter.yaml`. Native and
-web platform folders are currently ignored by Git; platform setup and signing
-configuration must be supplied separately for platform builds.
+The lint configuration includes `package:flutter_lints/flutter.yaml`. The
+repository tracks selected Android and iOS configuration files. The remaining
+native scaffolding, web scaffolding, and signing inputs are local.
+The repository tracks the rewarded ad lifecycle and gameplay regression tests.
+The `test/` ignore rule applies to new, untracked test files.
+
+The rewarded ad test uses mocked native channels to check consent and
+connectivity eligibility, the show lock, duplicate callbacks, and preparation
+of the next ad without automatic playback.
 
 The app expects Google Sheet environment values in `assets/.env`.
 
@@ -57,6 +64,8 @@ Required keys:
 - Pause screen
 - Mission clear popup
 - Mission failed popup
+- Endless mode and leaderboard
+- Settings, including audio and language
 
 ## Gameplay Rules
 
@@ -69,7 +78,10 @@ Each shape has its own attack gesture.
 - Hexagon: pinch zoom; each health point requires 20% scale change
 
 Multiple matching shapes can be attacked at the same time when the gesture
-supports it.
+supports it. If a visible forbidden shape passes over the touch point while a
+pentagon is held, it applies the usual touch penalty once and releases that
+hold. Other pentagons can remain held and keep the hold sound playing. The
+pentagon touch outline is scaled to 110% of the painted shape.
 
 ## Enemy Data
 
@@ -94,7 +106,12 @@ Examples:
 - `Pentagon3 (10)`
 - `Hexagon5 (20)`
 - `Circle5_01 (10)` for ordered enemies
+- `Triangle4_URD(1,9) (1)` for a triangle with a randomly assigned order
 - `Circle5 (-1)` for dark enemies that should not be attacked
+
+Ordered triangles display their order on the right. An enclosure that includes
+a numbered triangle out of sequence applies the penalty before removing any
+enclosed triangle.
 
 Shape size numbers map to percentage scale:
 
@@ -146,6 +163,10 @@ Attack data uses:
 
 ## Move Data
 
+Sheet Y coordinates align the centers of shapes at the same height, regardless
+of shape type or size. This applies to initial positions and movement targets.
+Positive Y is up.
+
 Supported movement commands:
 
 - `Z(x, y, speed)`: move to a point, then stop or continue to the next path command
@@ -153,10 +174,11 @@ Supported movement commands:
   to the target speed, then continue at that speed; stop on arrival even if the
   acceleration period has not ended. Each leg, including `Back`, restarts acceleration.
 - `B(x, y, speed)`: rebound movement toward a direction point, reflecting off play-area walls
-- `C(radius, speed)`: clockwise circular movement
-- `CC(radius, speed)`: counterclockwise circular movement
+- `C(radius, degreesPerSecond)`: clockwise circular movement
+- `CC(radius, degreesPerSecond)`: counterclockwise circular movement
 - `P(vx, vy, gravity)`: parabolic launch; see [P command](docs/parabola-movement.md)
 - `L(x1, y1, x2, y2, speed)`: move repeatedly between two points
+- `M(angle, speed, stopY)`: legacy movement toward the specified Y
 - `D(visible, hidden)`: repeat visible and hidden timing with smooth fade-in/out
 - `DR(visible, hidden)`: repeat visible and hidden timing, then reappear at a random position
 - `Repeat`: loop the path from the start
@@ -218,38 +240,31 @@ Disappear(3)
 - Gameplay shapes use PNG sprites and Canvas geometry; preserve referenced UI/menu SVG assets.
 - Do not delete unused code without explicit approval.
 
-## Refactoring Roadmap
+## Gameplay code layout
 
-Use behavior-preserving refactors first. Keep gameplay rules, Google Sheet syntax,
-and UI flow unchanged unless a bug fix explicitly requires a behavior change.
+- `game_modes/one_second_game.dart` owns mission progression, game state, and
+  gesture input.
+- `behaviors/movement_command_parser.dart` converts movement cells into
+  behaviors shared by stage and endless mode. The individual commands live
+  alongside it.
+- `functions/play_coordinates.dart` converts coordinates.
+  `functions/gesture_geometry.dart` handles path intersections and slice
+  calculations.
+- `services/sheet_service.dart` fetches and parses stage data.
+  `services/random_context.dart` tracks unique random values within a wave.
 
-Recommended order:
+The packaged background is `assets/menu/common/noise_texture.webp`. Its
+original PNG is archived at `assets/source/noise_texture.png` outside the
+Flutter asset declarations.
 
-1. Split `lib/src/game_modes/one_second_game.dart` by responsibility.
-2. Separate Google Sheet fetching from stage and enemy parsing.
-3. Convert string move commands into typed internal command models.
-4. Strengthen shared shape interfaces to reduce `dynamic` usage.
-5. Route through typed argument objects instead of raw `Map` extras.
-6. Move debug `print` output behind a logger or debug flag.
-7. Review temporary or backup files only after explicit approval.
+The background swap saves about 4.92 MiB at the file level with identical
+decoded pixels. The asset cleanup also removes retired BGM samples, an unused
+slice sound, and a duplicate result ribbon SVG. Gameplay cleanup removes unused
+helpers and overlap calculations whose result was never read.
 
-Suggested `one_second_game.dart` extraction targets:
-
-- `mission_runner.dart`: mission flow, wait handling, spawn loop
-- `game_timer_controller.dart`: mission time, penalties, rewards, time over
-- `gesture_handler.dart`: tap, drag, circle, slice input state
-- `shape_hit_test.dart`: shape-specific collision, enclosure, slice checks
-- `mission_result_controller.dart`: clear, fail, continue, progress saving
-
-Suggested parser extraction targets:
-
-- `sheet_service.dart`: Google Sheet fetch only
-- `stage_parser.dart`: raw rows to `StageData`
-- `enemy_parser.dart`: enemy type, size, order, health, rectangle dimensions and angle
-- `random_context.dart`: `RND` and `URD` resolution
-
-Do not remove temporary or backup files without confirming they are unused and
-getting explicit approval.
+Before delivery, the workspace passed Flutter analysis and eight automated
+tests covering gestures, alignment, movement, and the rewarded ad lifecycle.
+APK size and on-device behavior were outside that verification.
 
 ## Agent Execution Rules
 
@@ -370,11 +385,11 @@ analyze: 실패 또는 차단(원본 로그 확인); test: 실패 또는 차단(
 
 Reward presentation now reserves one immutable ad instance, ignores duplicate terminal/reward callbacks, rejects overlapping shows, and discards cached ads after one hour (also checked before reuse after suspension). A late earned callback is handled at most once. Heart credit is persisted on the earned callback instead of depending on a still-open dialog; checkpoint continuation waits for both earned and closed signals and a mounted route. Per the user's explicit decision on 2026-11-03, a failed/unavailable ad no longer bypasses the checkpoint reward requirement; the existing continue overlay remains available for a user retry. No new app-facing text was added.
 
-`flutter analyze --no-pub` on the three affected source files and the regression test passed after correcting one braces-style finding. `flutter test --no-pub test/ad_manager_lifecycle_test.dart` passed against the real manager and SDK Dart objects with a mocked native channel: duplicate/late earned callbacks, duplicate dismissal, overlapping presentation, one-hour cache expiry, and next-load-without-auto-show. This is mock-boundary evidence, not device verification. This app uses consumable hearts/continuation rather than a timed ad-free entitlement, so benefit-expiry testing does not apply in the same way. Android device QA and iOS remain unverified. Existing demo IDs and the missing UMP integration are separate release-readiness limitations, not corrected by this scoped lifecycle work.
+`flutter analyze --no-pub` on the three affected source files and the regression test passed after correcting one braces-style finding. `flutter test --no-pub test/ad_manager_lifecycle_test.dart` passed against the real manager and SDK Dart objects with a mocked native channel: duplicate/late earned callbacks, duplicate dismissal, overlapping presentation, one-hour cache expiry, and next-load-without-auto-show. This is mock-boundary evidence, not device verification. This app uses consumable hearts/continuation rather than a timed ad-free entitlement, so benefit-expiry testing does not apply in the same way. Android device QA and iOS remain unverified. At the time of this review, demo IDs and the missing UMP integration were separate release-readiness limitations. The current manager now checks UMP consent before requesting ads and still uses demo rewarded IDs.
 
 ## 2026-11-10 보상 광고 오프라인 복구 — 소스 반영
 
-`lib/src/services/ad_manager.dart`에서 connectivity_plus 6.1.5의 연결 상태를 이용합니다.
+`lib/src/services/ad_network.dart`가 connectivity_plus 6.1.5의 연결 상태를 확인하고, `lib/src/services/ad_manager.dart`가 보상 광고 준비와 표시에 반영합니다.
 최초 연결 확인 전·확인된 오프라인 중에는 새 보상 광고 요청과 표시를 막고,
 기존 재시도 횟수·예정 시각 및 진행 중 SDK 요청의 콜백 소유권을 보존합니다.
 연결 복구는 남아 있는 준비만 재개하며 실패 횟수 소진을 초기화하거나 자동 재생하지 않습니다.

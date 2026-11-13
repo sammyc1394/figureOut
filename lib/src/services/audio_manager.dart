@@ -38,12 +38,13 @@ class AudioManager extends ChangeNotifier {
 
   bool _isBgmPlaying = false;
   bool _isBgmStarting = false;
-  bool get isBgmPlaying => _isBgmPlaying;
 
   final _TailSustainPlayer _pentagonHold = _TailSustainPlayer(
     introAsset: 'audio/pop_pentagon_hold.mp3',
     loopAsset: 'audio/pop_pentagon_hold_loop.mp3',
   );
+  final Set<Object> _pentagonHoldOwners = Set<Object>.identity();
+  Future<void> _pentagonHoldTransition = Future<void>.value();
   final _TailSustainPlayer _hexagonStretch = _TailSustainPlayer(
     introAsset: 'audio/pop_hexagon.mp3',
     loopAsset: 'audio/pop_hexagon_loop.mp3',
@@ -315,19 +316,35 @@ class AudioManager extends ChangeNotifier {
   /// Triangle with HP >= 2 enclosed: HP drops, triangle stays.
   Future<void> playTriangleHit() => playPopSound('pop_triangle_hit.mp3');
 
-  /// Play the hold clip once, then sustain on a soft loop tail.
-  Future<void> startPentagonHold() async {
-    if (!isSoundEnabled) return;
-    await _pentagonHold.start();
+  /// Share one sustain loop across all currently held pentagons.
+  void startPentagonHold(Object owner) {
+    if (!isSoundEnabled || !_pentagonHoldOwners.add(owner)) return;
+    if (_pentagonHoldOwners.length == 1) _syncPentagonHold();
   }
 
-  Future<void> stopPentagonHold() => _pentagonHold.stop();
-
-  Future<void> playPentagonBurst() async {
-    await stopPentagonHold();
-    await playPopSound('pop_circle.mp3');
+  void stopPentagonHold(Object owner) {
+    if (_pentagonHoldOwners.remove(owner) && _pentagonHoldOwners.isEmpty) {
+      _syncPentagonHold();
+    }
   }
 
+  Future<void> _syncPentagonHold() {
+    // A release and a new hold can arrive while the player is still starting.
+    _pentagonHoldTransition = _pentagonHoldTransition.then((_) async {
+      try {
+        if (_pentagonHoldOwners.isNotEmpty && isSoundEnabled) {
+          await _pentagonHold.start();
+        } else {
+          await _pentagonHold.stop();
+        }
+      } catch (error) {
+        debugPrint('[Audio] Pentagon hold transition failed: $error');
+      }
+    });
+    return _pentagonHoldTransition;
+  }
+
+  Future<void> playPentagonBurst() => playPopSound('pop_circle.mp3');
 
   /// Play the stretch clip once, then sustain on a soft loop tail.
   Future<void> startHexagonStretch() async {
@@ -345,37 +362,9 @@ class AudioManager extends ChangeNotifier {
 
   /// Stop looping SFX (pause / overlay / hard reset).
   Future<void> stopLoopingSfx() async {
-    await stopPentagonHold();
+    _pentagonHoldOwners.clear();
+    await _syncPentagonHold();
     await stopHexagonStretch();
-  }
-
-  /// Switch background music sample track:
-  /// 1: Arcade 8-Bit
-  /// 2: Cozy Synthwave
-  /// 3: Lo-Fi Chill
-  /// 4: Pixel Orgel
-  /// 5: Tiny Garden (default)
-  Future<void> setBgmTrack(int trackIndex) async {
-    switch (trackIndex) {
-      case 2:
-        _currentBgmTrack = 'bgm_cozysynth.mp3';
-        break;
-      case 3:
-        _currentBgmTrack = 'bgm_lofi.mp3';
-        break;
-      case 4:
-        _currentBgmTrack = 'bgm_pixelorgel.mp3';
-        break;
-      case 1:
-        _currentBgmTrack = 'bgm_arcade8bit.mp3';
-        break;
-      case 5:
-      default:
-        _currentBgmTrack = 'bgm_tiny_garden.mp3';
-        break;
-    }
-    _isBgmPlaying = false;
-    await playBGM();
   }
 
   /// Play background music (BGM)
@@ -399,23 +388,6 @@ class AudioManager extends ChangeNotifier {
     } finally {
       _isBgmStarting = false;
     }
-  }
-
-  /// Pause background music
-  Future<void> pauseBGM() async {
-    try {
-      await _bgmPlayer.pause();
-      _isBgmPlaying = false;
-    } catch (_) {}
-  }
-
-  /// Resume background music
-  Future<void> resumeBGM() async {
-    if (!isBgmEnabled) return;
-    try {
-      await _bgmPlayer.resume();
-      _isBgmPlaying = true;
-    } catch (_) {}
   }
 
   /// Toggle BGM ON/OFF
@@ -455,8 +427,6 @@ class _TailSustainPlayer {
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<void>? _completeSub;
   Timer? _fadeTimer;
-
-  bool get isPlaying => _playing;
 
   Future<void> init() async {
     await _intro.setReleaseMode(ReleaseMode.stop);

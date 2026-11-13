@@ -195,7 +195,7 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
                          0,  0,  0, 1,   0,
                       ]),
                       child: Image.asset(
-                        'assets/noise_texture.png',
+                        grainTexture,
                         fit: BoxFit.cover,
                       ),
                     ),

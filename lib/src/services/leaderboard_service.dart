@@ -111,15 +111,6 @@ class LeaderboardService {
     return uuid;
   }
 
-  /// 로컬 최고 점수 가져오기
-  static Future<double> getHighScore() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_keyHighScore) ?? 0.0;
-  }
-
-  static double _lastRunScore = 0.0;
-  static double get lastRunScore => _lastRunScore;
-
   static bool _firebaseInitialized = false;
 
   static Future<bool> _ensureFirebaseInitialized() async {
@@ -138,7 +129,6 @@ class LeaderboardService {
 
   /// 게임 판마다 점수 누적 저장 (로컬 히스토리 + Cloud Firestore 기록 생성)
   static Future<bool> saveScore(double score) async {
-    _lastRunScore = score;
     final prefs = await SharedPreferences.getInstance();
     final currentHigh = prefs.getDouble(_keyHighScore) ?? 0.0;
     final isNewHigh = score > currentHigh;

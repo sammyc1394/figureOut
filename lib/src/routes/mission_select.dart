@@ -138,7 +138,7 @@ class _MissionSelectScreenState extends State<MissionSelectScreen> {
             child: Opacity(
               opacity: 0.30,
               child: Image.asset(
-                'assets/noise_texture.png',
+                grainTexture,
                 fit: BoxFit.cover,
               ),
             ),

@@ -34,7 +34,7 @@ lib/
 | `components/` | 게임 화면에 실제로 올라가는 객체와 그 공통 mixin/인터페이스 | `PositionComponent` 계열 도형·HUD 컴포넌트, 도형이 공유하는 mixin | `CircleShape`, `HexagonShape`, `PauseButton`, `OrderableShape`, `UserRemovable` |
 | `config/` | 정적 설정 | 상수, 번역 데이터, 테마/환경/게임 설정 | `config`, `translation_data`, `theme_mode_scope` |
 | `effect/` | 시각/연출 효과 | 폭발, 소멸, 패널티, 조각 낙하 등 효과와 효과용 Painter | `AttackExplosionEffect`, `CircleDisappearEffect`, `PenaltyEffect` |
-| `functions/` | 상태를 갖지 않는 공용 로직 | 입력 → 계산 → 결과 형태의 순수 함수 | (현재 비어 있음) |
+| `functions/` | 상태를 갖지 않는 공용 로직 | 입력 → 계산 → 결과 형태의 순수 함수 | `play_coordinates.dart`, `gesture_geometry.dart` |
 | `game_modes/` | 게임 모드 | 모드별 `FlameGame` 클래스와 모드 컨트롤러 | `OneSecondGame`, `endless_game_controller` |
 | `routes/` | 화면 이동과 화면 UI | 라우트로 열리는 화면, 오버레이 위젯, 라우트 인자 클래스 | `MainMenu`, `StageSelect`, `PausedScreen`, `route_args` |
 | `services/` | 서비스 계층 | 저장소, API, SDK, 광고, 분석, 오디오 등 외부 시스템 또는 지속 상태와 상호작용 | `HeartService`, `AdManager`, `AudioManager`, `AnalyticsService`, `SheetService` |
@@ -65,6 +65,7 @@ assets/
 ├── audio/                 # BGM(bgm_*.mp3), 도형별 효과음(pop_*.mp3)
 ├── fonts/                 # 폰트 파일 (Gaegu, Moulpali)
 ├── shapes/                # 게임 도형 이미지 (Circle_3x.png, Hexagon_3x.png 등)
+├── source/                # 앱 패키지에 포함하지 않는 원본 에셋
 ├── menu/
 │   ├── common/            # 공통 UI 아이콘/카드 (하트, 설정, 결과 팝업, 시작 화면 등)
 │   ├── mission/           # 미션 선택 화면 (미션 카드, 별, 잠금)
@@ -76,13 +77,14 @@ assets/
 
 | 폴더 | 넣는 기준 | 예시 |
 |---|---|---|
-| `audio/` | 재생되는 모든 사운드. BGM은 `bgm_*`, 효과음은 도형/동작 이름 접두사 | `bgm_lofi.mp3`, `pop_circle.mp3`, `pop_hexagon_loop.mp3` |
+| `audio/` | 재생되는 모든 사운드. BGM은 `bgm_*`, 효과음은 도형/동작 이름 접두사 | `bgm_main_1.mp3`, `pop_circle.mp3`, `pop_hexagon_loop.mp3` |
 | `fonts/` | 폰트 파일. `pubspec.yaml`의 `fonts:`에 family로 등록 | `Gaegu-Regular.ttf` |
 | `shapes/` | 게임 월드에 그려지는 도형 이미지 | `Circle_3x.png`, `Pentagon_3x.png` |
-| `menu/common/` | 여러 화면에서 함께 쓰는 UI 요소 | `Heart_full.svg`, `Result_card.svg`, `Pause_button_blue.svg` |
+| `menu/common/` | 여러 화면에서 함께 쓰는 UI 요소 | `Heart_full.svg`, `Result_card.svg`, `Pause_button_blue.svg`, `noise_texture.webp` |
 | `menu/mission/` | 미션 선택 화면 전용 | `Star_gold_left.svg`, `Star_blue_center.svg` |
 | `menu/stage/` | 스테이지 선택 화면 전용 | `stage_1.png`, `stage_name_outline.png` |
-| 루트 | 기존에 루트에 있던 UI 이미지, 텍스처. **새 에셋은 루트에 추가하지 않는다** | `noise_texture.png`, `tutorial_hand.png` |
+| `source/` | 보관용 원본. `pubspec.yaml`에 등록하지 않는다. | `noise_texture.png` |
+| 루트 | 기존에 루트에 있던 UI 이미지, 텍스처. **새 에셋은 루트에 추가하지 않는다** | `tutorial_hand.png` |
 
 ### 에셋 규칙
 
@@ -95,6 +97,8 @@ assets/
   `assets/`만 등록하면 하위 폴더 파일은 포함되지 않는다.
 - 코드에서 에셋 경로를 문자열로 직접 반복해서 쓰지 말고, 반복되는 경로는 상수로 모아서 사용한다.
 - 에셋을 삭제하거나 이동할 때는 `lib/`에서 해당 경로를 참조하는 곳이 없는지 먼저 검색한다.
+
+공용 배경 질감은 `menu/common/noise_texture.webp`를 사용한다. `source/noise_texture.png` 원본은 바이트 그대로 보관한다. Pillow 12.1.1/libwebp 1.6.0에서 무손실, quality 65, method 3, exact 모드로 변환하고 sRGB 프로필을 포함했다. 디코딩한 1875×4060 RGBA 픽셀은 모두 일치하며, 파일 크기는 14,394,422바이트에서 9,236,194바이트로 줄었다.
 
 ## 3. 코드 컨벤션
 
@@ -144,7 +148,7 @@ assets/
 
 ### 도형(Flame 컴포넌트) 작성
 
-- 도형은 `components/`에 두고, 공통 동작은 mixin/추상 클래스(`OrderableShape`, `ResizableShape`, `UserRemovable`, `OverlapHighlightable`, `BlinkAlphaTarget`)로 분리한다.
+- 도형은 `components/`에 두고, 공통 동작은 mixin/추상 클래스(`OrderableShape`, `ResizableShape`, `UserRemovable`, `BlinkAlphaTarget`)로 분리한다.
 - 도형에 적용되는 이동/크기 변경 같은 명령은 `behaviors/`에서 `ShapeBehavior`를 구현한다.
 - 도형이 사라질 때의 연출은 `effect/`에 두고, 도형 클래스 안에 직접 그리기 코드를 늘리지 않는다.
 
@@ -200,5 +204,6 @@ assets/
 ## 6. 알려진 정리 대상
 
 - Dart 파일 이름은 `snake_case`로 통일했다. 추가 파일도 같은 규칙을 적용한다.
-- `one_second_game.dart`가 3,000줄 이상이다. 기능 추가 시 `behaviors/`, `effect/`, `functions/`로 분리를 검토한다.
+- `OneSecondGame`은 플레이 영역, 제스처 및 미션 상태를 관리한다. 좌표 변환은 `functions/play_coordinates.dart`, 경로 교차와 슬라이스 계산은 `functions/gesture_geometry.dart`에 둔다.
+- 스테이지와 무한 모드는 `behaviors/movement_command_parser.dart`에서 이동 명령을 해석한다. 도형 제거, 깜빡임 상태, 시간 패널티는 게임에서 관리한다.
 - `temp/`의 파일은 대체 구현이 생기면 삭제한다.
