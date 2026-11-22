@@ -510,7 +510,7 @@ class _SettingsFooter extends StatelessWidget {
       color: const Color(0xFF2B2B2B),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        textDirection: TextDirection.ltr,
         children: [
           GestureDetector(
             onTap: () => _launchUrl(_sunnyHomepageUrl),
@@ -522,20 +522,21 @@ class _SettingsFooter extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 4,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              textDirection: TextDirection.ltr,
               children: [
                 GestureDetector(
                   onTap: () => _launchUrl(_termsUrl),
-                  child: Text(i18n.t('settings_terms'), style: linkStyle),
+                  child: Text('Terms', style: linkStyle, softWrap: false),
                 ),
-                const Text('|', style: TextStyle(color: Colors.white38, fontSize: 17)),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('|', style: TextStyle(color: Colors.white38, fontSize: 17)),
+                ),
                 GestureDetector(
                   onTap: () => _launchUrl(_privacyUrl),
-                  child: Text(i18n.t('settings_privacy'), style: linkStyle),
+                  child: Text('Privacy', style: linkStyle, softWrap: false),
                 ),
               ],
             ),
