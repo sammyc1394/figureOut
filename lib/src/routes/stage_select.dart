@@ -73,6 +73,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
   @override
   void didUpdateWidget(covariant StageSelectScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _loadStageLockState();
     // go('/stages') 재진입 시 State가 재사용되면 initState가 다시 호출되지 않으므로,
     // initialStageIndex가 바뀌면 해당 스테이지로 강제 이동시킨다.
     if (widget.initialStageIndex != oldWidget.initialStageIndex &&
@@ -211,7 +212,7 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                 stages: stages,
                                 stageIndex: index,
                               ),
-                            );
+                            ).then((_) => _loadStageLockState());
 
                             await AnalyticsService.instance.logEvent(
                               'Stage_Clicked',
@@ -238,7 +239,9 @@ class _StageSelectScreenState extends State<StageSelectScreen> {
                                       alignment: Alignment.center,
                                       children: [
                                         Image.asset(
-                                          svgPath,
+                                          isLocked
+                                              ? svgPath.replaceFirst('.png', '_locked.png')
+                                              : svgPath,
                                           width: imageInnerSize,
                                           height: imageInnerSize,
                                           fit: BoxFit.contain,
