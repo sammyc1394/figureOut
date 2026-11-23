@@ -165,6 +165,13 @@ final Map<String, Map<String, String>> translationData = {
     'en': 'Go in order, smallest number first.',
     'ko': '작은 번호부터 차례로 없애세요.',
   },
+  'howto_tap': {'en': 'Tap', 'ko': '탭'},
+  'howto_trap': {'en': 'Trap', 'ko': '가두기'},
+  'howto_slice': {'en': 'Slice', 'ko': '자르기'},
+  'howto_hold': {'en': 'Hold', 'ko': '누르기'},
+  'howto_stretch': {'en': 'Stretch', 'ko': '늘리기'},
+  'howto_tap_to_play': {'en': 'Tap to play!', 'ko': '탭하여 시작!'},
+  'howto_dont_show_again': {'en': "Don't show again", 'ko': '다시 보지 않기'},
   'tutorial_go_game': {
     'en': 'Shall we go to the game?',
     'ko': '게임으로 가볼까요?',
