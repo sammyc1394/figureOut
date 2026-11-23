@@ -58,6 +58,121 @@ final Map<String, Map<String, String>> translationData = {
     'fr': 'Comment jouer',
     'es': 'Cómo jugar',
   },
+  // Tutorial (en/ko only for now; other languages fall back to en)
+  'settings_tutorial': {'en': 'Tutorial', 'ko': '튜토리얼'},
+  'tutorial_section_shapes': {'en': 'Shapes', 'ko': '도형'},
+  'tutorial_section_dark': {'en': 'Black Shape', 'ko': '검은 도형'},
+  'tutorial_section_move': {'en': 'Movement', 'ko': '움직임'},
+  'tutorial_section_timer': {'en': 'Timer', 'ko': '타이머'},
+  'tutorial_section_order': {'en': 'Ordered Shapes', 'ko': '순서 도형'},
+  'tutorial_circle': {
+    'en': 'Tap it. Tap as many times as the number.',
+    'ko': '탭해서 없애요. 숫자만큼 탭하세요.',
+  },
+  'tutorial_triangle': {
+    'en': 'Draw a loop around it.',
+    'ko': '손가락으로 크게 감싸요.',
+  },
+  'tutorial_rectangle': {
+    'en': 'Slice it with a straight line.',
+    'ko': '직선으로 그어서 잘라요.',
+  },
+  'tutorial_pentagon': {
+    'en': 'Press and hold until the number runs out.',
+    'ko': '숫자가 줄어들 때까지 꾹 누르세요.',
+  },
+  'tutorial_hexagon': {
+    'en': 'Stretch it in one drag. If you let go, it shrinks back.',
+    'ko': '한 번에 끝까지 쭉 늘리세요. 손을 떼면 되돌아가요.',
+  },
+  'tutorial_dark': {
+    'en': "Don't touch black shapes. You'll lose time.",
+    'ko': '검은 도형은 건드리면 안 돼요. 시간이 깎여요.',
+  },
+  'tutorial_move_line': {
+    'en': 'Moves along a set path in straight lines.',
+    'ko': '정해진 길을 따라 직선으로 움직여요.',
+  },
+  'tutorial_move_repeat': {
+    'en': 'At the last point it returns to the start and repeats.',
+    'ko': '마지막 지점에 닿으면 출발 지점으로 돌아가 반복해요.',
+  },
+  'tutorial_move_back': {
+    'en': 'At the last point it goes back the way it came.',
+    'ko': '마지막 지점에 닿으면 온 길을 되돌아가요.',
+  },
+  'tutorial_move_shuttle': {
+    'en': 'Moves back and forth between two points.',
+    'ko': '두 지점 사이를 계속 왕복해요.',
+  },
+  'tutorial_move_bounce': {
+    'en': 'Bounces off the walls.',
+    'ko': '벽에 튕기며 돌아다녀요.',
+  },
+  'tutorial_move_orbit': {
+    'en': 'Circles around a point.',
+    'ko': '한 지점을 중심으로 빙글빙글 돌아요.',
+  },
+  'tutorial_move_drop': {
+    'en': 'Pops in, then heads straight to a set height.',
+    'ko': '나타난 뒤 정해진 높이까지 곧장 움직여요.',
+  },
+  'tutorial_move_launch': {
+    'en': 'Thrown up, then falls in an arc. Miss it and you lose time.',
+    'ko': '위로 던져졌다가 포물선으로 떨어져요. 놓치면 시간이 깎여요.',
+  },
+  'tutorial_move_blink': {
+    'en': "Blinks in place. You can't touch it while it's hidden.",
+    'ko': '제자리에서 깜빡여요. 안 보일 때는 건드릴 수 없어요.',
+  },
+  'tutorial_move_blink_random': {
+    'en': 'Reappears somewhere else each time.',
+    'ko': '깜빡일 때마다 다른 곳에 나타나요.',
+  },
+  'tutorial_move_wait': {
+    'en': 'Appears, waits, then starts moving.',
+    'ko': '나타난 뒤 잠시 멈췄다가 움직여요.',
+  },
+  'tutorial_move_vanish': {
+    'en': 'Fades away on its own. No penalty.',
+    'ko': '시간이 지나면 저절로 사라져요. 벌점은 없어요.',
+  },
+  'tutorial_move_size': {
+    'en': 'Slowly changes size.',
+    'ko': '크기가 서서히 변해요.',
+  },
+  'tutorial_timer_bar': {
+    'en': 'The bar on top is your time. At zero, you fail.',
+    'ko': '위쪽 막대가 남은 시간이에요. 0이 되면 실패해요.',
+  },
+  'tutorial_timer_ring': {
+    'en': 'The ring around the shape is running out.',
+    'ko': '도형 테두리의 타이머가 줄어들고 있어요.',
+  },
+  'tutorial_timer_fail': {
+    'en': 'If it runs out, the shape explodes and you lose time.',
+    'ko': '타이머가 끝나면 도형이 터지고 시간이 깎여요.',
+  },
+  'tutorial_timer_clear': {
+    'en': "Clear it before it ends and you're safe.",
+    'ko': '끝나기 전에 없애면 안전해요.',
+  },
+  'tutorial_order_wrong': {
+    'en': 'Wrong order costs you time.',
+    'ko': '번호 순서를 틀리면 시간이 깎여요.',
+  },
+  'tutorial_order_right': {
+    'en': 'Go in order, smallest number first.',
+    'ko': '작은 번호부터 차례로 없애세요.',
+  },
+  'tutorial_go_game': {
+    'en': 'Shall we go to the game?',
+    'ko': '게임으로 가볼까요?',
+  },
+  'tutorial_tap_next': {
+    'en': 'Tap to Next',
+    'ko': '탭하여 다음으로',
+  },
   'settings_user_data': {
     'en': 'User Data',
     'ko': '사용자 데이터',

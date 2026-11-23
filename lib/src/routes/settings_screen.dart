@@ -96,6 +96,11 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const _RowDivider(),
                     _SettingsRow(
+                      label: i18n.t('settings_tutorial'),
+                      onTap: () => context.push('/settings/tutorial'),
+                    ),
+                    const _RowDivider(),
+                    _SettingsRow(
                       label: i18n.t('settings_user_data'),
                       onTap: () => context.push('/settings/user-data'),
                     ),
