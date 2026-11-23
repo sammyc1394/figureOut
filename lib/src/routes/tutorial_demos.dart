@@ -71,7 +71,11 @@ class _TutorialDemoState extends State<TutorialDemo>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ThemeModeScope.of(context);
-    return AnimatedBuilder(
+    // Material gives the text a default style, so it also works inside the
+    // game overlay (no yellow underline).
+    return Material(
+      type: MaterialType.transparency,
+      child: AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
         final elapsed = _controller.value * _controller.duration!.inMilliseconds;
@@ -118,6 +122,7 @@ class _TutorialDemoState extends State<TutorialDemo>
           ],
         );
       },
+      ),
     );
   }
 }

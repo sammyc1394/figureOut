@@ -85,6 +85,12 @@ class OneSecondGame extends FlameGame
   // black-shapes intro (stage 1 mission 2), shown once ever
   Completer<void>? _darkIntroCompleter;
   static const _darkIntroSeenKey = 'dark_intro_seen';
+  // timer intro (stage 1 mission 6) shares the start-intro completer
+  static const _timerIntroSeenKey = 'timer_intro_seen';
+  String? _startIntroSeenKey;
+  // ordered-shapes intro (stage 1 mission 2, when ordered shapes first appear)
+  Completer<void>? _orderIntroCompleter;
+  static const _orderIntroSeenKey = 'order_intro_seen';
   // "다시 보지 않기": 앱 실행(세션) 동안만 유지되는 플래그. 앱 재시작 시 초기화되어 다시 표시된다.
   static bool _tutorialHiddenThisSession = false;
 
@@ -801,6 +807,7 @@ class OneSecondGame extends FlameGame
     }
 
     _initOrder();
+    await _awaitOrderIntroIfNeeded(_selectedStageIndex, _selectedMissionIndex);
 
     final result = await waitUntilMissionCleared(clearTargets, runId: runId);
 
@@ -1668,6 +1675,7 @@ class OneSecondGame extends FlameGame
       _removeAftermathOverlay();
       _removeHowToPlayOverlay();
       _removeDarkIntroOverlay();
+      _removeOrderIntroOverlay();
 
       children.whereType<BlinkingBehaviorComponent>()
           .forEach((b) => b.removeFromParent());
@@ -2395,7 +2403,12 @@ class OneSecondGame extends FlameGame
 
   void pauseGame() {
     debugPrint("blinkingMap:${blinkingMap.values}");
-    if (overlays.isActive('howto') || overlays.isActive('darkIntro')) return;
+    if (overlays.isActive('howto') ||
+        overlays.isActive('darkIntro') ||
+        overlays.isActive('timerIntro') ||
+        overlays.isActive('orderIntro')) {
+      return;
+    }
     if (overlays.isActive('pause')) return;
 
     if (!_missionResolved && remainingTime <= 0) {
@@ -2594,30 +2607,72 @@ class OneSecondGame extends FlameGame
 
   void _removeDarkIntroOverlay() {
     if (overlays.isActive('darkIntro')) overlays.remove('darkIntro');
+    if (overlays.isActive('timerIntro')) overlays.remove('timerIntro');
     final completer = _darkIntroCompleter;
     _darkIntroCompleter = null;
     if (completer != null && !completer.isCompleted) completer.complete();
   }
 
-  /// Stage 1 Mission 2: black-shapes intro, first time only (persisted).
+  /// Stage 1 Mission 2 (black shapes) and Mission 6 (timer): intro before the
+  /// mission starts, first time only (persisted).
   Future<bool> _awaitDarkIntroIfNeeded(
     int stageIndex,
     int missionIndex,
     int runId,
   ) async {
-    if (stageIndex != 0 || missionIndex != 2 || _isContinuing) return true;
+    if (stageIndex != 0 || _isContinuing) return true;
+    final String overlay;
+    if (missionIndex == 2) {
+      overlay = 'darkIntro';
+      _startIntroSeenKey = _darkIntroSeenKey;
+    } else if (missionIndex == 6) {
+      overlay = 'timerIntro';
+      _startIntroSeenKey = _timerIntroSeenKey;
+    } else {
+      return true;
+    }
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_darkIntroSeenKey) ?? false) return runId == _runToken;
+    if (prefs.getBool(_startIntroSeenKey!) ?? false) return runId == _runToken;
 
     _darkIntroCompleter = Completer<void>();
-    overlays.add('darkIntro');
+    overlays.add(overlay);
     await _darkIntroCompleter!.future;
     _darkIntroCompleter = null;
     return runId == _runToken;
   }
 
+  void _removeOrderIntroOverlay() {
+    if (overlays.isActive('orderIntro')) overlays.remove('orderIntro');
+    final completer = _orderIntroCompleter;
+    _orderIntroCompleter = null;
+    if (completer != null && !completer.isCompleted) completer.complete();
+  }
+
+  /// Stage 1 Mission 2: ordered-shapes intro, first time only (persisted).
+  /// The game is frozen (timer included) until the intro is dismissed.
+  Future<void> _awaitOrderIntroIfNeeded(int stageIndex, int missionIndex) async {
+    if (stageIndex != 0 || missionIndex != 2 || !_hasOrder || _isContinuing) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_orderIntroSeenKey) ?? false) return;
+
+    _isPausedGlobally = true;
+    _timerPaused = true;
+    _pauseAllGameplayComponents();
+    _orderIntroCompleter = Completer<void>();
+    overlays.add('orderIntro');
+    await _orderIntroCompleter!.future;
+    _orderIntroCompleter = null;
+  }
+
+  void handleOrderIntroContinue() {
+    SharedPreferences.getInstance().then((p) => p.setBool(_orderIntroSeenKey, true));
+    _removeOrderIntroOverlay();
+    resumeGame();
+  }
+
   void handleDarkIntroContinue() {
-    SharedPreferences.getInstance().then((p) => p.setBool(_darkIntroSeenKey, true));
+    final key = _startIntroSeenKey ?? _darkIntroSeenKey;
+    SharedPreferences.getInstance().then((p) => p.setBool(key, true));
     _removeDarkIntroOverlay();
   }
 
