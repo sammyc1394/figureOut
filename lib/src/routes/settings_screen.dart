@@ -9,7 +9,6 @@ import 'package:figureout/src/services/localization_service.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
 import 'package:figureout/src/config/theme_mode_scope.dart';
-import 'how_to_play_overlay.dart';
 
 // Sunny Innovation Lab 공용 링크 (General Settings 기획서 slide 5)
 const String _sunnyHomepageUrl = 'https://ssongyc.github.io/sunny-homepage/';
@@ -81,20 +80,6 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
-                    _SettingsRow(
-                      label: i18n.t('settings_how_to_play'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            backgroundColor: Colors.black,
-                            body: HowToPlayOverlay(
-                              onContinue: (_) => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const _RowDivider(),
                     _SettingsRow(
                       label: i18n.t('settings_tutorial'),
                       onTap: () => context.push('/settings/tutorial'),
