@@ -2,6 +2,7 @@ import 'package:figureout/src/services/logger_service.dart';
 
 import 'package:figureout/src/game_modes/one_second_game.dart';
 import 'package:figureout/src/routes/aftermath_screen.dart';
+import 'package:figureout/src/routes/dark_intro_overlay.dart';
 import 'package:figureout/src/routes/how_to_play_overlay.dart';
 import 'package:figureout/src/routes/paused_screen.dart';
 import 'package:flame/game.dart';
@@ -158,6 +159,10 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
                   return HowToPlayOverlay(
                     onContinue: g.handleHowToPlayContinue,
                   );
+                },
+                'darkIntro': (context, game) {
+                  final g = game as OneSecondGame;
+                  return DarkIntroOverlay(onContinue: g.handleDarkIntroContinue);
                 },
                 'pause': (context, game) {
                   final g = game as OneSecondGame;

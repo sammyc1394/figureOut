@@ -82,6 +82,9 @@ class OneSecondGame extends FlameGame
 
   // how-to-play intro (stage 1 mission 1)
   Completer<void>? _howToPlayCompleter;
+  // black-shapes intro (stage 1 mission 2), shown once ever
+  Completer<void>? _darkIntroCompleter;
+  static const _darkIntroSeenKey = 'dark_intro_seen';
   // "다시 보지 않기": 앱 실행(세션) 동안만 유지되는 플래그. 앱 재시작 시 초기화되어 다시 표시된다.
   static bool _tutorialHiddenThisSession = false;
 
@@ -607,6 +610,10 @@ class OneSecondGame extends FlameGame
     // Stage 1 Mission 1: show how-to-play before the timer starts
     final canProceed = await _awaitHowToPlayIfNeeded(stageIndex, missionIndex, runId);
     if (!canProceed) {
+      return StageResult.cancelled;
+    }
+
+    if (!await _awaitDarkIntroIfNeeded(stageIndex, missionIndex, runId)) {
       return StageResult.cancelled;
     }
 
@@ -1660,6 +1667,7 @@ class OneSecondGame extends FlameGame
       // 결과 / 튜토리얼 화면도 제거
       _removeAftermathOverlay();
       _removeHowToPlayOverlay();
+      _removeDarkIntroOverlay();
 
       children.whereType<BlinkingBehaviorComponent>()
           .forEach((b) => b.removeFromParent());
@@ -2387,7 +2395,7 @@ class OneSecondGame extends FlameGame
 
   void pauseGame() {
     debugPrint("blinkingMap:${blinkingMap.values}");
-    if (overlays.isActive('howto')) return;
+    if (overlays.isActive('howto') || overlays.isActive('darkIntro')) return;
     if (overlays.isActive('pause')) return;
 
     if (!_missionResolved && remainingTime <= 0) {
@@ -2582,6 +2590,35 @@ class OneSecondGame extends FlameGame
     _howToPlayCompleter = null;
 
     return runId == _runToken;
+  }
+
+  void _removeDarkIntroOverlay() {
+    if (overlays.isActive('darkIntro')) overlays.remove('darkIntro');
+    final completer = _darkIntroCompleter;
+    _darkIntroCompleter = null;
+    if (completer != null && !completer.isCompleted) completer.complete();
+  }
+
+  /// Stage 1 Mission 2: black-shapes intro, first time only (persisted).
+  Future<bool> _awaitDarkIntroIfNeeded(
+    int stageIndex,
+    int missionIndex,
+    int runId,
+  ) async {
+    if (stageIndex != 0 || missionIndex != 2 || _isContinuing) return true;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_darkIntroSeenKey) ?? false) return runId == _runToken;
+
+    _darkIntroCompleter = Completer<void>();
+    overlays.add('darkIntro');
+    await _darkIntroCompleter!.future;
+    _darkIntroCompleter = null;
+    return runId == _runToken;
+  }
+
+  void handleDarkIntroContinue() {
+    SharedPreferences.getInstance().then((p) => p.setBool(_darkIntroSeenKey, true));
+    _removeDarkIntroOverlay();
   }
 
   void handleHowToPlayContinue(bool dontShowAgain) {
