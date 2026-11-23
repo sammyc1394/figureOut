@@ -33,6 +33,7 @@ import 'package:figureout/src/routes/open_source_info_screen.dart';
 import 'package:figureout/src/routes/settings_screen.dart';
 import 'package:figureout/src/routes/sunny_games_screen.dart';
 import 'package:figureout/src/routes/user_data_screen.dart';
+import 'package:figureout/src/routes/tutorial_screen.dart';
 import 'package:figureout/src/routes/route_args.dart';
 import 'package:figureout/src/services/audio_manager.dart';
 import 'package:figureout/src/services/ad_manager.dart';
@@ -242,6 +243,10 @@ class _FigureoutAppState extends State<_FigureoutApp> with WidgetsBindingObserve
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
           routes: [
+            GoRoute(
+              path: 'tutorial',
+              builder: (context, state) => const TutorialScreen(),
+            ),
             GoRoute(
               path: 'user-data',
               builder: (context, state) => const UserDataScreen(),

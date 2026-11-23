@@ -2,6 +2,8 @@ import 'package:figureout/src/services/logger_service.dart';
 
 import 'package:figureout/src/game_modes/one_second_game.dart';
 import 'package:figureout/src/routes/aftermath_screen.dart';
+import 'package:figureout/src/routes/tutorial_demos.dart';
+import 'package:figureout/src/routes/tutorial_intro_overlay.dart';
 import 'package:figureout/src/routes/how_to_play_overlay.dart';
 import 'package:figureout/src/routes/paused_screen.dart';
 import 'package:flame/game.dart';
@@ -157,6 +159,27 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
                   final g = game as OneSecondGame;
                   return HowToPlayOverlay(
                     onContinue: g.handleHowToPlayContinue,
+                  );
+                },
+                'darkIntro': (context, game) {
+                  final g = game as OneSecondGame;
+                  return TutorialIntroOverlay(
+                    demos: darkDemos(),
+                    onContinue: g.handleDarkIntroContinue,
+                  );
+                },
+                'timerIntro': (context, game) {
+                  final g = game as OneSecondGame;
+                  return TutorialIntroOverlay(
+                    demos: timerDemos(),
+                    onContinue: g.handleDarkIntroContinue,
+                  );
+                },
+                'orderIntro': (context, game) {
+                  final g = game as OneSecondGame;
+                  return TutorialIntroOverlay(
+                    demos: orderDemos(),
+                    onContinue: g.handleOrderIntroContinue,
                   );
                 },
                 'pause': (context, game) {

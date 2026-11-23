@@ -49,7 +49,8 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay> {
                     for (final item in _items) ...[
                       _HowToPlayRow(
                         svgPath: item.$1,
-                        label: item.$2,
+                        gesture: item.$2,
+                        label: i18n.t('howto_${item.$2.toLowerCase()}'),
                         iconSize: iconSize,
                         fontSize: fontSize,
                       ),
@@ -61,7 +62,7 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay> {
               const Spacer(flex: 1),
 
               Text(
-                'Tap to play!',
+                i18n.t('howto_tap_to_play'),
                 style: TextStyle(
                   fontFamily: appFontFamily,
                   fontSize: fontSize * 2,
@@ -117,7 +118,7 @@ class _DontShowAgainCheckbox extends StatelessWidget {
           ),
           SizedBox(width: spacing),
           Text(
-            "Don't show again",
+            i18n.t('howto_dont_show_again'),
             style: TextStyle(
               fontFamily: appFontFamily,
               fontSize: fontSize * 0.85,
@@ -134,12 +135,14 @@ class _DontShowAgainCheckbox extends StatelessWidget {
 
 class _HowToPlayRow extends StatelessWidget {
   final String svgPath;
+  final String gesture;
   final String label;
   final double iconSize;
   final double fontSize;
 
   const _HowToPlayRow({
     required this.svgPath,
+    required this.gesture,
     required this.label,
     required this.iconSize,
     required this.fontSize,
@@ -157,7 +160,7 @@ class _HowToPlayRow extends StatelessWidget {
             children: [
               SvgPicture.asset(svgPath, fit: BoxFit.contain),
 
-              _buildGesture(label, iconSize),
+              _buildGesture(gesture, iconSize),
             ],
           ),
         ),
