@@ -18,13 +18,6 @@ class LeaderboardEntry {
     required this.date,
   });
 
-  Map<String, dynamic> toJson() => {
-        'uuid': uuid,
-        'nickname': nickname,
-        'score': score,
-        'date': date.toIso8601String(),
-      };
-
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) => LeaderboardEntry(
         uuid: json['uuid'] ?? '',
         nickname: json['nickname'] ?? '익명',

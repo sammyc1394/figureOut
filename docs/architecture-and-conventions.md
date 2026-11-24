@@ -205,5 +205,6 @@ assets/
 
 - Dart 파일 이름은 `snake_case`로 통일했다. 추가 파일도 같은 규칙을 적용한다.
 - `OneSecondGame`은 플레이 영역, 제스처 및 미션 상태를 관리한다. 좌표 변환은 `functions/play_coordinates.dart`, 경로 교차와 슬라이스 계산은 `functions/gesture_geometry.dart`에 둔다.
+- 스테이지와 무한 모드 화면은 `GameWidget`의 포인터 입력을 `OneSecondGame`에 전달한다. 게임은 같은 육각형을 잡은 두 포인터의 거리를 기준으로 확대율을 계산하고, `HexagonShape`는 터치 범위, 체력, 효과음 및 원래 크기로 돌아가는 애니메이션을 관리한다.
 - 스테이지와 무한 모드는 `behaviors/movement_command_parser.dart`에서 이동 명령을 해석한다. 도형 제거, 깜빡임 상태, 시간 패널티는 게임에서 관리한다.
 - `temp/`의 파일은 대체 구현이 생기면 삭제한다.

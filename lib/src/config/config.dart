@@ -1,11 +1,7 @@
 import 'package:figureout/src/services/localization_service.dart';
 
-const gameWidth = 1179.0; //117.90;
-const gameHeight = 2556.0; //255.60;
-
 // editor min/max coordinate
 const double minX = -170.0;
-const double maxX = 170.0;
 const double minY = -365.0;
 const double maxY = 365.0;
 

@@ -152,78 +152,84 @@ class _MainGameScreenState extends State<MainGameScreen> with WidgetsBindingObse
         color: Color(isDarkMode ? darkBgColor : bgColor),
         child: Stack(
           children: [
-            GameWidget(
-              game: oneSec,
-              overlayBuilderMap: {
-                'howto': (context, game) {
-                  final g = game as OneSecondGame;
-                  return HowToPlayOverlay(
-                    onContinue: g.handleHowToPlayContinue,
-                  );
+            Listener(
+              onPointerDown: oneSec.onHexagonPointerDown,
+              onPointerMove: oneSec.onHexagonPointerMove,
+              onPointerUp: oneSec.onHexagonPointerEnd,
+              onPointerCancel: oneSec.onHexagonPointerEnd,
+              child: GameWidget(
+                game: oneSec,
+                overlayBuilderMap: {
+                  'howto': (context, game) {
+                    final g = game as OneSecondGame;
+                    return HowToPlayOverlay(
+                      onContinue: g.handleHowToPlayContinue,
+                    );
+                  },
+                  'darkIntro': (context, game) {
+                    final g = game as OneSecondGame;
+                    return TutorialIntroOverlay(
+                      demos: darkDemos(),
+                      onContinue: g.handleDarkIntroContinue,
+                    );
+                  },
+                  'timerIntro': (context, game) {
+                    final g = game as OneSecondGame;
+                    return TutorialIntroOverlay(
+                      demos: timerDemos(),
+                      onContinue: g.handleDarkIntroContinue,
+                    );
+                  },
+                  'orderIntro': (context, game) {
+                    final g = game as OneSecondGame;
+                    return TutorialIntroOverlay(
+                      demos: orderDemos(),
+                      onContinue: g.handleOrderIntroContinue,
+                    );
+                  },
+                  'pause': (context, game) {
+                    final g = game as OneSecondGame;
+                    return PauseOverlayWidget(
+                      onResume: g.handlePauseResume,
+                      onRetry: g.handlePauseRetry,
+                      onMenu: g.handlePauseMenu,
+                    );
+                  },
+                  'aftermath': (context, game) {
+                    final g = game as OneSecondGame;
+                    return AftermathOverlayWidget(
+                      result: g.currentAftermathResult!,
+                      starCount: g.currentAftermathStars,
+                      stgIndex: g.currentAftermathStgIndex,
+                      msnIndex: g.currentAftermathMsnIndex,
+                      onContinue: () => _continueAfterAd(g),
+                      onRetry: g.handleAftermathRetry,
+                      onPlay: g.handleAftermathPlay,
+                      onMenu: g.handleAftermathMenu,
+                    );
+                  },
                 },
-                'darkIntro': (context, game) {
-                  final g = game as OneSecondGame;
-                  return TutorialIntroOverlay(
-                    demos: darkDemos(),
-                    onContinue: g.handleDarkIntroContinue,
-                  );
-                },
-                'timerIntro': (context, game) {
-                  final g = game as OneSecondGame;
-                  return TutorialIntroOverlay(
-                    demos: timerDemos(),
-                    onContinue: g.handleDarkIntroContinue,
-                  );
-                },
-                'orderIntro': (context, game) {
-                  final g = game as OneSecondGame;
-                  return TutorialIntroOverlay(
-                    demos: orderDemos(),
-                    onContinue: g.handleOrderIntroContinue,
-                  );
-                },
-                'pause': (context, game) {
-                  final g = game as OneSecondGame;
-                  return PauseOverlayWidget(
-                    onResume: g.handlePauseResume,
-                    onRetry: g.handlePauseRetry,
-                    onMenu: g.handlePauseMenu,
-                  );
-                },
-                'aftermath': (context, game) {
-                  final g = game as OneSecondGame;
-                  return AftermathOverlayWidget(
-                    result: g.currentAftermathResult!,
-                    starCount: g.currentAftermathStars,
-                    stgIndex: g.currentAftermathStgIndex,
-                    msnIndex: g.currentAftermathMsnIndex,
-                    onContinue: () => _continueAfterAd(g),
-                    onRetry: g.handleAftermathRetry,
-                    onPlay: g.handleAftermathPlay,
-                    onMenu: g.handleAftermathMenu,
-                  );
-                },
-              },
-              backgroundBuilder: (context) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(color: Color(isDarkMode ? darkBgColor : bgColor)),
-                  Opacity(
-                    opacity: 0.15,
-                    child: ColorFiltered(
-                      colorFilter: const ColorFilter.matrix([
-                        -1,  0,  0, 0, 255,
-                         0, -1,  0, 0, 255,
-                         0,  0, -1, 0, 255,
-                         0,  0,  0, 1,   0,
-                      ]),
-                      child: Image.asset(
-                        grainTexture,
-                        fit: BoxFit.cover,
+                backgroundBuilder: (context) => Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: Color(isDarkMode ? darkBgColor : bgColor)),
+                    Opacity(
+                      opacity: 0.15,
+                      child: ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          -1,  0,  0, 0, 255,
+                           0, -1,  0, 0, 255,
+                           0,  0, -1, 0, 255,
+                           0,  0,  0, 1,   0,
+                        ]),
+                        child: Image.asset(
+                          grainTexture,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Positioned(

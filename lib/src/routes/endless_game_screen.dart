@@ -106,59 +106,65 @@ class _EndlessGameScreenState extends State<EndlessGameScreen> with WidgetsBindi
         color: Color(isDarkMode ? darkBgColor : bgColor),
         child: Stack(
           children: [
-            GameWidget(
-              game: endlessGame,
-              overlayBuilderMap: {
-                'pause': (context, game) {
-                  return PauseOverlayWidget(
-                    onResume: endlessGame.handlePauseResume,
-                    onRetry: endlessGame.restartEndlessGame,
-                    onMenu: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/stages');
-                      }
-                    },
-                  );
+            Listener(
+              onPointerDown: endlessGame.onHexagonPointerDown,
+              onPointerMove: endlessGame.onHexagonPointerMove,
+              onPointerUp: endlessGame.onHexagonPointerEnd,
+              onPointerCancel: endlessGame.onHexagonPointerEnd,
+              child: GameWidget(
+                game: endlessGame,
+                overlayBuilderMap: {
+                  'pause': (context, game) {
+                    return PauseOverlayWidget(
+                      onResume: endlessGame.handlePauseResume,
+                      onRetry: endlessGame.restartEndlessGame,
+                      onMenu: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/stages');
+                        }
+                      },
+                    );
+                  },
+                  'endless_aftermath': (context, game) {
+                    return _EndlessAftermathOverlay(
+                      score: _finalScore,
+                      rank: _playerRank,
+                      isHighScore: _isHighScore,
+                      nickname: _userNickname,
+                      onRetry: endlessGame.restartEndlessGame,
+                      onMenu: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/stages');
+                        }
+                      },
+                    );
+                  },
                 },
-                'endless_aftermath': (context, game) {
-                  return _EndlessAftermathOverlay(
-                    score: _finalScore,
-                    rank: _playerRank,
-                    isHighScore: _isHighScore,
-                    nickname: _userNickname,
-                    onRetry: endlessGame.restartEndlessGame,
-                    onMenu: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/stages');
-                      }
-                    },
-                  );
-                },
-              },
-              backgroundBuilder: (context) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(color: Color(isDarkMode ? darkBgColor : bgColor)),
-                  Opacity(
-                    opacity: 0.15,
-                    child: ColorFiltered(
-                      colorFilter: const ColorFilter.matrix([
-                        -1,  0,  0, 0, 255,
-                         0, -1,  0, 0, 255,
-                         0,  0, -1, 0, 255,
-                         0,  0,  0, 1,   0,
-                      ]),
-                      child: Image.asset(
-                        grainTexture,
-                        fit: BoxFit.cover,
+                backgroundBuilder: (context) => Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: Color(isDarkMode ? darkBgColor : bgColor)),
+                    Opacity(
+                      opacity: 0.15,
+                      child: ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          -1,  0,  0, 0, 255,
+                           0, -1,  0, 0, 255,
+                           0,  0, -1, 0, 255,
+                           0,  0,  0, 1,   0,
+                        ]),
+                        child: Image.asset(
+                          grainTexture,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Positioned(

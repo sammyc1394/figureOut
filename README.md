@@ -20,6 +20,15 @@ for maintained implementation notes.
 
 ## Run
 
+Set up the local platform scaffolding for the target before running the app.
+Git tracks the Android manifest, iOS Podfile, and iOS Info.plist. Keep those
+files when setting up the rest of the native project. Web preview requires
+a local `web/` directory.
+
+Create `assets/.env` with `GOOGLESHEETAPIKEY` and `GOOGLESHEETID` for
+stage and mission data. `AMPLITUDE_API` is optional and enables Amplitude
+event delivery.
+
 ```powershell
 flutter pub get
 flutter run
@@ -38,22 +47,11 @@ flutter analyze --no-pub
 flutter test --no-pub
 ```
 
-The lint configuration includes `package:flutter_lints/flutter.yaml`. The
-repository tracks selected Android and iOS configuration files. The remaining
-native scaffolding, web scaffolding, and signing inputs are local.
-The repository tracks the rewarded ad lifecycle and gameplay regression tests.
-The `test/` ignore rule applies to new, untracked test files.
-
-The rewarded ad test uses mocked native channels to check consent and
-connectivity eligibility, the show lock, duplicate callbacks, and preparation
-of the next ad without automatic playback.
-
-The app expects Google Sheet environment values in `assets/.env`.
-
-Required keys:
-
-- `GOOGLESHEETAPIKEY`
-- `GOOGLESHEETID`
+The lint configuration includes `package:flutter_lints/flutter.yaml`.
+The tracked tests cover gameplay gestures, coordinate alignment, movement,
+and the rewarded ad lifecycle. The ad test uses mocked native channels for
+consent, connectivity, presentation locking, duplicate callbacks, and
+preparing the next ad. The `test/` ignore rule applies to new, untracked tests.
 
 ## Core Screens
 
@@ -65,7 +63,11 @@ Required keys:
 - Mission clear popup
 - Mission failed popup
 - Endless mode and leaderboard
-- Settings, including audio and language
+- Settings, including audio, language, and animated gesture tutorials
+
+Stage selection shows locked stages in gray and refreshes their lock state
+when the player returns. Stage 1 also has one-time introductions to forbidden
+shapes, ordered shapes, and the mission timer.
 
 ## Gameplay Rules
 
@@ -75,7 +77,11 @@ Each shape has its own attack gesture.
 - Rectangle: swipe slash, similar to Fruit Ninja
 - Pentagon: long press for the health duration
 - Triangle: draw a circle around it without touching another shape
-- Hexagon: pinch zoom; each health point requires 20% scale change
+- Hexagon: place two fingers on the same visible hexagon and spread them.
+  The touch area extends slightly beyond the visible outline. The hexagon
+  grows with the distance between your fingers and loses one health point for
+  every additional 20% of its original scale. In the desktop preview, hold
+  the primary mouse button and drag to stretch it.
 
 Multiple matching shapes can be attacked at the same time when the gesture
 supports it. If a visible forbidden shape passes over the touch point while a
@@ -179,7 +185,10 @@ Supported movement commands:
 - `P(vx, vy, gravity)`: parabolic launch; see [P command](docs/parabola-movement.md)
 - `L(x1, y1, x2, y2, speed)`: move repeatedly between two points
 - `M(angle, speed, stopY)`: legacy movement toward the specified Y
-- `D(visible, hidden)`: repeat visible and hidden timing with smooth fade-in/out
+- `D(visible, hidden)`: repeat visible and hidden timing with smooth fade-in/out.
+  Supply two durations in seconds and use a decimal point for fractional
+  values. For example, `D(3.5, 3.2)` sets a 3.5-second visible phase and a
+  3.2-second hidden phase.
 - `DR(visible, hidden)`: repeat visible and hidden timing, then reappear at a random position
 - `Repeat`: loop the path from the start
 - `Back`: move back through the path in reverse order, then repeat from the
@@ -261,10 +270,6 @@ The background swap saves about 4.92 MiB at the file level with identical
 decoded pixels. The asset cleanup also removes retired BGM samples, an unused
 slice sound, and a duplicate result ribbon SVG. Gameplay cleanup removes unused
 helpers and overlap calculations whose result was never read.
-
-Before delivery, the workspace passed Flutter analysis and eight automated
-tests covering gestures, alignment, movement, and the rewarded ad lifecycle.
-APK size and on-device behavior were outside that verification.
 
 ## Agent Execution Rules
 
@@ -401,3 +406,13 @@ Reward presentation now reserves one immutable ad instance, ignores duplicate te
 빌드·린트·테스트·기기 설치·커밋·푸시는 실행하지 않았습니다. 기존 APK·AAB·TestFlight에 포함됐다는 의미가 아닙니다.
 다음 승인된 검증에서 오프라인 시작, 재시도 대기 중 단절, 늦은 로드 콜백, 백그라운드 복귀,
 오프라인 중 만료 팝업 열기, 복구 후 새 Watch Ad 탭을 확인해야 합니다.
+
+## Maintenance check for 2026-11-24
+
+- Added distance-based hexagon pinch scaling in Stage and Endless play,
+  expanded the touch area, and retained primary mouse dragging for desktop.
+- Removed unreachable hexagon auto-growth, unused game constants and state,
+  and the unused leaderboard serialization method.
+- The earlier maintenance run of `flutter analyze --no-pub` reported no
+  issues. All eight tests passed with `flutter test --no-pub --reporter expanded`.
+  Physical-device pinch behavior remains unverified.

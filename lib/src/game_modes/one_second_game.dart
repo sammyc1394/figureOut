@@ -8,6 +8,7 @@ import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:figureout/src/temp/refresh_button.dart';
+import 'package:flutter/gestures.dart' as gestures;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -67,6 +68,107 @@ class OneSecondGame extends FlameGame
   //Mission execution lock
   bool _isMissionRunning=false;
 
+  HexagonShape? _pinchedHexagon;
+  final _hexagonTouches = <int, Vector2>{};
+  int? _hexagonMousePointer;
+  double _pinchStartDistance = 0;
+  double _pinchStartScale = 1;
+
+  bool get _hexagonInputBlocked =>
+      paused ||
+      _isPausedGlobally ||
+      _isTimeOver ||
+      _missionResolved ||
+      overlays.isActive('howto') ||
+      overlays.isActive('endless_aftermath');
+
+  void onHexagonPointerDown(gestures.PointerDownEvent event) {
+    final isMouse = event.kind == gestures.PointerDeviceKind.mouse &&
+        event.buttons == gestures.kPrimaryMouseButton;
+    if (_hexagonInputBlocked ||
+        (event.kind != gestures.PointerDeviceKind.touch && !isMouse) ||
+        _hexagonMousePointer != null ||
+        (isMouse && _hexagonTouches.isNotEmpty) ||
+        _hexagonTouches.length >= 2) {
+      return;
+    }
+
+    final point = _hexagonPointerPosition(event);
+    for (final component in children.reversed()) {
+      if (component is! PositionComponent ||
+          component is! TapCallbacks ||
+          component.isRemoving) {
+        continue;
+      }
+      if (component is BlinkAlphaTarget && component.blinkAlpha <= 0) continue;
+      if (component case UserRemovable(wasRemovedByUser: true)) continue;
+      if (!component.containsPoint(point)) continue;
+      if (component is! HexagonShape || !component.canPinch) return;
+      if (_pinchedHexagon != null && _pinchedHexagon != component) return;
+
+      _pinchedHexagon = component;
+      _hexagonTouches[event.pointer] = point;
+      if (isMouse) {
+        _hexagonMousePointer = event.pointer;
+        component.beginPinch();
+      } else if (_hexagonTouches.length == 2) {
+        component.beginPinch();
+        _pinchStartScale = component.dragScale;
+        _pinchStartDistance = _hexagonTouchDistance;
+      }
+      return;
+    }
+  }
+
+  double get _hexagonTouchDistance =>
+      _hexagonTouches.values.first.distanceTo(_hexagonTouches.values.last);
+
+  Vector2 _hexagonPointerPosition(gestures.PointerEvent event) =>
+      convertGlobalToLocalCoordinate(
+        Vector2(event.position.dx, event.position.dy),
+      );
+
+  void onHexagonPointerMove(gestures.PointerMoveEvent event) {
+    final hexagon = _pinchedHexagon;
+    if (hexagon == null || !_hexagonTouches.containsKey(event.pointer)) return;
+    if (!hexagon.canPinch || _hexagonInputBlocked) {
+      _resetHexagonPinch();
+      return;
+    }
+
+    if (event.pointer == _hexagonMousePointer) {
+      hexagon.updatePinchScale(hexagon.dragScale + 0.01);
+      return;
+    }
+
+    _hexagonTouches[event.pointer] = _hexagonPointerPosition(event);
+    if (_hexagonTouches.length != 2) return;
+
+    // Keep very closely placed fingers from making the scale jump.
+    final referenceDistance = math.max(
+      _pinchStartDistance,
+      hexagon.size.x * 0.25,
+    );
+    final spread = _hexagonTouchDistance - _pinchStartDistance;
+    hexagon.updatePinchScale(
+      math.max(1.0, _pinchStartScale + spread / referenceDistance),
+    );
+  }
+
+  void onHexagonPointerEnd(gestures.PointerEvent event) {
+    if (_hexagonTouches.remove(event.pointer) == null) return;
+    if (_hexagonMousePointer == event.pointer) _hexagonMousePointer = null;
+    _pinchedHexagon?.endPinch();
+    if (_hexagonTouches.isEmpty) _pinchedHexagon = null;
+  }
+
+  void _resetHexagonPinch() {
+    _pinchedHexagon?.endPinch();
+    _pinchedHexagon = null;
+    _hexagonMousePointer = null;
+    _hexagonTouches.clear();
+  }
+
   // temporary function
   late RefreshButton refreshButton;
   // bool debugYN = true;
@@ -98,9 +200,6 @@ class OneSecondGame extends FlameGame
   int get currentAftermathStars => _currentAftermathStars;
   int get currentAftermathStgIndex => _currentAftermathStgIndex;
   int get currentAftermathMsnIndex => _currentAftermathMsnIndex;
-
-  //stage data
-  late StageData initialStage;
 
   late int _selectedStageIndex;
   late int _selectedMissionIndex;
@@ -1761,6 +1860,10 @@ class OneSecondGame extends FlameGame
   @override
   void update(double dt) {
     super.update(dt);
+    final hexagon = _pinchedHexagon;
+    if (hexagon != null && (!hexagon.canPinch || _hexagonInputBlocked)) {
+      _resetHexagonPinch();
+    }
     if (_shakeLeft > 0) _shakeLeft = math.max(0, _shakeLeft - dt);
 
     if (_isPausedGlobally) {
@@ -2435,6 +2538,7 @@ class OneSecondGame extends FlameGame
   // which otherwise leaves shapes moving/blinking behind the blurred dialog
   // since showAftermathScreen doesn't go through pauseGame()'s flow.
   void _pauseAllGameplayComponents() {
+    _resetHexagonPinch();
     AudioManager.instance.stopLoopingSfx();
 
     for (final c in children.whereType<CircleShape>()) {

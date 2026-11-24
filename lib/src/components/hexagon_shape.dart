@@ -16,7 +16,6 @@ import 'shape_path_utils.dart';
 enum HexagonState {
   normal,
   shrinkingBack,
-  autoGrowing,
   disappearing,
 }
 
@@ -27,7 +26,6 @@ class HexagonShape extends PositionComponent
   static final _images = Images(prefix: 'assets/');
 
   double dragScale = 1.0;
-  double autoScale = 1.0;
 
   int energy = 0;
   TextComponent? _hpTextComponent;
@@ -58,17 +56,14 @@ class HexagonShape extends PositionComponent
 
   HexagonState _state = HexagonState.normal;
 
-  /// One stretch SFX loop per drag gesture (burst plays pop on destroy).
+  /// One stretch SFX loop per pinch gesture (burst plays pop on destroy).
   bool _stretchSfxPlaying = false;
 
-  double _autoGrowT = 0.0;
   double _disappearT = 0.0;
   double _shrinkBackT = 0.0;
   double _shrinkStartScale = 1.0;
 
   int _currentHp = 0;
-
-  static const double maxAutoScale = 3.5;
 
   double _finalScale = 1.0;
   double _opacity = 1.0;
@@ -134,7 +129,7 @@ class HexagonShape extends PositionComponent
 
   @override
   void onRemove() {
-    AudioManager.instance.stopHexagonStretch();
+    _stopStretchSound();
     super.onRemove();
   }
 
@@ -189,39 +184,53 @@ class HexagonShape extends PositionComponent
 
   @override
   void onTapDown(TapDownEvent event) {
+    if (_blinkAlpha <= 0) {
+      event.continuePropagation = true;
+      return;
+    }
     event.continuePropagation = false;
-    if (isDark) onForbiddenTouch?.call();
+    if (isDark && !isPaused) onForbiddenTouch?.call();
   }
 
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
-    _stretchSfxPlaying = false;
+    // Visible hexagons consume drags that start on them so the game does not
+    // interpret a finger of the pinch as a slice or an encircling gesture.
+    event.continuePropagation = _blinkAlpha <= 0;
   }
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
+    if (isDark && !isPaused && _blinkAlpha > 0) onForbiddenTouch?.call();
+  }
 
-    if (_blinkAlpha <= 0) return;
+  bool get canPinch =>
+      isMounted &&
+      !isRemoving &&
+      !isDark &&
+      !isPaused &&
+      _blinkAlpha > 0 &&
+      (_state == HexagonState.normal || _state == HexagonState.shrinkingBack);
 
-    if (isDark) {
-      onForbiddenTouch?.call();
+  void beginPinch() {
+    _state = HexagonState.normal;
+  }
+
+  void updatePinchScale(double nextScale) {
+    if (!canPinch || _state != HexagonState.normal || nextScale == dragScale) {
       return;
     }
-
-    if (_state != HexagonState.normal) return;
-
     if (!_stretchSfxPlaying) {
       _stretchSfxPlaying = true;
       AudioManager.instance.startHexagonStretch();
     }
 
-    dragScale += 0.01;
-
+    dragScale = energy > 0 ? math.min(nextScale, 1.0 + energy * 0.2) : nextScale;
     scale = Vector2.all(dragScale);
 
     if (energy >= 1) {
-      final stage = ((dragScale - 1.0) / 0.2).floor().clamp(0, energy);
+      final stage = _stretchDamage(dragScale);
       final newHp = energy - stage;
       if (newHp != _currentHp) {
         _currentHp = newHp;
@@ -229,20 +238,18 @@ class HexagonShape extends PositionComponent
         if (_currentHp <= 0) {
           wasRemovedByUser = true;
           _finalScale = dragScale;
-          _stretchSfxPlaying = false;
-          AudioManager.instance.stopHexagonStretch();
+          _stopStretchSound();
           _state = HexagonState.disappearing;
         }
       }
     }
   }
 
-  @override
-  void onDragEnd(DragEndEvent event) {
-    super.onDragEnd(event);
-    _stretchSfxPlaying = false;
-    AudioManager.instance.stopHexagonStretch();
+  int _stretchDamage(double currentScale) =>
+      ((currentScale - 1.0) * 5 + 1e-9).floor().clamp(0, energy);
 
+  void endPinch() {
+    _stopStretchSound();
     if (_state != HexagonState.normal) return;
 
     if (dragScale > 1.0) {
@@ -252,9 +259,8 @@ class HexagonShape extends PositionComponent
     }
   }
 
-  @override
-  void onDragCancel(DragCancelEvent event) {
-    super.onDragCancel(event);
+  void _stopStretchSound() {
+    if (!_stretchSfxPlaying) return;
     _stretchSfxPlaying = false;
     AudioManager.instance.stopHexagonStretch();
   }
@@ -265,10 +271,7 @@ class HexagonShape extends PositionComponent
     super.update(dt);
 
     if (isPaused) {
-      if (_stretchSfxPlaying) {
-        _stretchSfxPlaying = false;
-        AudioManager.instance.stopHexagonStretch();
-      }
+      _stopStretchSound();
       return;
     }
 
@@ -329,7 +332,7 @@ class HexagonShape extends PositionComponent
       scale = Vector2.all(curScale);
 
       if (energy >= 1) {
-        final stage = ((curScale - 1.0) / 0.2).floor().clamp(0, energy);
+        final stage = _stretchDamage(curScale);
         final displayHp = energy - stage;
         if (displayHp != _currentHp) {
           _currentHp = displayHp;
@@ -349,26 +352,6 @@ class HexagonShape extends PositionComponent
     // ============================
     // USER REMOVE
     // ============================
-
-    if (_state == HexagonState.autoGrowing) {
-
-      _autoGrowT += dt / 0.4;
-
-      final t = Curves.easeOut.transform(_autoGrowT.clamp(0.0, 1.0));
-
-      autoScale = 1.0 + t * maxAutoScale;
-
-      scale = Vector2.all(dragScale * autoScale);
-
-      if (_autoGrowT >= 1.0) {
-
-        _finalScale = dragScale * autoScale;
-
-        _stretchSfxPlaying = false;
-        AudioManager.instance.stopHexagonStretch();
-        _state = HexagonState.disappearing;
-      }
-    }
 
     if (_state == HexagonState.disappearing) {
 
@@ -403,6 +386,12 @@ class HexagonShape extends PositionComponent
 
   @override
   bool containsLocalPoint(Vector2 point) {
+    if (!isDark) {
+      // Match the sprite's flat top and bottom, with 5% total touch padding.
+      final x = (point.x / size.x - 0.5).abs();
+      final y = (point.y / size.y - 0.5).abs();
+      return y <= 0.525 && x + y * 0.5 <= 0.525;
+    }
     final cx = size.x / 2;
     final cy = size.y / 2;
     const inset = 13.0;
