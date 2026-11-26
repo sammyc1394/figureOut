@@ -2480,6 +2480,7 @@ class OneSecondGame extends FlameGame
     _pauseAllGameplayComponents();
 
     overlays.add('pause');
+    AudioManager.instance.suspendBgm(BgmSuspendReason.pause);
   }
 
   // Freezes every shape/effect/behavior component in place — used both by
@@ -2548,6 +2549,7 @@ class OneSecondGame extends FlameGame
 
   // pause UI 제거
   if (overlays.isActive('pause')) overlays.remove('pause');
+  AudioManager.instance.resumeBgm(BgmSuspendReason.pause);
 
   if (_pendingResult == null && !_missionResolved && remainingTime <= 0) {
     _pendingResult = StageResult.fail;
@@ -2805,6 +2807,7 @@ class OneSecondGame extends FlameGame
 
   Future<void> handlePauseRetry() async {
     overlays.remove('pause');
+    AudioManager.instance.resumeBgm(BgmSuspendReason.pause);
     await AnalyticsService.instance.logEvent('Pause_Restart_Clicked');
 
     _isPausedGlobally = false;

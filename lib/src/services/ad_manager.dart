@@ -1,4 +1,5 @@
 import 'ad_network.dart';
+import 'audio_manager.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -79,6 +80,8 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // Safety net if a terminal ad callback never arrived.
+      if (!_showing) AudioManager.instance.resumeBgm(BgmSuspendReason.ad);
       unawaited(_startConsent());
       _expireCachedAd();
       _resumePreparation();
@@ -263,6 +266,8 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     _showing = true;
+    // Mute before show(): the ad window can take a moment to appear.
+    AudioManager.instance.suspendBgm(BgmSuspendReason.ad);
     _rewardedAd = null;
     _adAge = null;
     _validityTimer?.cancel();
@@ -275,6 +280,7 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
       if (closed || failed || earned || opened) return;
       failed = true;
       _showing = false;
+      AudioManager.instance.resumeBgm(BgmSuspendReason.ad);
       ad.dispose();
       debugPrint('[AdManager] Rewarded ad failed to show: $error');
       onAdUnavailable?.call();
@@ -291,6 +297,7 @@ class AdManager extends ChangeNotifier with WidgetsBindingObserver {
         if (!identical(callbackAd, ad) || closed || failed) return;
         closed = true;
         _showing = false;
+        AudioManager.instance.resumeBgm(BgmSuspendReason.ad);
         ad.dispose();
         onAdClosed?.call();
         notifyListeners();
