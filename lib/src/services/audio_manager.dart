@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Why BGM is held back. BGM is audible only while none of these is active.
+enum BgmSuspendReason { app, ad, pause }
+
 /// Central Audio Manager for BGM and Sound Effects (SFX)
-class AudioManager extends ChangeNotifier {
+class AudioManager extends ChangeNotifier with WidgetsBindingObserver {
   static final AudioManager _instance = AudioManager._internal();
   static AudioManager get instance => _instance;
 
@@ -38,6 +41,52 @@ class AudioManager extends ChangeNotifier {
 
   bool _isBgmPlaying = false;
   bool _isBgmStarting = false;
+  final Set<BgmSuspendReason> _bgmSuspended = {};
+  Future<void> _bgmSuspension = Future<void>.value();
+
+  /// Hold BGM (and looping SFX) until every reason is released with [resumeBgm].
+  void suspendBgm(BgmSuspendReason reason) {
+    if (!_bgmSuspended.add(reason)) return;
+    if (reason != BgmSuspendReason.pause) unawaited(stopLoopingSfx());
+    unawaited(_applyBgmSuspension());
+  }
+
+  void resumeBgm(BgmSuspendReason reason) {
+    if (_bgmSuspended.remove(reason)) unawaited(_applyBgmSuspension());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      resumeBgm(BgmSuspendReason.app);
+    } else {
+      suspendBgm(BgmSuspendReason.app);
+    }
+  }
+
+  // Serialized so a quick suspend/resume pair cannot interleave player calls.
+  Future<void> _applyBgmSuspension() {
+    _bgmSuspension = _bgmSuspension.then((_) async {
+      try {
+        if (_bgmSuspended.isNotEmpty) {
+          await _bgmPlayer.pause();
+          await _bgmSpare.pause();
+        } else if (isBgmEnabled) {
+          // After a system interruption (e.g. iOS) the player may be stopped
+          // even though the flag still says playing, so restart in that case.
+          if (_isBgmPlaying && _bgmPlayer.state == PlayerState.paused) {
+            await _bgmPlayer.resume();
+          } else {
+            _isBgmPlaying = false;
+            await playBGM();
+          }
+        }
+      } catch (error) {
+        debugPrint('[Audio] BGM suspension update failed: $error');
+      }
+    });
+    return _bgmSuspension;
+  }
 
   final _TailSustainPlayer _pentagonHold = _TailSustainPlayer(
     introAsset: 'audio/pop_pentagon_hold.mp3',
@@ -70,6 +119,7 @@ class AudioManager extends ChangeNotifier {
     }
     await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
     await _bgmPlayer.setVolume(isBgmEnabled ? 0.85 : 0);
+    WidgetsBinding.instance.addObserver(this);
 
     await _pentagonHold.init();
     await _hexagonStretch.init();
@@ -136,7 +186,7 @@ class AudioManager extends ChangeNotifier {
 
   /// Play shape explosion / pop sound effect with specific audio asset
   Future<void> playPopSound(String soundFile) async {
-    if (!isSoundEnabled) return;
+    if (!isSoundEnabled || _bgmSuspended.isNotEmpty) return;
     try {
       if (_sfxPool.isEmpty) {
         await init();
@@ -186,6 +236,8 @@ class AudioManager extends ChangeNotifier {
 
   /// Back to the main track, unless a newer stage screen has taken over.
   Future<void> releaseStageBgm(int token) async {
+    // The leaving screen may still hold a pause hold; drop it so the menu is audible.
+    resumeBgm(BgmSuspendReason.pause);
     if (token != _stageBgmToken) return;
     await _switchBgm(mainBgmTracks[_mainBgmIndex]);
   }
@@ -194,6 +246,8 @@ class AudioManager extends ChangeNotifier {
     if (track == _currentBgmTrack && _isBgmPlaying) return;
     _currentBgmTrack = track;
     _isBgmPlaying = false;
+    // Drop the old track now so resuming starts the new one, not the paused old one.
+    if (_bgmSuspended.isNotEmpty) await _bgmPlayer.stop();
     await playBGM();
   }
 
@@ -238,7 +292,7 @@ class AudioManager extends ChangeNotifier {
 
   Future<void> _crossfadeTo(String track) async {
     final level = isBgmEnabled ? 0.85 : 0.0;
-    if (!_isBgmPlaying || level == 0) {
+    if (!_isBgmPlaying || level == 0 || _bgmSuspended.isNotEmpty) {
       await _switchBgm(track);
       return;
     }
@@ -272,6 +326,8 @@ class AudioManager extends ChangeNotifier {
       _bgmPlayer = next;
       _bgmSpare = old;
       _currentBgmTrack = track;
+      // Suspended mid-fade: the incoming player was resumed after the pause call.
+      if (_bgmSuspended.isNotEmpty) await next.pause();
     } catch (e) {
       debugPrint('[Audio] BGM crossfade failed: $e');
       await _switchBgm(track);
@@ -369,7 +425,7 @@ class AudioManager extends ChangeNotifier {
 
   /// Play background music (BGM)
   Future<void> playBGM() async {
-    if (!isBgmEnabled) return;
+    if (!isBgmEnabled || _bgmSuspended.isNotEmpty) return;
     if (_isBgmPlaying || _isBgmStarting) return;
 
     _isBgmStarting = true;
@@ -382,6 +438,8 @@ class AudioManager extends ChangeNotifier {
         return;
       }
       _isBgmPlaying = true;
+      // Suspended while the track was starting: hold it, resume restarts it.
+      if (_bgmSuspended.isNotEmpty) await _bgmPlayer.pause();
     } catch (e) {
       _isBgmPlaying = false;
       debugPrint('[Audio] BGM playback failed: $e');
