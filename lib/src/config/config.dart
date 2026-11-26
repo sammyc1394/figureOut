@@ -35,7 +35,7 @@ enum StageResult { success, fail, cancelled }
 enum ShapeZOrder { top, normal, bottom }
 
 enum URDField {
-  shape, size, order, energy,
+  size, order, energy,
   positionX, positionY,
   movementSpeed, movementRadius, movementAsec, movementBsec,
   attackSecond, attackDamage,

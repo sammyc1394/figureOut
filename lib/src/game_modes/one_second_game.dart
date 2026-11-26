@@ -235,11 +235,9 @@ class OneSecondGame extends FlameGame
   late ForbiddenShapeEffect forbiddenShapeEffect;
 
   // For Continue feature
-  static const double minTimeLimit = 10.0;
   double initialMaxTime = 0.0;
   double currentMissionTime = 0.0;
   double elapsedGameTime = 0.0;
-  double _lastRoundStartTime = 0.0;
   int _lastRoundStartIndex = 0;
   bool _isContinuing = false;
 
@@ -539,14 +537,8 @@ class OneSecondGame extends FlameGame
     elapsedGameTime = 0.0;
   }
 
-  // 시간 보상 (+1초)
-  void addTimeReward(double seconds) {
-    if (_isTimeOver) return;
-    final maxLimit = initialMaxTime > 0 ? initialMaxTime : 60.0;
-    currentMissionTime = math.min(maxLimit, currentMissionTime + seconds);
-    remainingTime = currentMissionTime;
-    updateTimerUI();
-  }
+  // Endless mode overrides this hook to award bonus time.
+  void addTimeReward(double seconds) {}
 
   //스폰 중단
   void _stopEnemyBehaviors() {
@@ -733,22 +725,15 @@ class OneSecondGame extends FlameGame
     
     if (!_isContinuing) {
       initialMaxTime = chosen ?? 0.0;
-      _lastRoundStartTime = initialMaxTime;
-      currentMissionTime = initialMaxTime;
       _lastRoundStartIndex = 0;
-    } else {
-      // Use the previous starting time to halve, not the current 0 seconds
-      _lastRoundStartTime = math.max(minTimeLimit, _lastRoundStartTime / 2.0);
-      currentMissionTime = _lastRoundStartTime;
     }
-
-    final timeToStart = currentMissionTime;
+    currentMissionTime = initialMaxTime;
 
     // UI Gauge basis: Fix totalTime to the initial mission time
     timerBar.totalTime = initialMaxTime;
 
-    if (timeToStart > 0) {
-      startMissionTimer(timeToStart);
+    if (currentMissionTime > 0) {
+      startMissionTimer(currentMissionTime);
     } else {
       debugPrint(
         '[WARNING] Invalid or empty timeLimit: "${stage.timeLimit}" (timer not started)',
@@ -874,6 +859,7 @@ class OneSecondGame extends FlameGame
       currentWave,
       spawnedThisMission,
       runId: runId,
+      waitForVisualEffects: false,
     );
   }
 
@@ -881,6 +867,7 @@ class OneSecondGame extends FlameGame
       Set<Component> currentWave,
       Set<Component> spawnedThisMission, {
       required int runId,
+      bool waitForVisualEffects = true,
       }) async {
     await _waitForTargetsMounted(currentWave);
 
@@ -908,7 +895,11 @@ class OneSecondGame extends FlameGame
     _initOrder();
     await _awaitOrderIntroIfNeeded(_selectedStageIndex, _selectedMissionIndex);
 
-    final result = await waitUntilMissionCleared(clearTargets, runId: runId);
+    final result = await waitUntilMissionCleared(
+      clearTargets,
+      runId: runId,
+      waitForVisualEffects: waitForVisualEffects,
+    );
 
     for (final comp in List<Component>.from(spawnedThisMission)) {
       comp.removeFromParent();
@@ -1143,7 +1134,7 @@ class OneSecondGame extends FlameGame
         applyTimePenalty((enemy.attackDamage?? 1.0).abs());
       }
     }
-    shapePoppedReward() {
+    void handleShapePopped() {
       if (!isDark) {
         addTimeReward(1.0);
       }
@@ -1166,7 +1157,7 @@ class OneSecondGame extends FlameGame
           customSize: enemy.customSize,
           order: enemy.order,
           onInteracted: _onOrderInteracted,
-          onRemoved: shapePoppedReward,
+          onRemoved: handleShapePopped,
         );
       case "Rectangle":
         shape = RectangleShape(
@@ -1180,7 +1171,7 @@ class OneSecondGame extends FlameGame
           customSize: enemy.customSize,
           order: enemy.order,
           onInteracted: _onOrderInteracted,
-          onRemoved: shapePoppedReward,
+          onRemoved: handleShapePopped,
           angle: enemy.angle,
         );
 
@@ -1392,21 +1383,6 @@ class OneSecondGame extends FlameGame
     shape.removeFromParent();
   }
 
-  bool _isVisualEffectComponent(Component c) {
-    // 사각형 본체가 제거돼도 잘린 조각 연출이 끝나기 전에는 다음 wave를 시작하지 않는다.
-    if (c is FallingClippedPiece) return true;
-
-    // Flame Effect는 물론이고, 너가 만든 "xxxDisappearEffect" 같은 것도 잡기
-    if (c is Effect) return true;
-
-    final name = c.runtimeType.toString();
-    if (name.contains('DisappearEffect')) return true;
-    if (name.contains('ExplosionEffect')) return true;
-    if (name.contains('SliceEffect')) return true;
-
-    return false;
-  }
-
   Future<void> _markMissionCleared(int stageIndex, int missionNo) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -1420,47 +1396,21 @@ class OneSecondGame extends FlameGame
     );
   }
 
-  bool _hasAnyActiveVisualEffectsInTree() {
-    bool found = false;
-
-    bool isAttachedToDarkShape(Component node) {
-      Component? current = node;
-
-      while (current != null) {
-        if (_isDarkShape(current)) return true;
-        current = current.parent;
-      }
-
-      return false;
-    }
-
-    void walk(Component node) {
-      if (found) return;
-
-      if (_isVisualEffectComponent(node)) {
-        // 🔥 금지도형에 붙은 effect면 무시
-        if (!isAttachedToDarkShape(node)) {
-          found = true;
-          return;
-        }
-      }
-
-      for (final child in node.children) {
-        walk(child);
-        if (found) return;
-      }
-    }
-
-    for (final c in children) {
-      walk(c);
-      if (found) break;
-    }
-
-    return found;
-  }
+  bool _hasPendingRemovalEffects() => children.any(
+    (component) =>
+        !component.isRemoving &&
+        (component is FallingClippedPiece ||
+            component is AttackExplosionEffect ||
+            component is EncircleSliceEffect ||
+            component is CircleDisappearEffect),
+  );
 
   // 그냥 도형 다 죽였는지 여부
-    Future<StageResult> waitUntilMissionCleared(Set<Component> targets, {required int runId}) async {
+    Future<StageResult> waitUntilMissionCleared(
+      Set<Component> targets, {
+      required int runId,
+      bool waitForVisualEffects = true,
+    }) async {
       // add 직후 같은 프레임 race 방지
       await Future<void>.delayed(Duration.zero);
 
@@ -1484,8 +1434,9 @@ class OneSecondGame extends FlameGame
         if (runId != _runToken) return StageResult.cancelled;
         if (_isTimeOver) return StageResult.fail;
 
-      // 1) 화면에 남아있는 모든 비주얼 이펙트(Effect + custom effect component) 끝날 때까지 대기
-        if (_hasAnyActiveVisualEffectsInTree()) {
+        // Wait 0 drains effects before the next wave. The final result can
+        // resolve once the targets are gone, even if sliced pieces still fall.
+        if (waitForVisualEffects && _hasPendingRemovalEffects()) {
           await Future.delayed(const Duration(milliseconds: 60));
           continue;
         }
@@ -1962,8 +1913,6 @@ class OneSecondGame extends FlameGame
     _timerEndedNotified = false;
     isTimeCritical = false;
 
-    // 남은 시간 리셋 (예: 타임오버된 경우 10초 부여)
-    // Set continuing flag
     _isContinuing = true;
 
     final int localToken = ++_runToken;

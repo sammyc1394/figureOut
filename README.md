@@ -49,9 +49,14 @@ flutter test --no-pub
 
 The lint configuration includes `package:flutter_lints/flutter.yaml`.
 The tracked tests cover gameplay gestures, coordinate alignment, movement,
-and the rewarded ad lifecycle. The ad test uses mocked native channels for
-consent, connectivity, presentation locking, duplicate callbacks, and
-preparing the next ad. The `test/` ignore rule applies to new, untracked tests.
+rectangle angle parsing, and the rewarded ad lifecycle. The ad test uses
+mocked native channels for consent, connectivity, presentation locking,
+duplicate callbacks, and preparing the next ad. The `test/` ignore rule applies
+to new, untracked tests.
+
+The Stage 4 Mission 3 regression tests use local mission data to verify that
+clearing the normal triangles advances each `Wait 0` wave, including while an
+unrelated movement effect is active.
 
 ## Core Screens
 
@@ -82,6 +87,13 @@ Each shape has its own attack gesture.
   grows with the distance between your fingers and loses one health point for
   every additional 20% of its original scale. In the desktop preview, hold
   the primary mouse button and drag to stretch it.
+
+Stage missions award zero bonus seconds for removing a shape. Endless mode
+awards one bonus second for popping a normal circle or removing an ordered
+rectangle.
+
+Continuing a failed stage mission restores its full original time limit and
+restarts from the last saved wave checkpoint.
 
 Multiple matching shapes can be attacked at the same time when the gesture
 supports it. If a visible forbidden shape passes over the touch point while a
@@ -150,8 +162,11 @@ Rectangle35:250/45 (60)
 ```
 
 This means width 35, height 250 in sheet coordinate units, angle 45 degrees,
-and health 60. These are dimensions, not a ratio. Rectangle dimensions do not
-use the numbered size table above.
+and health 60. Rectangle dimensions are independent of the numbered size table.
+
+Use `Rectangle 35:200/RND(0, 180) (-1)` to give a forbidden rectangle a random
+integer angle from 0° through 180°. `/RD(0, 180)` works the same way. The angle
+is chosen when the sheet row is parsed.
 
 ## Attack Data
 
@@ -185,11 +200,13 @@ Supported movement commands:
 - `P(vx, vy, gravity)`: parabolic launch; see [P command](docs/parabola-movement.md)
 - `L(x1, y1, x2, y2, speed)`: move repeatedly between two points
 - `M(angle, speed, stopY)`: legacy movement toward the specified Y
-- `D(visible, hidden)`: repeat visible and hidden timing with smooth fade-in/out.
+- `D(visible, hidden)`: fade in for the first 20% of the visible interval,
+  stay fully visible for 60%, and fade out for the final 20%.
   Supply two durations in seconds and use a decimal point for fractional
   values. For example, `D(3.5, 3.2)` sets a 3.5-second visible phase and a
   3.2-second hidden phase.
-- `DR(visible, hidden)`: repeat visible and hidden timing, then reappear at a random position
+- `DR(visible, hidden)`: use the same timing as `D` and reappear at a random
+  position after each hidden interval.
 - `Repeat`: loop the path from the start
 - `Back`: move back through the path in reverse order, then repeat from the
   initial wait; the return journey does not add another endpoint wait
@@ -215,7 +232,8 @@ Disappear(3)
 
 ## Random Data
 
-- `RND(a, b)` (alias `RD(a, b)`): random value between `a` and `b`
+- `RND(a, b)` (alias `RD(a, b)`): random integer, including both endpoints when
+  `a` and `b` are integers
 - `URD(a, b)`: unique random value between `a` and `b` within the same `Wait 0` group
 
 ## Wait Rules
@@ -223,8 +241,13 @@ Disappear(3)
 - `Wait n`: wait `n` seconds before spawning the next enemy group
 - `Wait 0`: wait until all current non-dark enemies and their removal effects
   have finished, including sliced Rectangle pieces
+- Movement and penalty flash effects do not delay `Wait 0`.
+- At the end of the mission, clear once the last target is gone, even if
+  forbidden shapes are present. Falling Rectangle pieces can finish animating
+  during the result transition.
 - `Wait 0` waits for newly spawned enemies to mount before checking clear state.
-- Already removed or removing enemies must not block the next wave.
+- Removed targets no longer block the next wave once their removal effects
+  finish. A temporarily hidden D/DR target still counts if it will reappear.
 - `Wait` rows are written in the shape column.
 - Dark enemies with health `-1` do not block `Wait 0`
 
@@ -416,3 +439,12 @@ Reward presentation now reserves one immutable ad instance, ignores duplicate te
 - The earlier maintenance run of `flutter analyze --no-pub` reported no
   issues. All eight tests passed with `flutter test --no-pub --reporter expanded`.
   Physical-device pinch behavior remains unverified.
+
+## Maintenance check for 2026-11-26
+
+- Removed the unused `assets/audio/pop.mp3` and its default argument from
+  `AudioManager.playPopSound`. Every caller supplies its own effect. Removed
+  the unused `URDField.shape` enum value.
+- Before delivery, `flutter analyze --no-pub` reported no issues and all 11
+  tests passed with `flutter test --no-pub --reporter expanded`. The suite
+  includes rectangle angle parsing and Stage 4 Mission 3 wave progression.

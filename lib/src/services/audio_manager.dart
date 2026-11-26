@@ -135,7 +135,7 @@ class AudioManager extends ChangeNotifier {
   }
 
   /// Play shape explosion / pop sound effect with specific audio asset
-  Future<void> playPopSound([String soundFile = 'pop.mp3']) async {
+  Future<void> playPopSound(String soundFile) async {
     if (!isSoundEnabled) return;
     try {
       if (_sfxPool.isEmpty) {

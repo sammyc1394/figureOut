@@ -5,12 +5,15 @@ import 'package:figureout/src/components/pentagon_shape.dart';
 import 'package:figureout/src/components/prepared_enemy.dart';
 import 'package:figureout/src/components/rectangle_shape.dart';
 import 'package:figureout/src/components/triangle_shape.dart';
+import 'package:figureout/src/config/config.dart';
 import 'package:figureout/src/game_modes/one_second_game.dart';
+import 'package:figureout/src/services/random_context.dart';
 import 'package:figureout/src/services/sheet_service.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -132,6 +135,25 @@ Future<void> _drag(WidgetTester tester, List<Offset> path) async {
 }
 
 void main() {
+  test('rectangle angle parsing resolves RD and RND and keeps health', () {
+    dotenv.testLoad();
+    final service = SheetService();
+    final context = RandomContext();
+
+    expect(
+      service.resolveShape('Rectangle 35:200/RD(-45, -45) (-1)', context),
+      'Rectangle35:200/-45(-1)',
+    );
+    expect(
+      service.resolveShape('Rectangle 35:200/RND(45, 45)_2 (3)', context),
+      'Rectangle35:200/45_2(3)',
+    );
+    expect(
+      service.resolveShape('Rectangle 35:200/45 (-1)', context),
+      'Rectangle35:200/45(-1)',
+    );
+  });
+
   testWidgets('a forbidden shape intercepts only the finger it crosses once', (
     tester,
   ) async {
@@ -249,6 +271,172 @@ void main() {
     expect(game.penalties, isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final keepUnrelatedEffect in [false, true]) {
+    testWidgets(
+      'Stage 4 M3 advances through Wait 0'
+      '${keepUnrelatedEffect ? ' with an unrelated effect running' : ''}',
+      (tester) async {
+        final messenger = tester.binding.defaultBinaryMessenger;
+        const audio = 'xyz.luan/audioplayers';
+        for (final name in ['$audio.global', '$audio.global/events']) {
+          messenger.setMockMethodCallHandler(MethodChannel(name), (_) async => null);
+        }
+        messenger.setMockMethodCallHandler(const MethodChannel(audio), (call) async {
+          if (call.method == 'create') {
+            final id = (call.arguments as Map)['playerId'];
+            messenger.setMockMethodCallHandler(
+              MethodChannel('$audio/events/$id'),
+              (_) async => null,
+            );
+          }
+          return null;
+        });
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(393, 852);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final game = await _startGame(tester);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'figureout.audio-preferences.v1',
+          '{"all":false,"effects":false,"bgm":false}',
+        );
+        // Warm the sprite cache outside fake time, as the real mission loads
+        // assets asynchronously. The mission removes the warm-up triangle.
+        await _spawn(tester, game, 'Triangle', Vector2(400, 300), 1);
+
+        EnemyData wait(String command) => EnemyData(
+          command: 'wait',
+          shape: command,
+          movement: '',
+          position: '',
+          mission: 3,
+          energy: 1,
+          darkYN: false,
+        );
+        EnemyData triangle(String movement, {bool dark = false}) => EnemyData(
+          command: 'e',
+          shape: dark ? 'Triangle4 (-1)' : 'Triangle4 (1)',
+          movement: movement,
+          position: '(0, 0)',
+          mission: 3,
+          energy: dark ? -1 : 1,
+          darkYN: dark,
+          zOrder: dark ? ShapeZOrder.top : ShapeZOrder.normal,
+          attackSeconds: dark ? null : 3,
+          attackDamage: dark ? null : -10,
+        );
+        final mission = StageData(
+          name: 'Stage 4',
+          reward: '',
+          timeLimit: '40',
+          missions: {
+            3: [
+              triangle('', dark: true),
+              wait('Wait 2'),
+              triangle('Z(-125, 0, 1000)'),
+              triangle('Z(125, 0, 1000)'),
+              wait('Wait 0'),
+              triangle('', dark: true),
+              wait('Wait 2'),
+              triangle('Z(0, 125, 1000)'),
+              triangle('Z(0, -125, 1000)'),
+              wait('Wait 0'),
+              triangle('', dark: true),
+              wait('Wait 2'),
+              for (final x in [-125, 125])
+                for (final y in [-125, 125]) triangle('Z($x, $y, 1000)'),
+            ],
+          },
+          missionTimeLimits: const {3: 40},
+          missionTitle: const {3: 'Dakota'},
+          missionIsBoss: const {},
+        );
+        Iterable<TriangleShape> targets() =>
+            game.children.whereType<TriangleShape>().where((s) => !s.isDark);
+        TriangleShape obstacle() =>
+            game.children.whereType<TriangleShape>().singleWhere((s) => s.isDark);
+        Future<void> enclose(TriangleShape shape) async {
+          final center = shape.absoluteCenter;
+          final radius = shape.getTriangleVertices()
+              .map((corner) => corner.distanceTo(center))
+              .reduce(math.max) + 14;
+          await _drag(tester, [
+            for (var i = 0; i <= 32; i++)
+              Offset(
+                center.x + radius * math.cos(i * math.pi / 16),
+                center.y + radius * math.sin(i * math.pi / 16),
+              ),
+          ]);
+          expect(shape.wasRemovedByUser, isTrue);
+        }
+
+        // Mission delays use wall time and Z waits for a Flame mount. Pump
+        // frames alongside the real async mission so both can advance.
+        Future<void> advanceMission(int milliseconds) async {
+          final elapsed = Stopwatch()..start();
+          var previous = Duration.zero;
+          while (elapsed.elapsedMilliseconds < milliseconds) {
+            await tester.runAsync(
+              () => Future<void>.delayed(const Duration(milliseconds: 16)),
+            );
+            final now = elapsed.elapsed;
+            await tester.pump(now - previous);
+            previous = now;
+          }
+        }
+
+        late Future<StageResult> result;
+        await tester.runAsync(() async {
+          result = game.runSingleMissions(mission, 3);
+        });
+        await advanceMission(2450);
+        final first = targets().toList();
+        expect(first, hasLength(2));
+        final firstObstacle = obstacle();
+        final unrelated = MoveEffect.to(
+          Vector2(-100, 0),
+          EffectController(duration: 15),
+        );
+        if (keepUnrelatedEffect) {
+          await game.add(PositionComponent(children: [unrelated]));
+          await tester.pump();
+        }
+
+        for (final shape in first) {
+          await enclose(shape);
+        }
+        await advanceMission(1250);
+        expect(targets(), isEmpty);
+        expect(obstacle(), isNot(same(firstObstacle)));
+        await advanceMission(1900);
+        final second = targets().toList();
+        expect(second, hasLength(2));
+        expect(second.every((shape) => (shape.x - obstacle().x).abs() < 1), isTrue);
+
+        final secondObstacle = obstacle();
+        for (final shape in second) {
+          await enclose(shape);
+        }
+        await advanceMission(3300);
+        final third = targets().toList();
+        expect(third, hasLength(4));
+        expect(obstacle(), isNot(same(secondObstacle)));
+        if (keepUnrelatedEffect) expect(unrelated.isMounted, isTrue);
+        for (final shape in third) {
+          await enclose(shape);
+        }
+        await advanceMission(1300);
+        expect(
+          await tester.runAsync(() => result.timeout(const Duration(seconds: 2))),
+          StageResult.success,
+        );
+        expect(game.penalties, isEmpty);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
 
   testWidgets('Wait, Z, Back returns to spawn and waits before repeating', (
     tester,

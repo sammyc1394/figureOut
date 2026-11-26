@@ -21,6 +21,10 @@ class SheetService {
     r'\bZ\(\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*,\s*((?:[^(),]+|\([^()]*\))*)\s*\)',
   );
 
+  static final RegExp _rectangleRandomAngleRegex = RegExp(
+    r'/((?:RD|RND)\(-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?\))',
+  );
+
   SheetService()
       : sheetId = dotenv.env['GOOGLESHEETID'] ?? '',
         apiKey = dotenv.env['GOOGLESHEETAPIKEY'] ?? '';
@@ -408,6 +412,12 @@ class SheetService {
 
   String resolveShape(String rawShape, RandomContext ctx) {
     rawShape = rawShape.replaceAll(RegExp(r'\s+'), '');
+    if (rawShape.startsWith('Rectangle')) {
+      rawShape = rawShape.replaceFirstMapped(_rectangleRandomAngleRegex, (match) {
+        final angle = resolveRandom(match.group(1)!, URDField.size, ctx);
+        return '/$angle';
+      });
+    }
 
     final underscoreIndex = rawShape.indexOf('_');
 

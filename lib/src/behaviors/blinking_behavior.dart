@@ -24,8 +24,6 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
   bool get willReappear => !_visible && !isRemoving && !shape.isRemoving;
   bool isPaused = false;
 
-  // 표시 시간의 앞/뒤 40%를 페이드에 사용하고, 가운데 20%는 완전히 표시한다.
-  static const double _fadeFraction = 0.4;
   double? _lastAlpha;
 
   BlinkingBehaviorComponent({
@@ -115,7 +113,7 @@ class BlinkingBehaviorComponent extends Component with HasGameReference {
       return;
     }
 
-    final fadeDuration = visibleDuration * _fadeFraction;
+    final fadeDuration = visibleDuration * 0.2;
     if (_timer < fadeDuration) {
       _setAlpha(_smoothAlpha(_timer / fadeDuration));
     } else if (_timer > visibleDuration - fadeDuration) {
